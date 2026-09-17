@@ -79,19 +79,89 @@ export function buildThroughline(opts) {
   glow.appendChild(el('stop', { offset: '0', 'stop-color': '#f6e2ab', 'stop-opacity': '0.62' }));
   glow.appendChild(el('stop', { offset: '1', 'stop-color': '#d9b268', 'stop-opacity': '0' }));
   defs.appendChild(glow);
+
+  /* ---- 金属质感滤镜 ----------------------------------------------------
+     光靠渐变出不来金属，因为金属的特征是"随表面朝向改变明暗"。
+     所以用 feTurbulence 造一个表面高度场，再用 feSpecularLighting 打光 ——
+     亮的地方是反光，暗的地方是背光，中间起伏是磨损颗粒。
+     这是 SVG 里唯一能做出真金属的路子。 */
+  const metal = el('filter', {
+    id: 'tlMetal', x: '-30%', y: '-30%', width: '160%', height: '160%',
+    'color-interpolation-filters': 'sRGB',
+  });
+  // 表面高度场：分形噪声，越细越像打磨过的金属
+  metal.appendChild(el('feTurbulence', {
+    type: 'fractalNoise', baseFrequency: '0.9 0.035',
+    numOctaves: '3', seed: '7', result: 'grain',
+  }));
+  // 打光：远景方向的光，高光偏暖金
+  const spec = el('feSpecularLighting', {
+    in: 'grain', surfaceScale: '2.4', specularConstant: '1.05',
+    specularExponent: '16', lightingColor: '#ffeec2', result: 'spec',
+  });
+  spec.appendChild(el('fePointLight', { x: '-60', y: '-120', z: '190' }));
+  metal.appendChild(spec);
+  // 只留高光，叠回原色上
+  metal.appendChild(el('feComposite', {
+    in: 'spec', in2: 'SourceGraphic', operator: 'in', result: 'specClip',
+  }));
+  metal.appendChild(el('feComposite', {
+    in: 'specClip', in2: 'SourceGraphic', operator: 'arithmetic',
+    k1: '0', k2: '1', k3: '0.95', k4: '0',
+  }));
+  defs.appendChild(metal);
+
+  /* 金丝的横向明暗：模拟圆柱反光。
+     一条金属丝不是均匀的，靠中心最亮、两边压暗，
+     这一层叠在主线下面，丝才有"圆"的感觉。 */
+  const round = el('linearGradient', {
+    id: 'tlRound', x1: '0', y1: '0', x2: '1', y2: '0',
+  });
+  [
+    ['0', '#3a2c11', '0.85'],
+    ['0.28', '#a8802f', '0.9'],
+    ['0.46', '#ffeec2', '1'],
+    ['0.62', '#d9b268', '0.95'],
+    ['1', '#2e230d', '0.85'],
+  ].forEach(([off, col, op]) => {
+    round.appendChild(el('stop', { offset: off, 'stop-color': col, 'stop-opacity': op }));
+  });
+  defs.appendChild(round);
+
+  /* 音头的金色：从左上到右下的斜向渐变，加一圈暗边。
+     符头是"实心金属块"，所以要的是块面反光，不是丝状明暗。 */
+  const headGrad = el('linearGradient', {
+    id: 'tlHead', x1: '0.1', y1: '0', x2: '0.9', y2: '1',
+  });
+  [
+    ['0', '#ffeec2', '1'],
+    ['0.22', '#e8c98f', '1'],
+    ['0.5', '#a8802f', '1'],
+    ['0.72', '#d9b268', '1'],
+    ['1', '#5a4318', '1'],
+  ].forEach(([off, col, op]) => {
+    headGrad.appendChild(el('stop', { offset: off, 'stop-color': col, 'stop-opacity': op }));
+  });
+  defs.appendChild(headGrad);
   svg.appendChild(defs);
 
-  /* 叠四层出"金丝"：
+  /* 叠五层出"金丝"：
        shadow  极暗的底，让丝从背景里浮起来
+       round   横向明暗（圆柱反光），丝有"圆"的感觉
        sleeve  稍粗的暖衬，做出金属的厚度
-       path    主线（多段金渐变）
+       path    主线（多段金渐变 + 金属高光滤镜）
        sheen   沿丝流动的高光
      再加一个走针。 */
   const shadow = el('path', { class: 'tl__shadow', fill: 'none' });
+  const roundL = el('path', { class: 'tl__round', fill: 'none', stroke: 'url(#tlRound)' });
   const sleeve = el('path', { class: 'tl__sleeve', fill: 'none' });
-  const path = el('path', { class: 'tl__path', fill: 'none', stroke: 'url(#tlGrad)' });
+  const path = el('path', {
+    class: 'tl__path', fill: 'none',
+    stroke: 'url(#tlGrad)', filter: 'url(#tlMetal)',
+  });
   const sheen = el('path', { class: 'tl__sheen', fill: 'none', stroke: 'url(#tlSheen)' });
   svg.appendChild(shadow);
+  svg.appendChild(roundL);
   svg.appendChild(sleeve);
   svg.appendChild(path);
   svg.appendChild(sheen);
@@ -108,11 +178,16 @@ export function buildThroughline(opts) {
   endG.appendChild(el('circle', { r: 4.5, class: 'tl__enddot' }));
   svg.appendChild(endG);
 
-  // 音头：椭圆符头。
+  // 音头：椭圆符头 + 一块高光。
   // 不另画符干 —— 那条曲线本身就是符干，"一个音符往下拖出长线"这件事
   // 才读得出来；再画一根独立的干，会变成"一根线 + 一个音符"两个东西。
   const headG = el('g', { class: 'tl__head' });
-  const head = el('ellipse', { rx: 14.5, ry: 10.6, class: 'tl__headshape' });
+  const head = el('ellipse', { rx: 15.5, ry: 11.4, class: 'tl__headshape', filter: 'url(#tlMetal)' });
+  headG.appendChild(head);
+  // 高光：一小片偏左上，金属的"亮点"就在这
+  headG.appendChild(el('ellipse', {
+    rx: 5.2, ry: 3.1, cx: -4.2, cy: -3.4, class: 'tl__headspec',
+  }));
   headG.appendChild(head);
   svg.appendChild(headG);
 
@@ -187,7 +262,7 @@ export function buildThroughline(opts) {
     if (!total || total < 10) {
       try { total = path.getTotalLength(); } catch { total = 2000; }
       // 已经画出来的部分：实线 dash
-      [shadow, sleeve, path].forEach((el2) => {
+      [shadow, roundL, sleeve, path].forEach((el2) => {
         el2.style.strokeDasharray = total + ' ' + total;
       });
       /* 流动高光：一小段亮斑（约丝长的 7%），靠负的 dashoffset 往前跑。
@@ -197,7 +272,7 @@ export function buildThroughline(opts) {
     }
 
     if (reduced) {
-      [shadow, sleeve, path].forEach((el2) => { el2.style.strokeDashoffset = '0'; });
+      [shadow, roundL, sleeve, path].forEach((el2) => { el2.style.strokeDashoffset = '0'; });
       sheen.style.opacity = '0';
       beadG.style.opacity = '0';
       endG.style.opacity = '1';
@@ -206,6 +281,7 @@ export function buildThroughline(opts) {
 
     const off = total * (1 - p);
     shadow.style.strokeDashoffset = off.toFixed(1);
+    roundL.style.strokeDashoffset = off.toFixed(1);
     sleeve.style.strokeDashoffset = off.toFixed(1);
     path.style.strokeDashoffset = off.toFixed(1);
 

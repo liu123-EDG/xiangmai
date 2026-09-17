@@ -175,9 +175,10 @@ const PARTS = {
     tone: PART_TONE.dastan,
     order: '三段中的第二段',
     mood: '叙事 · 铺陈',
-    lead: '达斯坦承接大曲，带有鲜明的叙事特征。' +
-          '歌词与民间故事、爱情传说、人生感怀相联系，' +
-          '演唱段落之间穿插器乐曲——唱一段，奏一段，再唱一段。',
+    lead: '达斯坦是十二木卡姆的第二部分，核心是「叙事」。' +
+          '它的波斯语原意就是「故事」「叙事长诗」，' +
+          '在维吾尔木卡姆语境中，特指以说唱相间形式表演的叙事歌曲套曲。' +
+          '它不是单一情绪的展开，而是一条不断加速的叙事线。',
     stats: [
       { v: '二', unit: '', label: '三段中的第二部分' },
       { v: '唱·奏·唱', unit: '', label: '演唱与器乐交替' },
@@ -185,30 +186,83 @@ const PARTS = {
     ],
     sections: [
       {
-        title: '从抒情转向讲故事',
+        title: '什么是「达斯坦」',
         body: [
-          '如果说穹乃额曼是在铺开一种气质，达斯坦就是在讲一件具体的事。' +
-          '它的歌词与民间故事、爱情传说、人生感怀相连，' +
-          '篇幅更长，句子更密，唱的人要一边记词一边记腔。',
-          '演唱段落之间穿插器乐曲——器乐不是伴奏，是段落之间的过渡与呼吸。' +
-          '所以达斯坦的听感是"唱一段、奏一段、再唱一段"，一段一段往前推。',
+          '达斯坦是十二木卡姆的第二部分，核心是<strong>「叙事」</strong>。',
+          '它的波斯语原意就是「故事」「叙事长诗」，在维吾尔木卡姆语境中，' +
+          '特指以<strong>说唱相间</strong>形式表演的叙事歌曲套曲。',
         ],
       },
       {
-        images: [{
-          src: '../assets/img/dastan/section-1.jpg',
-          label: '图片位 · 建议 16:9（约 1600×900）',
-          ratio: '16 / 9',
-          caption: '图注位 · 说明图片内容与来源',
-        }],
+        title: '段落构成：叙事歌曲 —— 器乐间奏曲',
+        body: [
+          '达斯坦的结构是「叙事歌曲—器乐间奏曲」的循环推进。' +
+          '每套木卡姆的达斯坦部分由 <strong>3 至 5 首</strong>节拍与速度不同的叙事歌曲组成，' +
+          '中间插入民间器乐间奏曲（维吾尔语称<strong>「迈尔乎里」</strong>），' +
+          '整体<strong>开始稍慢，逐渐加快，直到兴奋愉快地结束</strong>。',
+          '这种结构决定了达斯坦区别于穹乃额曼和麦西热甫的根本特征：' +
+          '<strong>它不是单一情绪的展开，而是一条不断加速的叙事线</strong>。' +
+          '穹乃额曼是盘旋游移的，麦西热甫是开场即欢腾的；' +
+          '达斯坦则从沉缓的叙述起步，每一首歌曲和每一段间奏曲都把情绪往前推一步，' +
+          '最后达到高潮收束。',
+        ],
       },
       {
-        title: '待补',
-        pending: [
-          '常唱的曲目与实际唱法',
-          '长诗从哪里来、唱哪些故事',
-          '器乐间奏用什么乐器、什么形制',
-          '聆听要点：听什么、怎么听',
+        title: '主要乐器及角色',
+        body: [
+          '达斯坦的表演形态是典型的<strong>弹唱</strong>，主演者被称为<strong>「达斯坦奇」</strong>。',
+          '<strong>主演者</strong>手持热瓦甫、都它尔、弹布尔或萨塔尔中的一件，' +
+          '<strong>自弹自唱</strong>。<strong>助演者</strong>（1 至 2 人）持手鼓、石片或萨巴依击节，' +
+          '或不持乐器帮腔助唱。常见组合以热瓦甫和都它尔为主。',
+          '乐器在达斯坦中的角色与穹乃额曼有本质差异。' +
+          '穹乃额曼的萨塔尔是「定调者」，器乐跟随人声叙唱；' +
+          '达斯坦的乐器则是<strong>叙事的直接载体</strong>——' +
+          '达斯坦奇弹着热瓦甫讲故事，<strong>乐器就是他说唱的工具本身</strong>。' +
+          '器乐间奏曲（迈尔乎里）的插入，让达斯坦奇在长篇叙事中获得呼吸间隙，' +
+          '同时以纯器乐推进情绪。',
+        ],
+      },
+      {
+        title: '调式与律制特点',
+        body: [
+          '达斯坦的音乐建立在南疆木卡姆总体调式体系之上。' +
+          '其突出特征是<strong>调式、调性的频繁变化</strong>，常用手法包括' +
+          '<strong>同主音不同调式的交替与转换</strong>，以及' +
+          '<strong>前后主音互为五度关系的交替与转换</strong>。' +
+          '这种变化服务于叙事内容的情绪起伏——爱情段落柔和，冲突段落紧张，英雄段落激昂。',
+          '与穹乃额曼大量使用四分中立音形成的「游移感」不同，' +
+          '达斯坦的旋律线条<strong>更接近语言本身</strong>。' +
+          '它的叙事性要求「让人听懂故事」，因此旋律往往比穹乃额曼更平实、' +
+          '更贴近维吾尔语的自然语调，抒情性则体现在情绪转折的关键句上。',
+        ],
+      },
+      {
+        title: '唱词与文学特征',
+        body: [
+          '达斯坦的唱词是多段体分节歌式结构。' +
+          '一部达斯坦作品包含<strong>十几首至几十首</strong>唱词，每首又分几段至十几段。',
+          '主要文体包括：<strong>「穆斯塔扎特」</strong>（每段两句，A、B、A、B 式腰脚韵）、' +
+          '<strong>「艾在尔」</strong>（每段四句，首段句句押韵，后续段双句押韵）、' +
+          '<strong>「莫亥麦斯」</strong>（每段五句，首段句句押韵，' +
+          '后续段前四句押另韵、末句归原韵）。',
+          '唱词散韵结合，叙事与抒情融为一体，善于穿插民间故事、神话传说。' +
+          '代表性作品包括《艾里甫与赛乃姆》《玉素甫·艾卖提》《阿不都热合曼汗·霍加》等。',
+        ],
+      },
+      {
+        title: '聆听要点',
+        body: [
+          '达斯坦的「好听」不在音色的游移，在<strong>「故事被唱出来」的推进感</strong>。',
+          '<strong>先听达斯坦奇开口的第一句。</strong>' +
+          '他不是在「唱一首歌」，是在「讲一件事」。注意语气——' +
+          '叙事歌曲的旋律线条比穹乃额曼更平实、更接近语言，因为它的任务是让人听懂。',
+          '<strong>再听歌曲与间奏曲的交替节奏。</strong>' +
+          '歌曲是「说」，间奏曲是「歇并推进」。迈尔乎里不是装饰，它是情绪的推进器。' +
+          '注意每段间奏曲是否比前面的歌曲更往前一步。',
+          '<strong>最后听整体速度的爬升。</strong>' +
+          '达斯坦从稍慢起步，一首一首往上推，到最后一首叙事歌时情绪已相当高涨，' +
+          '最后以一句散板收束。这种「渐强式」的叙事推进，' +
+          '是达斯坦区别于穹乃额曼（盘旋游移）和麦西热甫（开场即欢腾）最明显的听觉标志。',
         ],
       },
     ],
@@ -2358,19 +2412,89 @@ function buildThroughline(opts) {
   glow.appendChild(el('stop', { offset: '0', 'stop-color': '#f6e2ab', 'stop-opacity': '0.62' }));
   glow.appendChild(el('stop', { offset: '1', 'stop-color': '#d9b268', 'stop-opacity': '0' }));
   defs.appendChild(glow);
+
+  /* ---- 金属质感滤镜 ----------------------------------------------------
+     光靠渐变出不来金属，因为金属的特征是"随表面朝向改变明暗"。
+     所以用 feTurbulence 造一个表面高度场，再用 feSpecularLighting 打光 ——
+     亮的地方是反光，暗的地方是背光，中间起伏是磨损颗粒。
+     这是 SVG 里唯一能做出真金属的路子。 */
+  const metal = el('filter', {
+    id: 'tlMetal', x: '-30%', y: '-30%', width: '160%', height: '160%',
+    'color-interpolation-filters': 'sRGB',
+  });
+  // 表面高度场：分形噪声，越细越像打磨过的金属
+  metal.appendChild(el('feTurbulence', {
+    type: 'fractalNoise', baseFrequency: '0.9 0.035',
+    numOctaves: '3', seed: '7', result: 'grain',
+  }));
+  // 打光：远景方向的光，高光偏暖金
+  const spec = el('feSpecularLighting', {
+    in: 'grain', surfaceScale: '2.4', specularConstant: '1.05',
+    specularExponent: '16', lightingColor: '#ffeec2', result: 'spec',
+  });
+  spec.appendChild(el('fePointLight', { x: '-60', y: '-120', z: '190' }));
+  metal.appendChild(spec);
+  // 只留高光，叠回原色上
+  metal.appendChild(el('feComposite', {
+    in: 'spec', in2: 'SourceGraphic', operator: 'in', result: 'specClip',
+  }));
+  metal.appendChild(el('feComposite', {
+    in: 'specClip', in2: 'SourceGraphic', operator: 'arithmetic',
+    k1: '0', k2: '1', k3: '0.95', k4: '0',
+  }));
+  defs.appendChild(metal);
+
+  /* 金丝的横向明暗：模拟圆柱反光。
+     一条金属丝不是均匀的，靠中心最亮、两边压暗，
+     这一层叠在主线下面，丝才有"圆"的感觉。 */
+  const round = el('linearGradient', {
+    id: 'tlRound', x1: '0', y1: '0', x2: '1', y2: '0',
+  });
+  [
+    ['0', '#3a2c11', '0.85'],
+    ['0.28', '#a8802f', '0.9'],
+    ['0.46', '#ffeec2', '1'],
+    ['0.62', '#d9b268', '0.95'],
+    ['1', '#2e230d', '0.85'],
+  ].forEach(([off, col, op]) => {
+    round.appendChild(el('stop', { offset: off, 'stop-color': col, 'stop-opacity': op }));
+  });
+  defs.appendChild(round);
+
+  /* 音头的金色：从左上到右下的斜向渐变，加一圈暗边。
+     符头是"实心金属块"，所以要的是块面反光，不是丝状明暗。 */
+  const headGrad = el('linearGradient', {
+    id: 'tlHead', x1: '0.1', y1: '0', x2: '0.9', y2: '1',
+  });
+  [
+    ['0', '#ffeec2', '1'],
+    ['0.22', '#e8c98f', '1'],
+    ['0.5', '#a8802f', '1'],
+    ['0.72', '#d9b268', '1'],
+    ['1', '#5a4318', '1'],
+  ].forEach(([off, col, op]) => {
+    headGrad.appendChild(el('stop', { offset: off, 'stop-color': col, 'stop-opacity': op }));
+  });
+  defs.appendChild(headGrad);
   svg.appendChild(defs);
 
-  /* 叠四层出"金丝"：
+  /* 叠五层出"金丝"：
        shadow  极暗的底，让丝从背景里浮起来
+       round   横向明暗（圆柱反光），丝有"圆"的感觉
        sleeve  稍粗的暖衬，做出金属的厚度
-       path    主线（多段金渐变）
+       path    主线（多段金渐变 + 金属高光滤镜）
        sheen   沿丝流动的高光
      再加一个走针。 */
   const shadow = el('path', { class: 'tl__shadow', fill: 'none' });
+  const roundL = el('path', { class: 'tl__round', fill: 'none', stroke: 'url(#tlRound)' });
   const sleeve = el('path', { class: 'tl__sleeve', fill: 'none' });
-  const path = el('path', { class: 'tl__path', fill: 'none', stroke: 'url(#tlGrad)' });
+  const path = el('path', {
+    class: 'tl__path', fill: 'none',
+    stroke: 'url(#tlGrad)', filter: 'url(#tlMetal)',
+  });
   const sheen = el('path', { class: 'tl__sheen', fill: 'none', stroke: 'url(#tlSheen)' });
   svg.appendChild(shadow);
+  svg.appendChild(roundL);
   svg.appendChild(sleeve);
   svg.appendChild(path);
   svg.appendChild(sheen);
@@ -2387,11 +2511,16 @@ function buildThroughline(opts) {
   endG.appendChild(el('circle', { r: 4.5, class: 'tl__enddot' }));
   svg.appendChild(endG);
 
-  // 音头：椭圆符头。
+  // 音头：椭圆符头 + 一块高光。
   // 不另画符干 —— 那条曲线本身就是符干，"一个音符往下拖出长线"这件事
   // 才读得出来；再画一根独立的干，会变成"一根线 + 一个音符"两个东西。
   const headG = el('g', { class: 'tl__head' });
-  const head = el('ellipse', { rx: 14.5, ry: 10.6, class: 'tl__headshape' });
+  const head = el('ellipse', { rx: 15.5, ry: 11.4, class: 'tl__headshape', filter: 'url(#tlMetal)' });
+  headG.appendChild(head);
+  // 高光：一小片偏左上，金属的"亮点"就在这
+  headG.appendChild(el('ellipse', {
+    rx: 5.2, ry: 3.1, cx: -4.2, cy: -3.4, class: 'tl__headspec',
+  }));
   headG.appendChild(head);
   svg.appendChild(headG);
 
@@ -2466,7 +2595,7 @@ function buildThroughline(opts) {
     if (!total || total < 10) {
       try { total = path.getTotalLength(); } catch { total = 2000; }
       // 已经画出来的部分：实线 dash
-      [shadow, sleeve, path].forEach((el2) => {
+      [shadow, roundL, sleeve, path].forEach((el2) => {
         el2.style.strokeDasharray = total + ' ' + total;
       });
       /* 流动高光：一小段亮斑（约丝长的 7%），靠负的 dashoffset 往前跑。
@@ -2476,7 +2605,7 @@ function buildThroughline(opts) {
     }
 
     if (reduced) {
-      [shadow, sleeve, path].forEach((el2) => { el2.style.strokeDashoffset = '0'; });
+      [shadow, roundL, sleeve, path].forEach((el2) => { el2.style.strokeDashoffset = '0'; });
       sheen.style.opacity = '0';
       beadG.style.opacity = '0';
       endG.style.opacity = '1';
@@ -2485,6 +2614,7 @@ function buildThroughline(opts) {
 
     const off = total * (1 - p);
     shadow.style.strokeDashoffset = off.toFixed(1);
+    roundL.style.strokeDashoffset = off.toFixed(1);
     sleeve.style.strokeDashoffset = off.toFixed(1);
     path.style.strokeDashoffset = off.toFixed(1);
 

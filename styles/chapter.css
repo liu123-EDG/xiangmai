@@ -385,30 +385,37 @@ body.has-parallax .act__inner::before {
   overflow: visible;
 }
 
-/* 金丝：暗底 + 暖衬 + 多段金主线 + 流动高光，叠出金属的厚度。
-   单靠一个金色只会是"一条黄线"，四层叠起来才有丝的感觉。 */
+/* 金丝：暗底 + 圆柱明暗 + 暖衬 + 金属主线 + 流动高光。
+   单靠一个金色只会是"一条黄线"；金属的特征是随表面朝向改变明暗，
+   所以主线挂了 feSpecularLighting 滤镜，下面又垫了一层横向明暗。 */
 .tl__shadow {
-  stroke: rgba(6, 5, 4, 0.78);
-  stroke-width: 7;
+  stroke: rgba(6, 5, 4, 0.8);
+  stroke-width: 8;
   stroke-linecap: round;
-  filter: blur(1.6px);
+  filter: blur(1.8px);
 }
-.tl__sleeve {
-  stroke: rgba(138, 106, 46, 0.52);
-  stroke-width: 4.2;
-  stroke-linecap: round;
-  filter: blur(0.7px);
-}
-.tl__path {
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 6px rgba(217, 178, 104, 0.5));
-}
-.tl__sheen {
-  stroke-width: 2.4;
+.tl__round {
+  stroke-width: 4.6;
   stroke-linecap: round;
   opacity: 0.9;
-  filter: blur(0.4px);
+  filter: blur(0.5px);
+}
+.tl__sleeve {
+  stroke: rgba(90, 67, 24, 0.55);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  filter: blur(1.1px);
+}
+.tl__path {
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(217, 178, 104, 0.45));
+}
+.tl__sheen {
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+  filter: blur(0.5px);
 }
 
 /* 走针：沿丝前进的光点 */
@@ -418,11 +425,17 @@ body.has-parallax .act__inner::before {
   filter: drop-shadow(0 0 7px rgba(246, 226, 171, 0.95));
 }
 
+/* 音头：一块金属，不是一片颜色。
+   斜向渐变 + 金属滤镜 + 一小片高光，三样缺一就像贴纸。 */
 .tl__headshape {
-  fill: url(#tlGrad);
-  stroke: rgba(6, 5, 4, 0.55);
-  stroke-width: 1;
-  filter: drop-shadow(0 0 12px rgba(217, 178, 104, 0.62));
+  fill: url(#tlHead);
+  stroke: rgba(40, 28, 8, 0.75);
+  stroke-width: 0.9;
+  filter: drop-shadow(0 0 12px rgba(217, 178, 104, 0.6)) url(#tlMetal);
+}
+.tl__headspec {
+  fill: rgba(255, 249, 230, 0.9);
+  filter: blur(1.6px);
 }
 .tl__head { transition: opacity 1.2s var(--ease-slow); }
 
