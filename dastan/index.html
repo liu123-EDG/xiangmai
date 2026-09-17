@@ -23,10 +23,16 @@
 <canvas class="air" id="air" aria-hidden="true"></canvas>
 <div class="fallback-ember" aria-hidden="true"></div>
 
+<!-- 滚动视差背景：层由 tools/slice.py 生成，js/pages/dastan.js 装配 -->
+<div class="px" id="px" aria-hidden="true"></div>
+
 <main>
   <section class="chapter-hero" id="part-hero" data-act="0"></section>
   <section class="plate-act" id="part-hero-image" data-act="1"></section>
-  <div id="part-body"></div>
+  <!-- 视差进度的参照：整章正文都算在里面，滑过它 = 三个场景走完 -->
+  <div id="px-anchor">
+    <div id="part-body"></div>
+  </div>
   <nav class="chapter-nav" aria-label="章节导航"></nav>
 </main>
 

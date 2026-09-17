@@ -296,6 +296,71 @@ p.body b {
 }
 
 /* --------------------------------------------------------------------------
+   2b. 滚动视差场景
+   --------------------------------------------------------------------------
+   层是 position:fixed 铺满视口的，滚动时各自位移产生纵深。
+   场景之间用透明度交叉淡化，不做 display 切换（否则会闪）。
+   这些层压在空气层之上、正文之下。
+   -------------------------------------------------------------------------- */
+.px {
+  position: fixed;
+  inset: 0;
+  z-index: 1;                     /* 空气层是 0，正文是 2 */
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--ink-900);
+}
+.px:empty { display: none; }
+
+.px__scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+}
+.px__scene::after {
+  /* 压一层暗调，保证正文始终读得清 */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--px-tint, rgba(8, 7, 6, 0.62));
+}
+
+.px__layer {
+  position: absolute;
+  inset: -6% -3%;                 /* 留出位移余量，免得移动时露出边缘 */
+  width: 106%;
+  height: 112%;
+  object-fit: cover;
+  will-change: transform;
+  user-select: none;
+}
+
+/* 视差层存在时，章节页的实时背景退到很淡，省算力也免得打架 */
+body.has-parallax .air { opacity: 0.28; }
+body.has-parallax .fallback-ember { display: none; }
+
+/* 有视差背景时，正文区不再需要图片槽那块底色（会变成一块亮斑） */
+body.has-parallax figure.slot {
+  background: rgba(10, 9, 8, 0.30);
+  border-color: rgba(222, 214, 200, 0.07);
+}
+
+/* 视差背景存在时，正文自己带一点底，保证任何画面上都读得清 */
+body.has-parallax .act__inner {
+  position: relative;
+}
+body.has-parallax .act__inner::before {
+  content: "";
+  position: absolute;
+  inset: -8% -6%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(78% 62% at 50% 50%,
+    rgba(8, 7, 6, 0.62) 0%, rgba(8, 7, 6, 0.30) 58%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* --------------------------------------------------------------------------
    4. 时间轴（历史渊源）
    -------------------------------------------------------------------------- */
 .timeline {
