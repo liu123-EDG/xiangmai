@@ -140,6 +140,58 @@ try {
   if (full.count === max) ok('可以加到满圈（' + max + ' 人）'); else bad('满圈人数 = ' + full.count);
   if (parseFloat(full.heat) > 0.95) ok('满圈时热度拉满'); else bad('满圈热度 = ' + full.heat);
 
+  // 庆祝动画：满圈时冲击波应当真的动起来
+  const fx0 = JSON.parse(await evalJs(`(() => {
+    const w = document.querySelectorAll('.mq__wave');
+    return JSON.stringify({
+      waves: w.length,
+      sparks: document.querySelectorAll('.mq__spark').length,
+      hasFlash: !!document.querySelector('.mq__flash'),
+      r: w[0] ? Math.round(Number(w[0].getAttribute('r'))) : -1,
+      op: w[0] ? Number(w[0].getAttribute('opacity') || 0) : -1,
+    });
+  })()`));
+  console.log('       庆祝层 ' + JSON.stringify(fx0));
+  if (fx0.waves === 3 && fx0.sparks === 36 && fx0.hasFlash) ok('庆祝层已就位（3 环 + 36 光点 + 闪光）');
+  else bad('庆祝层不完整：' + JSON.stringify(fx0));
+
+  /* 爆开最亮的那一刻截图（约 0.6s），晚了就散了 */
+  await sleep(600);
+  const shotBurst = await send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(join(root, 'shots', 'mq-burst.png'), Buffer.from(shotBurst.result.data, 'base64'));
+
+  const fx1 = JSON.parse(await evalJs(`(() => {
+    const w = document.querySelectorAll('.mq__wave');
+    const sp = document.querySelector('.mq__spark');
+    const person = document.querySelector('.mq__person');
+    return JSON.stringify({
+      r: w[0] ? Math.round(Number(w[0].getAttribute('r'))) : -1,
+      op: w[0] ? +(Number(w[0].getAttribute('opacity') || 0)).toFixed(3) : -1,
+      sparkDist: sp ? Math.round(Math.hypot(Number(sp.getAttribute('cx')) - 280, Number(sp.getAttribute('cy')) - 280)) : -1,
+      hop: person ? person.style.getPropertyValue('--hop') : '',
+      flashOp: +(Number(document.querySelector('.mq__flash').getAttribute('opacity') || 0)).toFixed(3),
+    });
+  })()`));
+  console.log('       600ms 后 ' + JSON.stringify(fx1));
+  if (fx1.r > fx0.r) ok('冲击波在扩散（r ' + fx0.r + ' → ' + fx1.r + '）');
+  else bad('冲击波没有扩散：' + JSON.stringify({ fx0, fx1 }));
+  if (fx1.sparkDist > 200) ok('光点已飞散到 ' + fx1.sparkDist + 'px');
+  else bad('光点没飞出去：' + fx1.sparkDist);
+  if (fx1.op > 0.2) ok('冲击波可见（不透明度 ' + fx1.op + '）');
+  else bad('冲击波已经看不见了：' + fx1.op);
+
+  // 再等一会儿量人浪（衰减系数 1.1，约 0.9 秒时还在跳）
+  await sleep(350);
+  const hop = await evalJs(`(() => {
+    const ps = [...document.querySelectorAll('.mq__person')];
+    const vals = ps.map(p => parseFloat(p.style.getPropertyValue('--hop') || '0'));
+    return JSON.stringify({ max: +Math.max(...vals).toFixed(2), moving: vals.filter(v => v > 0.5).length });
+  })()`);
+  console.log('       人浪 ' + hop);
+  const hopObj = JSON.parse(hop);
+  if (hopObj.moving > 3) ok('人浪在跳（' + hopObj.moving + ' 个人离地，最高 ' + hopObj.max + 'px）');
+  else bad('人浪没动：' + hop);
+
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(root, 'shots', 'mq-full.png'), Buffer.from(shot.result.data, 'base64'));
 

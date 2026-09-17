@@ -31,6 +31,13 @@ if (host) {
   const circle = buildCircle({
     host,
     reduced: ctx.REDUCED,
+    // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
+    onFull: () => {
+      if (ctx.seq) ctx.seq.flourish();
+      if (ctx.renderer) {
+        ctx.renderer.patternZoom = 1.75;      // 纹样整体推近一下
+      }
+    },
     onChange: (n, max) => {
       const r = n / max;
       // 驱动背景纹样：人越多越亮、越推近

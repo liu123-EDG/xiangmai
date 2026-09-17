@@ -1282,6 +1282,23 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   text-anchor: middle;
 }
 
+/* 满圈庆祝：冲击波环 + 飞散光点 + 中心闪光。
+   平时全透明，由 js 在满圈时推进一次。 */
+.mq__fx { pointer-events: none; }
+.mq__flash { opacity: 0; }
+.mq__wave {
+  fill: none;
+  stroke: rgba(246, 226, 171, 0.9);
+  stroke-width: 1.6;
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(246, 226, 171, 0.7));
+}
+.mq__spark {
+  fill: #ffeec2;
+  opacity: 0;
+  filter: drop-shadow(0 0 5px rgba(246, 226, 171, 0.9));
+}
+
 .mq-readout {
   width: min(560px, 92vw);
   min-height: 4.6em;

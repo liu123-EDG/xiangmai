@@ -541,6 +541,46 @@ export class DapSequencer {  /**
       default: break;
     }
   }
+
+  /* ------------------------------------------------------------ 满圈一声
+     互动里的"圈满了"需要的不只是更密的鼓，是**一下子砸下来**。
+     所以另做一个：低频撞击 + 一记炸开的长镲 + 快速滚奏收尾。
+     不复用 _hit，因为它不是节奏里的一拍，是一次事件。 */
+  flourish() {
+    if (!this.ready || !this.enabled) return false;
+    const ctx = this.ctx;
+    const t0 = ctx.currentTime + 0.02;
+
+    // 1) 低频撞击：dum 加重、拖长
+    this._dum(t0, 0.62, 0.94);
+    this._dum(t0 + 0.005, 0.34, 0.86);
+
+    // 2) 炸开的长镲：高通噪声 + 很长的尾巴
+    const len = Math.floor(ctx.sampleRate * 1.6);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const x = i / len;
+      // 起音极快、衰减很长，像一记重镲
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - x, 2.2) * (1 - Math.exp(-x * 260));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 3600;
+    const g = ctx.createGain();
+    g.gain.value = 0.30;
+    src.connect(hp).connect(g).connect(this.bandGain);
+    src.start(t0);
+
+    // 3) 一串快速滚奏往上冲，收在最高点
+    for (let i = 0; i < 14; i++) {
+      const k = i / 13;
+      this._hit('snap', t0 + 0.30 + k * k * 0.62, 0.10 + k * 0.16, 1 + k * 0.10);
+    }
+    return true;
+  }
 }
 
 export { PATTERNS };
