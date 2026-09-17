@@ -330,8 +330,15 @@ async function boot() {
   if (hvHost && isDesktop() && !REDUCED) {
     heroVideo = buildHeroVideo({
       host: hvHost,
-      fadeStart: 0.015,      // 几乎一动就开始淡
-      fadeEnd: 0.16,         // 到 16% 完全让位给结构柱
+      /* 淡出阈值要**给足时间**。
+         早先 fadeStart 0.015 / fadeEnd 0.16 太激进：
+         整段 hero 有 3780px，0.16 只有 605px ——
+         用户一进来随手滚两下，视频还没播完第一段就被判为"让位"，
+         看起来就是"闪一下就没了"（踩过）。
+         现在放到 0.06 / 0.42（约 226px → 1587px），
+         至少能看完整一段（5 秒）再让位。 */
+      fadeStart: 0.06,
+      fadeEnd: 0.42,
       reduced: REDUCED,
     });
     document.body.classList.add('has-hero-video');

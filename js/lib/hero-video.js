@@ -73,6 +73,34 @@ export function buildHeroVideo(opts) {
     });
   }
 
+  /** 播一段，失败要**看得见**并且**会重试**。
+      早先写成 `p.catch(() => {})` —— 静默吞掉，
+      结果就是"层可见、视频就绪，但一直是 paused，黑着第一帧"，
+      而且控制台一个字都没有（踩过，查了很久）。 */
+  function tryPlay(v, tag) {
+    if (!v) return;
+    const p = v.play();
+    if (p && p.catch) {
+      p.catch((e) => {
+        if (window.console) {
+          console.warn('[弦脉] 概念片播放被拒（' + (tag || '') + '）：' + (e && e.name),
+            'readyState=' + v.readyState, 'paused=' + v.paused);
+        }
+        /* 多半是数据还没到（readyState 不够）或手势时机不对。
+           等 canplay 再试一次 —— 已经下了一部分的话很快就会到。 */
+        if (!v.dataset.retry) {
+          v.dataset.retry = '1';
+          v.addEventListener('canplay', () => {
+            const q = v.play();
+            if (q && q.catch) q.catch(() => {});
+          }, { once: true });
+          // 兜底：600ms 后不管怎样再试一次
+          setTimeout(() => { if (v.paused) { const q = v.play(); if (q && q.catch) q.catch(() => {}); } }, 600);
+        }
+      });
+    }
+  }
+
   function showClip(i) {
     if (i === curClip) return;
     curClip = i;
@@ -81,13 +109,26 @@ export function buildHeroVideo(opts) {
     // 从当前时钟位置接进去，保证画面和时间轴对齐
     const local = (performance.now() - t0) / 1000 - (i === 0 ? 0 : i === 1 ? T2 : T3);
     try { v.currentTime = Math.max(0, local % CLIP); } catch {}
-    const p = v.play();
-    if (p && p.catch) p.catch(() => {});
+    tryPlay(v, 'showClip' + i);
   }
 
   function tick() {
     if (!started) return;
     const t = (performance.now() - t0) / 1000;
+
+    /* 看门狗：该播却没播，就再推一把。
+       首段要下 9MB，play() 在缓冲到位前必定失败；
+       如果只靠 canplay 那一次补播，遇到网络慢、或者用户恰好在这期间
+       往下滚了一下，就会停在第一帧不动 —— 看起来就是"闪一下就没了"。
+       每 250ms 检查一次，成本可以忽略。 */
+    if (visible) {
+      const want = vids[curClip < 0 ? 0 : curClip];
+      if (want && want.paused && want.readyState >= 2 && !want.dataset.retryBusy) {
+        want.dataset.retryBusy = '1';
+        tryPlay(want, 'watchdog');
+        setTimeout(() => { delete want.dataset.retryBusy; }, 800);
+      }
+    }
 
     if (t >= LOOP_LEN) {
       // 回到开头：重启时钟，把第一段重新亮起来
@@ -114,13 +155,17 @@ export function buildHeroVideo(opts) {
     started = true;
     t0 = performance.now();
     mountAll();
-    const p = vids[0].play();
-    if (p && p.catch) p.catch(() => {});
+    tryPlay(vids[0], 'start');
     /* 用 setInterval 而不是 requestAnimationFrame 链：
        视频时钟不该跟着帧率走（掉帧会走慢），
        而且 rAF 在后台标签页或某些无头环境里会被节流甚至停掉 ——
        那样循环就不转了。250ms 对切镜头足够细。 */
     if (!timer) timer = setInterval(tick, 250);
+    /* 兜底：数据到位后如果还没播起来，再补一次。
+       移动网络下首段要几秒，这段时间里 play() 会一直失败。 */
+    vids[0].addEventListener('canplay', () => {
+      if (vids[0].paused && vids[0].classList.contains('on')) tryPlay(vids[0], 'canplay');
+    });
   };
 
   if (opts.reduced) {
@@ -147,7 +192,7 @@ export function buildHeroVideo(opts) {
       t0 += performance.now() - pausedAt;
       pausedAt = 0;
       const v = vids[curClip < 0 ? 0 : curClip];
-      if (v) { const p = v.play(); if (p && p.catch) p.catch(() => {}); }
+      if (v) tryPlay(v, 'visibility');
     }
   });
 
@@ -168,8 +213,7 @@ export function buildHeroVideo(opts) {
         visible = show;
         if (!show) vids.forEach((v) => { try { v.pause(); } catch {} });
         else if (started) {
-          const v = vids[curClip < 0 ? 0 : curClip];
-          const pr = v.play(); if (pr && pr.catch) pr.catch(() => {});
+          tryPlay(vids[curClip < 0 ? 0 : curClip], 'setProgress');
         }
       }
       return a;
