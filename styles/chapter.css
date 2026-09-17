@@ -349,6 +349,30 @@ body.has-parallax figure.slot {
   border-color: rgba(222, 214, 200, 0.07);
 }
 
+/* 纹样背景时：正文与开场下面垫一层暗底。
+   纹样是背景，不能被它压住字 —— 光把纹样调弱不够，
+   得在文字底下单独给一层"可读区"。 */
+body[data-render="pattern"] .act__inner,
+body[data-render="pattern"] .chapter-hero__inner {
+  position: relative;
+}
+body[data-render="pattern"] .act__inner::before,
+body[data-render="pattern"] .chapter-hero__inner::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(74% 58% at 50% 50%,
+    rgba(8, 7, 6, 0.90) 0%, rgba(8, 7, 6, 0.66) 55%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* 互动屏也要能看清：圆圈本身亮，但标题和说明要压得住 */
+body[data-render="pattern"] .mq-act .act__inner::before {
+  background: radial-gradient(66% 60% at 50% 50%,
+    rgba(8, 7, 6, 0.86) 0%, rgba(8, 7, 6, 0.50) 60%, rgba(8, 7, 6, 0) 100%);
+}
+
 /* 视差背景存在时，正文自己带一点底，保证任何画面上都读得清 */
 body.has-parallax .act__inner {
   position: relative;
@@ -1160,6 +1184,131 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   .melody-act { min-height: 96vh; }
   .mnote__name { font-size: 13px; }
   .mnote__group, .mnote__kind { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   11c. 麦西热甫圆圈（第四章互动）
+   --------------------------------------------------------------------------
+   点一下往圈里加一个人。人越多，鼓点越密、纹样越亮、圈转得越快。
+   -------------------------------------------------------------------------- */
+.mq-act {
+  min-height: 118vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(3rem, 9vh, 6rem) clamp(1rem, 3vw, 2.5rem);
+}
+.mq-host {
+  width: min(560px, 92vw);
+  margin: clamp(1.5rem, 4vh, 3rem) auto 0;
+}
+.mq {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  --mq-heat: 0;
+  cursor: pointer;
+}
+
+.mq__hit { fill: transparent; outline: none; }
+.mq__hit:focus-visible + * { outline: none; }
+.mq:focus-within .mq__pulse { stroke-opacity: 0.9; }
+
+/* 地面 */
+.mq__ring {
+  fill: none;
+  stroke: rgba(222, 214, 200, 0.10);
+  stroke-width: 1;
+}
+.mq__ring--1 { stroke: rgba(192, 138, 62, 0.16); stroke-dasharray: 2 7; }
+.mq__ring--2 { stroke: rgba(192, 138, 62, 0.10); }
+.mq__ring--3 { stroke: rgba(74, 128, 113, 0.20); stroke-dasharray: 1 6; }
+.mq__tick { stroke: rgba(192, 138, 62, 0.22); stroke-width: 1; }
+
+/* 随人数变亮的圈 */
+.mq__pulse {
+  fill: none;
+  stroke: rgba(232, 201, 143, 0.5);
+  stroke-width: 1.4;
+  stroke-opacity: calc(0.15 + 0.75 * var(--mq-heat));
+  transform-origin: 50% 50%;
+  animation: mqPulse 2.4s var(--ease-slow) infinite;
+}
+@keyframes mqPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.035); }
+}
+
+/* 人 */
+.mq__person {
+  opacity: var(--in, 1);
+  transform-box: fill-box;
+  transition: opacity 0.5s var(--ease-slow);
+}
+.mq__head { fill: hsl(var(--h) 42% 62% / 0.95); }
+.mq__body {
+  fill: hsl(var(--h) 38% 46% / 0.9);
+  stroke: rgba(10, 9, 8, 0.5);
+  stroke-width: 0.7;
+}
+.mq__arm {
+  stroke: hsl(var(--h) 42% 62% / 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+/* 加进来的时候弹一下 */
+.mq__person.is-in .mq__body { animation: mqPop 0.7s var(--ease-slow); }
+@keyframes mqPop {
+  0%   { transform: scale(0.3); }
+  65%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* 中心读数 */
+.mq__count {
+  fill: rgba(232, 214, 184, calc(0.35 + 0.5 * var(--mq-heat)));
+  font-family: var(--font-serif);
+  font-size: 62px;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.mq__cap {
+  fill: rgba(222, 214, 200, 0.42);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-anchor: middle;
+}
+
+.mq-readout {
+  width: min(560px, 92vw);
+  min-height: 4.6em;
+  margin: clamp(1.2rem, 3vh, 2rem) auto 0;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  line-height: 2.1;
+  color: var(--bone-dim);
+  text-align: center;
+}
+.mq-readout b {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: normal;
+  letter-spacing: 0.16em;
+  color: var(--bone);
+}
+.mq-readout em { font-style: normal; color: var(--amber); }
+
+@media (max-width: 720px) {
+  .mq-act { min-height: 96vh; }
+  .mq__count { font-size: 48px; }
 }
 
 /* --------------------------------------------------------------------------

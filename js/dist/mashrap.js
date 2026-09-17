@@ -2,11 +2,12 @@
    本页模块（依依赖序）：
      js/lib/part-data.js  → PART_TONE, PARTS
      js/lib/part.js  → renderPart
-     js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, WALL_FRAG
+     js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MASHRAQ_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/site.js  → NAV, mountShell, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
+     js/lib/circle.js  → buildCircle
      js/pages/mashrap.js
 */
 (function () {
@@ -22,6 +23,7 @@ __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
+__XM[8] = {};
 
 /* ── js/lib/part-data.js ── */
 function __M0__() {
@@ -892,6 +894,7 @@ uniform vec2  u_buf;
 uniform float u_time;
 uniform float u_wallGain;
 uniform float u_heat;
+uniform float u_vigHeavy;   // 1 = 强暗角（房间/地火），0 = 轻暗角（纹样）
 
 ${NOISE_GLSL}
 
@@ -912,14 +915,109 @@ void main() {
   /* 热度渗到空气里 */
   col += vec3(0.022, 0.011, 0.004) * u_heat * 0.5;
 
-  /* 浮尘 */
+  /* 浮尘：只在纹样之上轻轻叠一点，不能把纹样冲掉 */
   vec3 d = texture2D(u_air, uvp * 0.5 + 0.31).rgb
          + texture2D(u_air, uvp * 0.5 + vec2(0.67, 0.21)).rgb;
-  col += max(d, vec3(0.0)) * 0.9;
+  col += max(d, vec3(0.0)) * 0.55;
 
-  /* 暗角 */
-  col *= 0.34 + 0.66 * smoothstep(1.55, 0.25, length(p * vec2(1.0, 1.14)));
+  /* 暗角：pattern 模式下要收得很轻，否则纹样全被吃掉 */
+  float vigAmt = 0.62 + 0.38 * smoothstep(1.55, 0.25, length(p * vec2(1.0, 1.14)));
+  col *= mix(vigAmt, 0.34 + 0.66 * smoothstep(1.55, 0.25, length(p * vec2(1.0, 1.14))), u_vigHeavy);
   col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * (2.4 / 255.0);
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/* ==========================================================================
+   第四章「麦西热甫」的背景：程序化维吾尔几何纹样
+   --------------------------------------------------------------------------
+   为什么不用图片：麦西热甫是"开场即欢腾、群体、要下场跳"的一段，
+   找一个静态场景图会把它拍死。纹样可以随互动实时变化 ——
+   圈里的人越多，纹样越密、越亮，背景本身在跟着热闹起来。
+
+   纹样取自维吾尔木雕与花砖常见的几何母题：
+     · 八角星（八瓣花）网格 —— 最典型的一种
+     · 交错的菱形带
+     · 围绕八角的细密卷草（用极坐标噪声近似）
+   全部在 isotropic 空间里算，避免纹理被拉伸成椭圆（踩过这个坑）。
+   ========================================================================== */
+const MASHRAQ_FRAG = `
+precision highp float;
+
+uniform float u_time;
+uniform vec2  u_res;
+uniform float u_heat;      // 0..1 热闹程度 —— 由互动里的"圈里多少人"决定
+uniform float u_scale;     // 纹样疏密
+uniform float u_zoom;      // 缩放（人越多越推近）
+
+${NOISE_GLSL}
+
+/* 八角星的半边轮廓：把角坐标折到第一象限，算一个星的边界 */
+float star8(vec2 p, float r) {
+  float a = atan(p.y, p.x);
+  float seg = 3.14159265 / 4.0;               // 八等分
+  float k = mod(a + seg * 0.5, seg) - seg * 0.5;
+  k = abs(k);
+  // 星角的半径随角度摆动，8 次
+  float rr = r * (0.62 + 0.38 * cos(k * 8.0));
+  return length(p) - rr;
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / u_res.y;
+  float aspect = u_res.x / u_res.y;
+  vec2 p = vec2(uv.x - aspect * 0.5, uv.y - 0.5) * u_scale * u_zoom;
+
+  /* --- 网格：八角星铺满 --- */
+  vec2 cell = vec2(1.0, 1.0);
+  vec2 id = floor(p / cell);
+  vec2 f = fract(p / cell) - 0.5;
+
+  /* 交错排布：奇数行错半格，是这类纹样的常见做法 */
+  float odd = mod(id.y, 2.0);
+  f.x += odd * 0.5;
+
+  float d = star8(f, 0.46);
+
+  /* 星与星之间的菱形带：用 |x|+|y| 的等值线做描边 */
+  float dia = abs(f.x) + abs(f.y) - 0.5;
+
+  /* --- 卷草：极坐标噪声，绕在八角周围 --- */
+  float ang = atan(f.y, f.x);
+  float rad = length(f);
+  float swirl = fbm(vec2(ang * 1.6, rad * 3.4 - u_time * 0.05), 3);
+
+  /* --- 描边转成线条 ---
+     宽度按"占格子的比例"给。太细整幅平均亮度不到 2/255（等于没画），
+     太粗又会把文字压住 —— 0.032 是两边的平衡点。 */
+  float lw = 0.032 + 0.014 * u_heat;
+  float starLine = 1.0 - smoothstep(0.0, lw, abs(d));
+  float diaLine  = 1.0 - smoothstep(0.0, lw * 0.7, abs(dia));
+  float swirlLine = smoothstep(0.60, 0.88, swirl) * smoothstep(0.52, 0.28, rad);
+
+  float ink = starLine * 1.0 + diaLine * 0.55 + swirlLine * 0.32;
+
+  /* --- 上色：深色底 + 暖金线条 + 一点点石绿 ---
+     强度要收住：纹样是背景，不能压过正文。 */
+  vec3 base = vec3(0.030, 0.027, 0.024);
+  vec3 gold = mix(vec3(0.46, 0.32, 0.12), vec3(0.78, 0.60, 0.28),
+                  clamp(u_heat * 1.2, 0.0, 1.0));
+  vec3 jade = vec3(0.18, 0.36, 0.30);
+
+  vec3 col = base;
+  col += gold * ink * (0.34 + 0.34 * u_heat);
+  col += jade * swirlLine * 0.22 * (0.5 + u_heat);
+
+  /* --- 中心稍亮，四周压暗：把注意力收到圆心上。
+         压太狠纹样就看不见了（踩过），所以下限提到 0.55。 --- */
+  float vig = 0.55 + 0.45 * smoothstep(1.35, 0.20, length(vec2(p.x, p.y) * vec2(0.55, 1.0)));
+  col *= vig;
+
+  /* --- 极细的呼吸：热闹时纹样会"动"起来 --- */
+  col *= 1.0 + 0.05 * u_heat * sin(u_time * 1.1 + id.x * 0.7 + id.y * 0.9);
+
+  col += (hash21(gl_FragCoord.xy + fract(u_time)) - 0.5) * (2.4 / 255.0);
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -1037,6 +1135,7 @@ __ns.mount_SCENE_FRAG = function () { return SCENE_FRAG; };
 __ns.mount_DUST_FRAG = function () { return DUST_FRAG; };
 __ns.mount_EMBER_FRAG = function () { return EMBER_FRAG; };
 __ns.mount_CHAPTER_AIR_FRAG = function () { return CHAPTER_AIR_FRAG; };
+__ns.mount_MASHRAQ_FRAG = function () { return MASHRAQ_FRAG; };
 __ns.mount_WALL_FRAG = function () { return WALL_FRAG; };
 }
 
@@ -1048,6 +1147,7 @@ var DUST_FRAG = __XM[2]["DUST_FRAG"];
 var WALL_FRAG = __XM[2]["WALL_FRAG"];
 var EMBER_FRAG = __XM[2]["EMBER_FRAG"];
 var CHAPTER_AIR_FRAG = __XM[2]["CHAPTER_AIR_FRAG"];
+var MASHRAQ_FRAG = __XM[2]["MASHRAQ_FRAG"];
 var MATERIAL_GLSL = __XM[2]["MATERIAL_GLSL"];
 
 /* ==========================================================================
@@ -1123,6 +1223,8 @@ class Renderer {
     this.maxPixels = opts.maxPixels || 2.6e6;
     this.heat = 0;
     this.emberScale = 1.55;
+    this.patternScale = 5.2;
+    this.patternZoom = 1;
     this.center = [0.5, 0.5];
 
     this.quad = gl.createBuffer();
@@ -1137,6 +1239,7 @@ class Renderer {
     this.pAir = this._program(VERT_SRC, WALL_FRAG, 'air');
     this.pEmber = this._program(VERT_SRC, EMBER_FRAG, 'ember');
     this.pChapterAir = this._program(VERT_SRC, CHAPTER_AIR_FRAG, 'chapterAir');
+    this.pMashraq = this._program(VERT_SRC, MASHRAQ_FRAG, 'mashraq');
 
     this.uScene = this._locs(this.pScene,
       ['u_buf', 'u_cs', 'u_pillarCss', 'u_time', 'u_stage', 'u_active', 'u_open',
@@ -1151,7 +1254,9 @@ class Renderer {
     this.uEmber = this._locs(this.pEmber,
       ['u_time', 'u_res', 'u_heat', 'u_scale', 'u_center'], []);
     this.uCAir = this._locs(this.pChapterAir,
-      ['u_buf', 'u_time', 'u_wallGain', 'u_heat'], ['u_air', 'u_layer']);
+      ['u_buf', 'u_time', 'u_wallGain', 'u_heat', 'u_vigHeavy'], ['u_air', 'u_layer']);
+    this.uMashraq = this._locs(this.pMashraq,
+      ['u_time', 'u_res', 'u_heat', 'u_scale', 'u_zoom'], []);
 
     this.rt = null;
     this.ping = this._target(1, 1);
@@ -1194,11 +1299,17 @@ class Renderer {
     return p;
   }
 
-  _locs(prog, scalar, arrays) {
+  _locs(prog, scalar, samplers) {
     const gl = this.gl;
     const o = { u: {}, a: {} };
     scalar.forEach((n) => { o.u[n] = gl.getUniformLocation(prog, n); });
-    (arrays || []).forEach((n) => { o.a[n] = gl.getUniformLocation(prog, n + '[0]'); });
+    /* 采样器统一按"平铺声明"查名字：uniform sampler2D u_layer;
+       不要加 [0] —— 那是给数组用的。查不到会静默返回 null，
+       而 uniform1i(null, 1) 是空操作，采样器会一直停在 0 号单元，
+       表现是"画面黑掉但没有任何报错"。这个坑很隐蔽，记在这里。 */
+    (samplers || []).forEach((n) => {
+      o.a[n] = gl.getUniformLocation(prog, n) || gl.getUniformLocation(prog, n + '[0]');
+    });
     return o;
   }
 
@@ -1388,14 +1499,27 @@ class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     const tmp = this.ping; this.ping = this.pong; this.pong = tmp;
 
-    /* ---- pass 2：底层画面（房间 / 地火） ---- */
-    const chapter = this.mode === 'chapter';
+    /* ---- pass 2：底层画面（房间 / 地火 / 麦西热甫纹样） ----
+       mode 'pattern' 用程序化维吾尔几何纹样当底，不铺地火 ——
+       麦西热甫是"热闹"的一段，纹样比火焰更贴它的性格。 */
+    const chapter = this.mode === 'chapter' || this.mode === 'pattern';
+    const pattern = this.mode === 'pattern';
     gl.bindFramebuffer(gl.FRAMEBUFFER, chapter ? this.rt.fb : null);
     gl.viewport(0, 0, bw, bh);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    if (chapter) {
+    if (pattern) {
+      gl.useProgram(this.pMashraq);
+      this._bindQuad(this.pMashraq);
+      const u = this.uMashraq.u;
+      gl.uniform1f(u.u_time, st.time);
+      gl.uniform2f(u.u_res, bw, bh);
+      gl.uniform1f(u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      gl.uniform1f(u.u_scale, this.patternScale);
+      gl.uniform1f(u.u_zoom, this.patternZoom);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    } else if (chapter) {
       gl.useProgram(this.pEmber);
       this._bindQuad(this.pEmber);
       const u = this.uEmber.u;
@@ -1424,6 +1548,7 @@ class Renderer {
       gl.uniform1f(this.uCAir.u.u_time, st.time);
       gl.uniform1f(this.uCAir.u.u_wallGain, this.wallGain);
       gl.uniform1f(this.uCAir.u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      gl.uniform1f(this.uCAir.u.u_vigHeavy, pattern ? 0 : 1);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.activeTexture(gl.TEXTURE0);
     } else {
@@ -2191,6 +2316,7 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  * @param {boolean} [opts.sound=true]  是否挂声音开关（页面上要有 #sound-toggle）
  * @param {number} [opts.soundBand=0]  声音默认放第几段的鼓
  * @param {boolean} [opts.heat=true]   是否启用随滚动上升的地火热度
+ * @param {'chapter'|'pattern'} [opts.mode='chapter']  底层画面：地火 / 程序化纹样
  */
 function bootChapter(opts = {}) {
   mountShell({ base: opts.base || '../', active: opts.active });
@@ -2206,16 +2332,19 @@ function bootChapter(opts = {}) {
   let heatNow = 0;
   let center = [0.5, 0.5];
 
-  /* ---- 空气层：地火 + 壁面 + 浮尘 ---- */
+  /* ---- 空气层：地火 / 程序化纹样 + 壁面 + 浮尘 ---- */
   const canvas = document.getElementById('air');
+  const mode = opts.mode || 'chapter';
   if (canvas) {
     try {
       renderer = new Renderer(canvas, {
-        mode: 'chapter',
+        mode,
         wallGain: opts.wallGain === undefined ? 0.9 : opts.wallGain,
         muralGain: 0,
       });
-      document.body.dataset.render = 'chapter';
+      // 用真实的 mode 当标记，别写死 —— 写死过一次，
+      // 结果自检看到的是 'chapter' 而不是 'pattern'，查了半天。
+      document.body.dataset.render = mode;
     } catch (err) {
       document.body.dataset.render = 'basic';
       if (window.console) console.warn('[弦脉] 退回基础渲染：', err && err.message);
@@ -2327,17 +2456,278 @@ __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
-/* ── js/pages/mashrap.js ── */
+/* ── js/lib/circle.js ── */
 function __M7__() {
+/* ==========================================================================
+   弦脉 · 麦西热甫圆圈
+   --------------------------------------------------------------------------
+   第四章的互动。麦西热甫最核心的动作是"下场跳"——所以这里不让你敲鼓，
+   让你**往里加人**：
+
+     点一下 → 圈里多一个人 → 鼓点密一层 → 纹样亮一分
+
+   为什么这样做：麦西热甫讲的不是个人技巧，是群体。一个人敲鼓是练习，
+   一圈人一起才是麦西热甫。所以互动的单位是"人"，不是"鼓点"。
+
+   音频：每加一个人，就多打开一层伴奏（由手鼓音序器实时合成），
+         圈满时各层全开，节奏型也换成最密的那个。
+   ========================================================================== */
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+/** 圈子最多容纳多少人 */
+const MAX = 24;
+
+/**
+ * @param {object} opts
+ * @param {HTMLElement} opts.host      容器
+ * @param {(n:number)=>void} [opts.onChange]  人数变化时回调（拿去驱动纹样与音频）
+ * @param {boolean} [opts.reduced]
+ */
+function buildCircle(opts) {
+  const { host } = opts;
+  if (!host) return null;
+
+  const VB = 560;
+  const CX = VB / 2, CY = VB / 2;
+  const R_RING = 196;        // 圈的地面
+  const R_PERSON = 132;      // 人站的位置
+
+  const svg = el('svg', {
+    class: 'mq', viewBox: `0 0 ${VB} ${VB}`,
+    preserveAspectRatio: 'xMidYMid meet',
+    role: 'group',
+    'aria-label': '麦西热甫圆圈：点一下往圈里加一个人',
+  });
+
+  /* ---- 地面：一圈一圈的同心环，像踩出来的场子 ---- */
+  const floor = el('g', { class: 'mq__floor', 'aria-hidden': 'true' });
+  [R_RING, R_RING - 22, R_RING - 46, R_PERSON].forEach((r, i) => {
+    floor.appendChild(el('circle', { cx: CX, cy: CY, r, class: 'mq__ring mq__ring--' + i }));
+  });
+  // 放射状的短刻线：像地毯的边饰
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    const r1 = R_RING - 46, r2 = R_RING - 54 + (i % 2 ? 0 : 6);
+    floor.appendChild(el('line', {
+      x1: CX + Math.cos(a) * r1, y1: CY + Math.sin(a) * r1,
+      x2: CX + Math.cos(a) * r2, y2: CY + Math.sin(a) * r2,
+      class: 'mq__tick',
+    }));
+  }
+  svg.appendChild(floor);
+
+  /* ---- 跳动的环：人越多转得越快、越亮 ---- */
+  const pulse = el('circle', { cx: CX, cy: CY, r: R_PERSON, class: 'mq__pulse' });
+  svg.appendChild(pulse);
+
+  /* ---- 人 ---- */
+  const people = el('g', { class: 'mq__people' });
+  svg.appendChild(people);
+
+  /* ---- 中心读数 ---- */
+  const core = el('g', { class: 'mq__core' });
+  const num = el('text', { x: CX, y: CY + 4, class: 'mq__count' });
+  num.textContent = '0';
+  const cap = el('text', { x: CX, y: CY + 34, class: 'mq__cap' });
+  cap.textContent = '点一下，进圈';
+  core.appendChild(num); core.appendChild(cap);
+  svg.appendChild(core);
+
+  /* ---- 命中区：整块可点 ---- */
+  const hit = el('rect', {
+    x: 0, y: 0, width: VB, height: VB, class: 'mq__hit',
+  });
+  hit.setAttribute('tabindex', '0');
+  hit.setAttribute('role', 'button');
+  hit.setAttribute('aria-label', '往麦西热甫圆圈里加一个人');
+  svg.appendChild(hit);
+
+  host.appendChild(svg);
+
+  let count = 0;
+  const nodes = [];
+
+  /** 人的位置：按人数均匀分布，并整体缓慢旋转（像真的在绕圈） */
+  const layout = () => {
+    nodes.forEach((g, i) => {
+      const a = (i / MAX) * Math.PI * 2 - Math.PI / 2;
+      const r = R_PERSON + (i % 3) * 7 - 7;
+      g.dataset.a = String(a);
+      g.dataset.r = String(r);
+    });
+  };
+
+  const add = () => {
+    if (count >= MAX) return false;
+    const i = count;
+    const g = el('g', { class: 'mq__person' });
+    // 一个人 = 一个头 + 一个身体（拉长的水滴），简化到不能再简
+    g.appendChild(el('circle', { cx: 0, cy: -13, r: 6.4, class: 'mq__head' }));
+    g.appendChild(el('path', {
+      d: 'M 0 -6 C 7 -6, 9 4, 8 15 L -8 15 C -9 4, -7 -6, 0 -6 Z',
+      class: 'mq__body',
+    }));
+    // 手臂：跳起来是抬着的
+    g.appendChild(el('line', { x1: -7, y1: -1, x2: -14, y2: -9, class: 'mq__arm' }));
+    g.appendChild(el('line', { x1: 7, y1: -1, x2: 14, y2: -9, class: 'mq__arm' }));
+    g.style.setProperty('--h', String((i * 37) % 360));
+    // 入场：从中心弹出来
+    g.style.setProperty('--in', '0');
+    people.appendChild(g);
+
+    nodes.push(g);
+    count = i + 1;
+    layout();
+    place();
+
+    // 入场动画：下一帧把 --in 推到 1
+    requestAnimationFrame(() => {
+      g.style.setProperty('--in', '1');
+      g.classList.add('is-in');
+    });
+
+    sync();
+    return true;
+  };
+
+  const reset = () => {
+    nodes.forEach((g) => g.remove());
+    nodes.length = 0;
+    count = 0;
+    sync();
+  };
+
+  /** 按存下来的角度/半径摆放，并叠一个整体的慢转 */
+  let spin = 0;
+  const place = () => {
+    nodes.forEach((g) => {
+      const a = parseFloat(g.dataset.a) + spin;
+      const r = parseFloat(g.dataset.r);
+      const x = CX + Math.cos(a) * r;
+      const y = CY + Math.sin(a) * r;
+      // 站在圈上的人，脚朝圆心
+      const rot = (a * 180) / Math.PI + 90;
+      g.setAttribute('transform',
+        'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')');
+    });
+  };
+
+  const sync = () => {
+    num.textContent = String(count);
+    cap.textContent = count === 0 ? '点一下，进圈'
+      : count >= MAX ? '圈满了' : '再点一下';
+    svg.style.setProperty('--mq-heat', (count / MAX).toFixed(3));
+    if (opts.onChange) opts.onChange(count, MAX);
+  };
+
+  hit.addEventListener('click', () => { if (!add()) reset(); });
+  hit.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (!add()) reset();
+    }
+  });
+
+  /* 缓慢自转：让圈看起来是活的。切后台停。 */
+  let raf = 0;
+  let last = performance.now();
+  const loop = (now) => {
+    raf = requestAnimationFrame(loop);
+    const dt = now - last; last = now;
+    // 22 个人以上转得快一点（热闹起来了）
+    spin += dt * 0.00004 * (1 + count / MAX);
+    place();
+  };
+  if (!opts.reduced) {
+    raf = requestAnimationFrame(loop);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); }
+    });
+  }
+
+  sync();
+
+  return {
+    add, reset,
+    get count() { return count; },
+    get max() { return MAX; },
+    destroy() { if (raf) cancelAnimationFrame(raf); },
+  };
+}
+
+__ns = __XM[7];
+__ns.mount_buildCircle = function () { return buildCircle; };
+}
+
+/* ── js/pages/mashrap.js ── */
+function __M8__() {
 var renderPart = __XM[1]["renderPart"];
 var bootChapter = __XM[6]["bootChapter"];
+var buildCircle = __XM[7]["buildCircle"];
 
-/* 第四章 · 麦西热甫 —— 内容在 js/lib/part-data.js，骨架由 js/lib/part.js 生成 */
+/* ==========================================================================
+   第四章 · 麦西热甫
+   --------------------------------------------------------------------------
+   背景不用图片，用程序化生成的维吾尔几何纹样（八瓣星网格 + 交错菱形带 +
+   卷草），随互动实时变化：圈里的人越多，纹样越密越亮。
+
+   互动：点一下往圈里加一个人。人越多，鼓点密一层，纹样亮一分。
+   ========================================================================== */
+
 
 
 
 renderPart();
-bootChapter({ active: 'mashrap', soundBand: 2 });
+const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
+
+const host = document.getElementById('mq-host');
+const readout = document.getElementById('mq-readout');
+
+if (host) {
+  /** 人数 → 一句说明。让"加人"这件事有叙事，不只是数字变大。 */
+  const stage = (n, max) => {
+    const r = n / max;
+    if (n === 0) return ['还没人下场', '麦西热甫是从第一个下场的人开始的。点一下圆圈。'];
+    if (r < 0.2) return ['起头', '一个人先站进去。鼓点还稀，节奏还慢，等的是别人跟上。'];
+    if (r < 0.45) return ['有人跟上', '两三个人就能把节拍立起来。手鼓开始有呼应了。'];
+    if (r < 0.7) return ['成圈', '人一多，节奏型就密了。这时候跳错也没人管——本来就是大家一起热闹。'];
+    if (r < 1) return ['热起来', '圈快满了。鼓点、纹样、转圈的速度都在往上走。'];
+    return ['满圈', '这是麦西热甫该有的样子：不是谁在表演，是一圈人自己把场子烧起来。'];
+  };
+
+  const circle = buildCircle({
+    host,
+    reduced: ctx.REDUCED,
+    onChange: (n, max) => {
+      const r = n / max;
+      // 驱动背景纹样：人越多越亮、越推近
+      if (ctx.renderer) {
+        ctx.renderer.heat = r;
+        ctx.renderer.patternZoom = 1 + r * 0.55;
+      }
+      // 驱动声音：人越多，节奏型越密
+      if (ctx.seq) {
+        ctx.seq.setBand(r < 0.35 ? 0 : r < 0.75 ? 1 : 2);
+      }
+      if (readout) {
+        const [title, text] = stage(n, max);
+        readout.innerHTML = '<b>' + title + '</b>' + text +
+          (n >= max ? '<br><span style="color:var(--bone-faint)">再点一下重新开始。</span>' : '');
+      }
+    },
+  });
+
+  // 自检用
+  window.__XM_CIRCLE__ = circle;
+  window.__XM_RENDERER__ = ctx.renderer;
+}
 }
 
 /* js/lib/part-data.js */
@@ -2403,11 +2793,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/mashrap.js */
+/* js/lib/circle.js */
 try {
   __ns = __XM[7];
   __M7__();
   for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/circle.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/mashrap.js */
+try {
+  __ns = __XM[8];
+  __M8__();
+  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/mashrap.js" + " :: " + (e && e.stack || e));
 }

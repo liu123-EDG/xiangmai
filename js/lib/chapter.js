@@ -21,6 +21,7 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  * @param {boolean} [opts.sound=true]  是否挂声音开关（页面上要有 #sound-toggle）
  * @param {number} [opts.soundBand=0]  声音默认放第几段的鼓
  * @param {boolean} [opts.heat=true]   是否启用随滚动上升的地火热度
+ * @param {'chapter'|'pattern'} [opts.mode='chapter']  底层画面：地火 / 程序化纹样
  */
 export function bootChapter(opts = {}) {
   mountShell({ base: opts.base || '../', active: opts.active });
@@ -36,16 +37,19 @@ export function bootChapter(opts = {}) {
   let heatNow = 0;
   let center = [0.5, 0.5];
 
-  /* ---- 空气层：地火 + 壁面 + 浮尘 ---- */
+  /* ---- 空气层：地火 / 程序化纹样 + 壁面 + 浮尘 ---- */
   const canvas = document.getElementById('air');
+  const mode = opts.mode || 'chapter';
   if (canvas) {
     try {
       renderer = new Renderer(canvas, {
-        mode: 'chapter',
+        mode,
         wallGain: opts.wallGain === undefined ? 0.9 : opts.wallGain,
         muralGain: 0,
       });
-      document.body.dataset.render = 'chapter';
+      // 用真实的 mode 当标记，别写死 —— 写死过一次，
+      // 结果自检看到的是 'chapter' 而不是 'pattern'，查了半天。
+      document.body.dataset.render = mode;
     } catch (err) {
       document.body.dataset.render = 'basic';
       if (window.console) console.warn('[弦脉] 退回基础渲染：', err && err.message);

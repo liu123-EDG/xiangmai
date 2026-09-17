@@ -18,7 +18,8 @@
    ========================================================================== */
 
 import {
-  VERT_SRC, SCENE_FRAG, DUST_FRAG, WALL_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MATERIAL_GLSL,
+  VERT_SRC, SCENE_FRAG, DUST_FRAG, WALL_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG,
+  MASHRAQ_FRAG, MATERIAL_GLSL,
 } from './materials.js';
 
 /** 三段结构柱的配色令牌。与 styles.css 的 :root 同值，tools/verify.mjs 会校验。 */
@@ -73,6 +74,8 @@ export class Renderer {
     this.maxPixels = opts.maxPixels || 2.6e6;
     this.heat = 0;
     this.emberScale = 1.55;
+    this.patternScale = 5.2;
+    this.patternZoom = 1;
     this.center = [0.5, 0.5];
 
     this.quad = gl.createBuffer();
@@ -87,6 +90,7 @@ export class Renderer {
     this.pAir = this._program(VERT_SRC, WALL_FRAG, 'air');
     this.pEmber = this._program(VERT_SRC, EMBER_FRAG, 'ember');
     this.pChapterAir = this._program(VERT_SRC, CHAPTER_AIR_FRAG, 'chapterAir');
+    this.pMashraq = this._program(VERT_SRC, MASHRAQ_FRAG, 'mashraq');
 
     this.uScene = this._locs(this.pScene,
       ['u_buf', 'u_cs', 'u_pillarCss', 'u_time', 'u_stage', 'u_active', 'u_open',
@@ -101,7 +105,9 @@ export class Renderer {
     this.uEmber = this._locs(this.pEmber,
       ['u_time', 'u_res', 'u_heat', 'u_scale', 'u_center'], []);
     this.uCAir = this._locs(this.pChapterAir,
-      ['u_buf', 'u_time', 'u_wallGain', 'u_heat'], ['u_air', 'u_layer']);
+      ['u_buf', 'u_time', 'u_wallGain', 'u_heat', 'u_vigHeavy'], ['u_air', 'u_layer']);
+    this.uMashraq = this._locs(this.pMashraq,
+      ['u_time', 'u_res', 'u_heat', 'u_scale', 'u_zoom'], []);
 
     this.rt = null;
     this.ping = this._target(1, 1);
@@ -144,11 +150,17 @@ export class Renderer {
     return p;
   }
 
-  _locs(prog, scalar, arrays) {
+  _locs(prog, scalar, samplers) {
     const gl = this.gl;
     const o = { u: {}, a: {} };
     scalar.forEach((n) => { o.u[n] = gl.getUniformLocation(prog, n); });
-    (arrays || []).forEach((n) => { o.a[n] = gl.getUniformLocation(prog, n + '[0]'); });
+    /* 采样器统一按"平铺声明"查名字：uniform sampler2D u_layer;
+       不要加 [0] —— 那是给数组用的。查不到会静默返回 null，
+       而 uniform1i(null, 1) 是空操作，采样器会一直停在 0 号单元，
+       表现是"画面黑掉但没有任何报错"。这个坑很隐蔽，记在这里。 */
+    (samplers || []).forEach((n) => {
+      o.a[n] = gl.getUniformLocation(prog, n) || gl.getUniformLocation(prog, n + '[0]');
+    });
     return o;
   }
 
@@ -338,14 +350,27 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     const tmp = this.ping; this.ping = this.pong; this.pong = tmp;
 
-    /* ---- pass 2：底层画面（房间 / 地火） ---- */
-    const chapter = this.mode === 'chapter';
+    /* ---- pass 2：底层画面（房间 / 地火 / 麦西热甫纹样） ----
+       mode 'pattern' 用程序化维吾尔几何纹样当底，不铺地火 ——
+       麦西热甫是"热闹"的一段，纹样比火焰更贴它的性格。 */
+    const chapter = this.mode === 'chapter' || this.mode === 'pattern';
+    const pattern = this.mode === 'pattern';
     gl.bindFramebuffer(gl.FRAMEBUFFER, chapter ? this.rt.fb : null);
     gl.viewport(0, 0, bw, bh);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    if (chapter) {
+    if (pattern) {
+      gl.useProgram(this.pMashraq);
+      this._bindQuad(this.pMashraq);
+      const u = this.uMashraq.u;
+      gl.uniform1f(u.u_time, st.time);
+      gl.uniform2f(u.u_res, bw, bh);
+      gl.uniform1f(u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      gl.uniform1f(u.u_scale, this.patternScale);
+      gl.uniform1f(u.u_zoom, this.patternZoom);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    } else if (chapter) {
       gl.useProgram(this.pEmber);
       this._bindQuad(this.pEmber);
       const u = this.uEmber.u;
@@ -374,6 +399,7 @@ export class Renderer {
       gl.uniform1f(this.uCAir.u.u_time, st.time);
       gl.uniform1f(this.uCAir.u.u_wallGain, this.wallGain);
       gl.uniform1f(this.uCAir.u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      gl.uniform1f(this.uCAir.u.u_vigHeavy, pattern ? 0 : 1);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.activeTexture(gl.TEXTURE0);
     } else {
