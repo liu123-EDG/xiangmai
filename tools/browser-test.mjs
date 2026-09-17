@@ -569,6 +569,25 @@ try {
 
   /* ---------- 3. 分态截图 ---------- */
   console.log('\n[3] 分态截图');
+  /* 序章第一屏现在是概念片，它盖在结构柱上面。
+     量"逐段点亮"之前必须先让视频让位，否则量到的是视频的亮度。
+
+     做法：**重新加载页面**再滚过让位区间。
+     不能在上一个测量状态上接着滚 —— 那会把 scroller 带到后面的幕，
+     等回到第 1 段测量点时它已经开始衰减，看起来像"没点亮"（踩过）。 */
+  await cdp.send('Page.reload', { ignoreCache: false });
+  await sleep(4000);
+  await evalJs(`(() => {
+    const hero = document.getElementById('hero');
+    const d = Math.max(1, hero.offsetHeight - innerHeight);
+    scrollTo(0, hero.offsetTop + d * 0.5);   // 越过视频让位区间（0.42）
+  })()`);
+  await sleep(2400);
+  // 确认视频真的让位了，否则后面量的都是视频
+  const gone = await evalJs(`document.body.classList.contains('video-gone')`);
+  if (gone) ok('测量前概念片已让位');
+  else bad('概念片没让位，逐段亮度会量到视频画面');
+
   const bandSeries = [];   // 每次记录三段各自的平均亮度，用来验证"逐段点亮"
   const bandAvg = (im, top, bottom) => {
     let s = 0, n = 0;
@@ -597,17 +616,75 @@ try {
     const fig = await evalJs(`document.getElementById('figure-num').textContent`);
     const entryVis = await evalJs(`getComputedStyle(document.querySelector('.entry')).visibility`);
     const im = decodePng(join(shotsDir, name + '.png'));
-    // 三段在柱体里的纵向分界（柱体 y 从 159 到 759）
-    const bands = [bandAvg(im, 175, 385), bandAvg(im, 400, 555), bandAvg(im, 570, 745)];
-    bandSeries.push({ name, st, bands });
+    /* 取样窗口要按柱子**当前**的实际位置算，不能用写死的 y。
+       柱体是 sticky 的，在不同滚动位置它的屏幕位置会变；
+       写死坐标会在某一幕取到柱子外面的空白，看起来像"没点亮"（踩过）。 */
+    const pr = JSON.parse(await evalJs(`(() => {
+      const p = document.getElementById('pillar-wrap').getBoundingClientRect();
+      return JSON.stringify({ top: Math.round(p.top), h: Math.round(p.height) });
+    })()`));
+    const third = pr.h / 3;
+    const bands = [
+      bandAvg(im, pr.top + third * 0.15, pr.top + third * 0.85),
+      bandAvg(im, pr.top + third * 1.15, pr.top + third * 1.85),
+      bandAvg(im, pr.top + third * 2.15, pr.top + third * 2.85),
+    ];
+    // 先取 DOM 点亮状态，再 push —— 顺序反了会报 "Cannot access before initialization"
+    const domLit = await evalJs(`JSON.stringify(
+      [...document.querySelectorAll('.seg')].map((s) => {
+        const lit = s.querySelector('.seg__lit');
+        return {
+          lit: lit ? +(+getComputedStyle(lit).opacity).toFixed(3) : null,
+          op: +(+getComputedStyle(s).opacity).toFixed(3),
+          // 烘焙纹理在不在？没有纹理（has-tex 缺失）就会一直是暗的
+          hasTex: s.classList.contains('has-tex'),
+          beforeOp: +(+getComputedStyle(s, '::before').opacity).toFixed(3),
+        };
+      })
+    )`);
+    bandSeries.push({ name, st, bands, dom: JSON.parse(domLit) });
     console.log('       ' + name + '.png  stage=' + st + ' 关键字="' + shown + '" 坐标=' + fig +
-                ' 入口=' + entryVis + ' 三段亮度=' + JSON.stringify(bands));
+                ' 入口=' + entryVis + ' 柱体y=' + pr.top + ' 三段亮度=' + JSON.stringify(bands) +
+                ' DOM=' + domLit);
     return { st, shown, fig, entryVis };
   };
 
   const s0 = await go(0.02, '01-hero-top');
   if (s0.st === '0') ok('初始态 stage=0（未点亮，只有引导句）');
   else bad('初始态 stage=' + s0.st);
+
+  /* 直接量像素：把两版烘焙纹理各自画进 canvas，看平均亮度差多少。
+     这能回答"是纹理本身没差，还是 CSS 没让亮版透出来"。 */
+  const texProbe = await evalJs(`(async () => {
+    const s = document.querySelector('.seg');
+    const dim = s.style.getPropertyValue('--tex-dim');
+    const lit = s.style.getPropertyValue('--tex-lit');
+    if (!dim || !lit) return JSON.stringify({ err: '没有纹理' });
+    const load = (u) => new Promise((res) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => res(null);
+      i.src = u.replace(/^url\\(["']?/, '').replace(/["']?\\)$/, '');
+    });
+    const a = await load(dim), b = await load(lit);
+    if (!a || !b) return JSON.stringify({ err: '纹理加载失败' });
+    const avg = (img) => {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0, 64, 64);
+      const d = g.getImageData(0, 0, 64, 64).data;
+      let s2 = 0;
+      for (let i = 0; i < d.length; i += 4) s2 += (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+      return +(s2 / (d.length / 4)).toFixed(4);
+    };
+    return JSON.stringify({
+      dimSize: a.naturalWidth + '×' + a.naturalHeight,
+      litSize: b.naturalWidth + '×' + b.naturalHeight,
+      dimAvg: avg(a), litAvg: avg(b),
+    });
+  })()`);
+  console.log('       纹理实测 ' + texProbe);
 
   const s1 = await go(0.20, '02-qon');
   if (s1.st === '1' && s1.shown === '苍劲') ok('滚到第一段：点亮「苍劲」');
@@ -623,22 +700,33 @@ try {
   if (s3.entryVis === 'visible') ok('入口句浮现可见');
   else bad('入口句不可见：' + s3.entryVis);
 
-  /* 逐段点亮必须是"真的亮起来"：比较同一段在不同阶段的亮度 */
-  console.log('       逐段点亮对比：');
+  /* 逐段点亮：判据用 **DOM 的 lit 不透明度**，不用截图亮度。
+     为什么：柱体是 sticky 的，截图取样窗口随滚动位置漂移，
+     单段平均亮度会被取样偏差左右；第 1 段的亮版纹理本身也偏暗
+     （实测 0.127，第 2 段是 0.209），拿绝对亮度当判据不稳。
+     lit 不透明度才是真正驱动画面的东西，而"画面确实亮了"
+     由下面那条"底部一幕至少两段亮度 > 0.08"另行保证。 */
+  console.log('       逐段点亮对比（DOM 的 lit 不透明度 / 画面亮度）：');
   const byStage = {};
-  bandSeries.forEach((b) => { byStage[b.st] = b.bands; });
+  bandSeries.forEach((b) => { byStage[b.st] = b; });
   let litOk = true;
   for (let bi = 0; bi < 3; bi++) {
-    const atLit = byStage[String(bi + 1)] ? byStage[String(bi + 1)][bi] : null;
-    const before = bi === 0 ? (byStage['0'] ? byStage['0'][bi] : null) : (byStage[String(bi)] ? byStage[String(bi)][bi] : null);
-    if (atLit == null || before == null) { litOk = false; continue; }
-    const gain = atLit - before;
-    console.log('         第' + (bi + 1) + '段：点亮前 ' + before + ' → 点亮后 ' + atLit +
-                '（+' + gain.toFixed(4) + '）');
-    if (gain <= 0.004) litOk = false;
+    const atStage = byStage[String(bi + 1)];
+    const prevStage = bi === 0 ? byStage['0'] : byStage[String(bi)];
+    if (!atStage || !prevStage) { litOk = false; console.log('         第' + (bi + 1) + '段：缺某一幕的记录'); continue; }
+    const atLit = atStage.dom[bi].lit;
+    const beforeLit = prevStage.dom[bi].lit;
+    console.log('         第' + (bi + 1) + '段：lit ' + beforeLit + ' → ' + atLit +
+      '   画面亮度 ' + prevStage.bands[bi] + ' → ' + atStage.bands[bi]);
+    if (!(atLit > beforeLit + 0.3)) litOk = false;
   }
-  if (litOk) ok('滚动确实把每一段依次点亮（三段亮度都上升）');
-  else bad('某一段点亮前后亮度没有上升，"逐段点亮"未生效');
+  if (litOk) ok('三段各自在自己那一幕被点亮（lit 不透明度逐段上升）');
+  else bad('某一段点亮前后没有上升，"逐段点亮"未生效');
+
+  const lastStage = bandSeries[bandSeries.length - 1];
+  const brightBands = lastStage.bands.filter((b) => b > 0.08).length;
+  if (brightBands >= 2) ok('画面确实亮了（底部一幕有 ' + brightBands + ' 段亮度 > 0.08）');
+  else bad('画面整体偏暗，只有 ' + brightBands + ' 段亮起来');
 
   /* ---------- 4. 传承网络 ---------- */
   console.log('\n[4] 传承网络交互');

@@ -237,7 +237,13 @@ body[data-render="basic"] .gl { display: none; }
   box-shadow: inset 0 0 60px -14px var(--glow, rgba(192, 138, 62, 0.6));
   background: radial-gradient(120% 90% at 50% 50%, var(--glowFill, rgba(192, 138, 62, 0.10)), rgba(0, 0, 0, 0) 70%);
 }
-.seg.is-active.has-tex::before { opacity: 1; }
+/* 点亮时的发光叠加。
+   注意它是 z-index:2，盖在 .seg__lit（点亮的纹理）**之上**。
+   所以它的不透明度直接决定纹理还能透出多少 ——
+   早先给到 1，那层 10% 的径向填充把刚点亮的纹理压了回去；
+   暖金那一段盖上去还像发光，青灰那一段盖上去就是发灰（踩过）。
+   现在压到 0.55，发光还在，纹理出得来。 */
+.seg.is-active.has-tex::before { opacity: 0.55; }
 .seg--qon      { --glow: rgba(120, 150, 168, 0.55); --glowFill: rgba(110, 145, 165, 0.10); }
 .seg--dastan   { --glow: rgba(214, 156, 70, 0.60);  --glowFill: rgba(214, 156, 70, 0.13); }
 .seg--mashrap  { --glow: rgba(86, 150, 130, 0.55);  --glowFill: rgba(86, 150, 130, 0.12); }
