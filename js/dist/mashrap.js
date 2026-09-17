@@ -74,6 +74,14 @@ const PARTS = {
     lead: '每一套木卡姆都由三大部分构成，情绪层层推进。穹乃额曼是开篇——' +
           '由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。' +
           '唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
+    /** 概念图：跟在开场之后的一整屏画框。换图只改 src；宽高写上可避免加载时跳动 */
+    heroImage: {
+      src: '../assets/img/qiongnaieman/hero.webp',
+      alt: '萨塔尔琴与手抄本，窗外是喀什老城与远处的天山',
+      caption: '概念图 · 穹乃额曼',
+      w: 1312,
+      h: 1199,
+    },
     stats: [
       { v: '一', unit: '', label: '三段中的第一部分' },
       { v: '散板', unit: '起', label: '由无拍进入有拍' },
@@ -307,6 +315,20 @@ function renderPart() {
       '<p class="chapter-hero__lead reveal" data-delay="3">' + p.lead + '</p>' +
       statsHTML(p.stats) +
       '</div>';
+  }
+
+  /* 概念图：紧跟开场的一整屏画框。
+     图是"这一章的视觉主题"，不是插图，所以给它独立一屏，
+     按原图比例展示，不裁切。 */
+  const heroImg = $('#part-hero-image');
+  if (heroImg && p.heroImage) {
+    const hi = p.heroImage;
+    heroImg.innerHTML =
+      '<figure class="plate">' +
+        '<img src="' + hi.src + '" alt="' + (hi.alt || p.title) + '" ' +
+          'loading="lazy" decoding="async" width="' + (hi.w || '') + '" height="' + (hi.h || '') + '">' +
+        (hi.caption ? '<figcaption>' + hi.caption + '</figcaption>' : '') +
+      '</figure>';
   }
 
   const body = $('#part-body');
@@ -2171,6 +2193,7 @@ function bootChapter(opts = {}) {
   /* ---- 显形 ---- */
   revealOnScroll('.reveal', { threshold: 0.15 });
   revealOnScroll('.tl-item', { threshold: 0.25 });
+  revealOnScroll('.plate', { threshold: 0.12 });
 
   if ('IntersectionObserver' in window) {
     const main = document.querySelector('main');

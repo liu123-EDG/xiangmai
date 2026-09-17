@@ -90,6 +90,20 @@ export function renderPart() {
       '</div>';
   }
 
+  /* 概念图：紧跟开场的一整屏画框。
+     图是"这一章的视觉主题"，不是插图，所以给它独立一屏，
+     按原图比例展示，不裁切。 */
+  const heroImg = $('#part-hero-image');
+  if (heroImg && p.heroImage) {
+    const hi = p.heroImage;
+    heroImg.innerHTML =
+      '<figure class="plate">' +
+        '<img src="' + hi.src + '" alt="' + (hi.alt || p.title) + '" ' +
+          'loading="lazy" decoding="async" width="' + (hi.w || '') + '" height="' + (hi.h || '') + '">' +
+        (hi.caption ? '<figcaption>' + hi.caption + '</figcaption>' : '') +
+      '</figure>';
+  }
+
   const body = $('#part-body');
   if (body) body.innerHTML = p.sections.map(sectionHTML).join('');
 

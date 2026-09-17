@@ -132,6 +132,7 @@ export function bootChapter(opts = {}) {
   /* ---- 显形 ---- */
   revealOnScroll('.reveal', { threshold: 0.15 });
   revealOnScroll('.tl-item', { threshold: 0.25 });
+  revealOnScroll('.plate', { threshold: 0.12 });
 
   if ('IntersectionObserver' in window) {
     const main = document.querySelector('main');
