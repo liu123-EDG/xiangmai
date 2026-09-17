@@ -1276,6 +1276,11 @@ class Renderer {
        'u_c1a', 'u_c1b', 'u_c1c', 'u_c2a', 'u_c2b', 'u_c3a', 'u_c3b',
        'u_g1', 'u_g2', 'u_g3', 'u_ink', 'u_bg', 'u_dust',
        'u_bandMode', 'u_bandSeed', 'u_dim', 'u_deriv', 'u_tile'],
+      /* 这两条是**数组** uniform（uniform float u_lit[3]），
+         必须按 [0] 查位置；当标量查会拿到 null，
+         然后 uniform1fv(null, 三个值) 会报
+         "Only array uniforms may have count > 1" —— 而且不抛异常，
+         只是每帧刷一条警告，很容易被忽略（踩过）。 */
       ['u_lit', 'u_breath', 'u_segBound']);
     this.uDust = this._locs(this.pDust,
       ['u_res', 'u_time', 'u_vel', 'u_frame', 'u_amount'], ['u_prev']);
@@ -1473,9 +1478,15 @@ class Renderer {
     gl.uniform3fv(u.u_c2b, COLORS.seg2b);
     gl.uniform3fv(u.u_c3a, COLORS.seg3a);
     gl.uniform3fv(u.u_c3b, COLORS.seg3b);
+    /* 注意类型要对上：
+         u_lit[3] / u_breath[3]  是 float 数组 → uniform1fv
+         u_segBound              是 vec4      → uniform4fv
+       早先用 uniform1fv 去设 u_segBound，GL 报
+       "Only array uniforms may have count > 1"（1282）——
+       不抛异常，只在控制台刷警告，而且会让后续渲染状态不干净。 */
     gl.uniform1fv(this.uScene.a.u_lit, new Float32Array([1, 1, 1]));
     gl.uniform1fv(this.uScene.a.u_breath, new Float32Array(BREATH));
-    gl.uniform1fv(this.uScene.a.u_segBound, new Float32Array(SEG_BOUNDS));
+    gl.uniform4fv(this.uScene.a.u_segBound, new Float32Array(SEG_BOUNDS));
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     const px = new Uint8Array(w * h * 4);

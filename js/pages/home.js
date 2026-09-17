@@ -14,6 +14,7 @@ import { Renderer, SEG_BOUNDS, BREATH } from '../lib/renderer.js';
 import { DapSequencer } from '../lib/sequencer.js';
 import { BandScroller } from '../lib/scroll.js';
 import { mountShell } from '../lib/site.js';
+import { buildHeroVideo, isDesktop } from '../lib/hero-video.js';
 import { initNetwork } from './network.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,6 +52,7 @@ const soundText = $('#sound-text');
 
 let renderer = null;
 let scroller = null;
+let heroVideo = null;
 let audio = null;
 let dataIndex = -1;
 let cssW = 0, cssH = 0, dpr = 0;
@@ -128,11 +130,18 @@ function loop(now) {
   lastT = now;
   if (!scroller) return;
 
-  const { band, velocity } = scroller.read();
+  const { band, velocity, progress } = scroller.read();
   const changed = scroller.step(band);
   if (changed) {
     renderBandState(band);
     if (syncActNav) syncActNav(band);
+  }
+
+  /* 概念片跟着滚动淡出。这里记一下"视频已经让位"，
+     CSS 靠这个类把结构柱、引导语、时间坐标放出来。 */
+  if (heroVideo) {
+    const a = heroVideo.setProgress(progress);
+    document.body.classList.toggle('video-gone', a < 0.5);
   }
 
   if (!renderer || !visible) return;
@@ -304,6 +313,7 @@ async function boot() {
 
     syncSize();
     document.body.dataset.render = baked === 3 ? 'textured' : 'webgl';
+    window.__XM_RENDERER__ = renderer;   // 自检用：查 uniform 位置、量画布
   } catch (err) {
     // 没有 WebGL：退回 DOM + SVG 滤镜，视觉语法保持一致
     document.body.dataset.render = 'basic';
@@ -312,6 +322,23 @@ async function boot() {
 
   bindInteractions();
   initNetwork();   // 挂上师承网络：入口句点击时由 CustomEvent 唤起
+
+  /* ---- 首屏概念片 ----
+     只在桌面端开：三段全屏视频 + WebGL 会拖垮手机。
+     "视频阶段 → 结构柱阶段" 靠卷动进度切换，不用额外做一套时序。 */
+  const hvHost = $('#hero-video');
+  if (hvHost && isDesktop() && !REDUCED) {
+    heroVideo = buildHeroVideo({
+      host: hvHost,
+      fadeStart: 0.015,      // 几乎一动就开始淡
+      fadeEnd: 0.16,         // 到 16% 完全让位给结构柱
+      reduced: REDUCED,
+    });
+    document.body.classList.add('has-hero-video');
+    window.__XM_HERO__ = heroVideo;   // 自检用
+  } else if (hvHost) {
+    hvHost.remove();          // 手机端整个拿掉，连文件都不下
+  }
 
   // 首帧先把初始状态落下去，再触发入场动画
   const { band } = scroller.read();

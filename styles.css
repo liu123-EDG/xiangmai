@@ -505,6 +505,75 @@ body[data-stage="3"] .entry { opacity: 1; visibility: visible; transform: transl
   transform: scale(1.25);
 }
 /* --------------------------------------------------------------------------
+   首屏概念片：全屏循环，作为开场
+   --------------------------------------------------------------------------
+   即梦那种做法 —— 第一眼就是一整屏画面，没有别的。
+   滚动时它淡出，把画面让给三段结构柱；结构柱才是真正的"入口"。
+   手机端不加这个类（js 决定），保持原来的 WebGL 房间。
+   -------------------------------------------------------------------------- */
+.hero-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: #000;
+  /* 由 js 写 opacity */
+  opacity: 1;
+  will-change: opacity;
+  transition: opacity 0.45s linear, visibility 0.45s linear;
+}
+/* 让位之后连可见性一起去掉：只留 opacity:0 的话，
+   它仍然是一层参与合成的图层，会干扰按像素对账的自检，
+   也没必要继续占着合成资源。 */
+.hero-video.gone {
+  visibility: hidden;
+  pointer-events: none;
+}
+.hero-video video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s linear;   /* 三段之间的交叉淡入 */
+}
+.hero-video video.on { opacity: 1; }
+
+/* 底部压一层暗，让引导语压得住；上部不动，保持画面的冲击力 */
+.hero-video__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      rgba(6, 5, 4, 0.42) 0%,
+      rgba(6, 5, 4, 0.10) 22%,
+      rgba(6, 5, 4, 0.18) 58%,
+      rgba(6, 5, 4, 0.72) 100%),
+    radial-gradient(closest-side at 50% 50%,
+      rgba(0, 0, 0, 0) 46%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+/* 视频在时，房间层的东西要等它淡出才出现 —— 由 js 加这个类控制 */
+body.has-hero-video .room__grain { opacity: 0; }
+
+/* 引导语在视频阶段要先藏起来，滚过之后才浮出 */
+body.has-hero-video:not(.video-gone) .guide,
+body.has-hero-video:not(.video-gone) .figure,
+body.has-hero-video:not(.video-gone) .stage-words,
+body.has-hero-video:not(.video-gone) .pillar-wrap {
+  opacity: 0;
+  transition: opacity 1.6s var(--ease-slow);
+}
+body.has-hero-video .guide,
+body.has-hero-video .figure,
+body.has-hero-video .stage-words,
+body.has-hero-video .pillar-wrap {
+  transition: opacity 1.6s var(--ease-slow);
+}
+
+/* --------------------------------------------------------------------------
    7b. 传承网络
    -------------------------------------------------------------------------- */
 .network {

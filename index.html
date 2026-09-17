@@ -73,6 +73,17 @@
   <section class="hero" id="hero" aria-labelledby="guide-line">
     <div class="room">
 
+      <!-- 概念片：全屏循环，作为开场。
+           只在桌面端开（手机上三段全屏视频 + WebGL 会卡）。
+           滚动时淡出，把画面让给下面的三段结构柱。
+           src 由 js/pages/home.js 注入 —— 这样手机端根本不会去下这三个文件。 -->
+      <div class="hero-video" id="hero-video" aria-hidden="true">
+        <video id="hv1" muted playsinline preload="none"></video>
+        <video id="hv2" muted playsinline preload="none"></video>
+        <video id="hv3" muted playsinline preload="none"></video>
+        <div class="hero-video__scrim"></div>
+      </div>
+
       <!-- 自研 WebGL 渲染层：三段结构柱 + 尘埃反馈场 -->
       <canvas class="gl" id="gl" aria-hidden="true"></canvas>
 

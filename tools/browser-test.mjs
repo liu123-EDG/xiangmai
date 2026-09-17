@@ -251,11 +251,104 @@ try {
     if (renderErr) console.log('       原因：' + String(renderErr).slice(0, 400));
   }
 
+  /* ---------- 1b. 首屏现在是概念片 ----------
+     序章第一屏改成了全屏循环视频（即梦那种做法），
+     WebGL 房间退到它后面。所以几何对账要分两种情况：
+     视频还在 → 验视频；滚过之后 → 才验 WebGL 房间。 */
+  const heroState = JSON.parse(await evalJs(`(() => {
+    const host = document.getElementById('hero-video');
+    return JSON.stringify({
+      has: !!host,
+      hasClass: document.body.classList.contains('has-hero-video'),
+      videos: host ? host.querySelectorAll('video').length : 0,
+      opacity: host ? +(+getComputedStyle(host).opacity).toFixed(3) : null,
+      ready: host ? [...host.querySelectorAll('video')].map(v => v.readyState) : [],
+      w: host ? [...host.querySelectorAll('video')].map(v => v.videoWidth) : [],
+    });
+  })()`));
+
+  console.log('\n[1b] 首屏概念片');
+  if (heroState.has && heroState.hasClass) {
+    ok('概念片层已启用（桌面端）');
+    if (heroState.videos === 3) ok('三段 video 就位'); else bad('video 数量 = ' + heroState.videos);
+    if (heroState.w[0] > 0) ok('第一段已解出画面 ' + heroState.w[0] + 'px 宽');
+    else bad('第一段没画面：ready=' + JSON.stringify(heroState.ready));
+    if (heroState.opacity > 0.9) ok('第一屏由视频占满（opacity=' + heroState.opacity + '）');
+    else bad('概念片层不可见：' + heroState.opacity);
+
+    // 滚过之后应当让位给 WebGL 房间
+    await evalJs('window.scrollTo(0, 2200)');
+    await sleep(1400);
+    const after = JSON.parse(await evalJs(`(() => {
+      const host = document.getElementById('hero-video');
+      return JSON.stringify({
+        op: +(+getComputedStyle(host).opacity).toFixed(3),
+        gone: document.body.classList.contains('video-gone'),
+      });
+    })()`));
+    if (after.op < 0.05 && after.gone) ok('滚动后概念片让位给结构柱（opacity=' + after.op + '）');
+    else bad('概念片没让位：' + JSON.stringify(after));
+    await evalJs('window.scrollTo(0, 0)');
+    await sleep(1200);
+  } else if (heroState.has) {
+    console.log('       （未启用：可能是窄窗口或低配机器，属正常降级）');
+  } else {
+    console.log('       （页面里没有概念片层）');
+  }
+
   if (diag.webgl) {
     ok('上下文 ' + diag.version + ' / 画布 ' + diag.canvas);
     console.log('       renderer: ' + String(diag.renderer).slice(0, 90));
     if (diag.err === 0) ok('gl.getError() = 0');
     else bad('gl.getError() = ' + diag.err);
+
+    /* 数组 uniform 的报错很难猜，直接量比推理快：
+       查一遍位置，再列出程序里真实存在的 active uniform。 */
+    const locs = await evalJs(`(() => {
+      const r = window.__XM_RENDERER__;
+      if (!r) return JSON.stringify({ err: '没暴露 renderer' });
+      const gl = r.gl;
+      const out = {};
+      for (const n of ['u_lit', 'u_lit[0]', 'u_breath', 'u_breath[0]', 'u_segBound']) {
+        out[n] = gl.getUniformLocation(r.pScene, n) === null ? 'null' : 'ok';
+      }
+      const cnt = gl.getProgramParameter(r.pScene, gl.ACTIVE_UNIFORMS);
+      const list = [];
+      for (let i = 0; i < cnt; i++) {
+        const info = gl.getActiveUniform(r.pScene, i);
+        if (info && /u_lit|u_breath|u_segBound/.test(info.name)) {
+          list.push(info.name + '(size ' + info.size + ')');
+        }
+      }
+      out.active = list;
+      out.errAfterQuery = gl.getError();
+      return JSON.stringify(out);
+    })()`);
+    console.log('       uniform 位置 ' + locs);
+
+    /* 逐段渲染，看错误是在哪一步产生的 ——
+       gl.getError() 只报"有错"，不报"哪一步错"，得自己切段。 */
+    const stepErr = await evalJs(`(() => {
+      const r = window.__XM_RENDERER__;
+      const gl = r.gl;
+      const out = {};
+      const drain = () => { let e = 0, n = 0; while ((e = gl.getError()) !== 0 && n < 8) { out.last = e; n++; } return n; };
+      drain();
+      // ① 只跑浮尘 pass
+      try { r.render({ time: 1, velocity: 0, frame: 1 }); } catch (e) { out.throwOnRender = String(e.message); }
+      out.afterFullRender = drain();
+      // ② 只设 uniform，不画
+      gl.useProgram(r.pScene);
+      gl.uniform1fv(r.uScene.a.u_lit, new Float32Array([1, 1, 1]));
+      out.afterLit = drain();
+      gl.uniform1fv(r.uScene.a.u_breath, new Float32Array([13, 9.5, 6.5]));
+      out.afterBreath = drain();
+      // u_segBound 是 vec4，要用 uniform4fv —— 用 1fv 会自己制造一条 GL 警告
+      gl.uniform4fv(r.uScene.a.u_segBound, new Float32Array([0, 0.393, 0.680, 1]));
+      out.afterSegBound = drain();
+      return JSON.stringify(out);
+    })()`);
+    console.log('       分段报错 ' + stepErr);
   }
 
   /* ---------- 2. 画面确实在动 ---------- */
@@ -331,6 +424,7 @@ try {
     const s = r ? r(true) : null;
     return s && s.bands ? s.bands : null;
   })()`);
+  /* 三段亮度是直接从画布量的，不受视频层影响，不用滚。 */
   if (bandLum) {
     const [b1, b2, b3] = bandLum;
     console.log('       三段平均亮度  上=' + b1 + '  中=' + b2 + '  下=' + b3);
@@ -341,7 +435,13 @@ try {
   }
 
   /* 亮度图：走真实截图，而不是画布直读。
-     WebGL 画布不保留绘制缓冲，直读那条路在部分环境会拿到清空后的内容。 */
+     WebGL 画布不保留绘制缓冲，直读那条路在部分环境会拿到清空后的内容。
+
+     注意：序章第一屏现在是概念片，它会盖住结构柱。
+     所以量柱体之前必须先滚过视频区，让视频让位 ——
+     否则截图里是壁画，不是柱子（踩过，表现为"柱体位置差了 441px"）。 */
+  await evalJs('window.scrollTo(0, 1100)');
+  await sleep(1600);
   const asciiShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(shotsDir, '_ascii.png'), Buffer.from(asciiShot.data, 'base64'));
   const asciiIm = decodePng(join(shotsDir, '_ascii.png'));

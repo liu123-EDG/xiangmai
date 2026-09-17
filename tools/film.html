@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ug">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>弦脉 · 十二木卡姆 · 概念片</title>
+<style>
+  /* ==========================================================================
+     弦脉 · 十二木卡姆 · 概念片
+     --------------------------------------------------------------------------
+     三段素材接成一整条，文字浮现在第三段（纯黑那条）上。
+
+     时间轴（总长 15.27 秒，每段 5.09 秒）：
+       0.00 – 5.09   01 壁画推进
+       5.09 – 10.18  02 颜色抽离
+      10.18 – 15.27  03 黑场 · 一道金线
+                     └ 11.6s 起 维吾尔文浮现
+                     └ 13.6s 起 中文 / 英文
+                     └ 14.6s 起 淡出到黑
+
+     为什么用 JS 驱动而不是纯 CSS：
+       所有元素挂在**同一个时钟**上，且三段视频接缝处不会因为
+       模板字符串换行产生空白文本节点。可视化也不会有微妙的不同步。
+
+     录屏：窗口拉到 1920×1080，按 R 重播。
+     ========================================================================== */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #000;
+  }
+  #frame {
+    position: relative;
+    width: min(100vw, calc(100vh * 16 / 9));
+    height: min(100vh, calc(100vw * 9 / 16));
+    overflow: hidden; background: #000;
+  }
+
+  video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.5s linear;
+  }
+  video.on { opacity: 1; }
+
+  /* 结尾的淡出遮罩 */
+  #fade {
+    position: absolute; inset: 0;
+    background: #000; opacity: 0; pointer-events: none;
+  }
+
+  /* ---- 文字层 ---- */
+  #text {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2.6vmin;
+    text-align: center;
+    opacity: 0;                       /* 由 JS 在合适的时间点亮 */
+    pointer-events: none;
+  }
+  #text.on { opacity: 1; }
+
+  /* 中心暖光：给纯黑那一段一点底 */
+  #bloom {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%,
+      rgba(217, 178, 104, 0.15) 0%,
+      rgba(217, 178, 104, 0.05) 46%,
+      rgba(0, 0, 0, 0) 78%);
+    opacity: 0; transition: opacity 2.4s ease-out;
+  }
+  #bloom.on { opacity: 1; }
+
+  .ug {
+    direction: rtl;                    /* 维吾尔文从右往左，必须声明 */
+    unicode-bidi: isolate;
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri",
+                 "Segoe UI", Tahoma, serif;
+    font-size: clamp(26px, 7.2vmin, 130px);
+    line-height: 1.5;
+    color: #f2e4c4;
+    white-space: nowrap;
+    text-shadow: 0 0 26px rgba(217,178,104,.32), 0 0 74px rgba(217,178,104,.15);
+    /* 由 JS 写这两个属性来做浮现 */
+    filter: blur(20px) brightness(0.4);
+    transform: translateY(12px) scale(0.99);
+  }
+
+  .rule {
+    width: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(217,178,104,.55), transparent);
+    opacity: 0;
+  }
+  .cn {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    font-size: clamp(10px, 2vmin, 34px);
+    letter-spacing: 0.62em; text-indent: 0.62em;
+    color: #d8cfb8; opacity: 0;
+  }
+  .lat {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(7px, 1.1vmin, 18px);
+    letter-spacing: 0.66em; text-indent: 0.66em;
+    color: rgba(216,207,184,.55); opacity: 0;
+  }
+
+  #dust { position: absolute; inset: 0; width: 100%; height: 100%;
+          mix-blend-mode: screen; opacity: 0; pointer-events: none; }
+
+  .vig {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%,
+      rgba(0,0,0,0) 44%, rgba(0,0,0,0.5) 78%, rgba(0,0,0,0.9) 100%);
+  }
+
+  #hint {
+    position: fixed; left: 16px; bottom: 14px; z-index: 9;
+    font: 11px/1.7 ui-monospace, Consolas, monospace;
+    letter-spacing: .12em; color: rgba(255,255,255,.26);
+    pointer-events: none; transition: opacity .3s;
+  }
+  #hint.off { opacity: 0; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="frame">
+    <!-- 路径相对本文件（tools/）：上一层就是站点根，所以是 ../assets/...
+         早先写成 ../../ 会指到 D:\dsh\，文件找不到，画面全黑（踩过）。 -->
+    <video id="v1" src="../assets/video/reveal/01-mural.mp4" muted playsinline preload="auto"></video>
+    <video id="v2" src="../assets/video/reveal/02-drain.mp4" muted playsinline preload="auto"></video>
+    <video id="v3" src="../assets/video/reveal/03-black.mp4" playsinline preload="auto"></video>
+
+    <div id="bloom"></div>
+    <canvas id="dust"></canvas>
+
+    <div id="text">
+      <div class="ug">ئون ئىككى مۇقام</div>
+      <div class="rule"></div>
+      <div class="cn">十 二 木 卡 姆</div>
+      <div class="lat">STRINGLINE HERITAGE</div>
+    </div>
+
+    <div class="vig"></div>
+    <div id="fade"></div>
+  </div>
+</div>
+
+<div id="hint">R 重播 · H 隐藏提示 · 建议 1920×1080 录屏</div>
+
+<script>
+/* ==========================================================================
+   时间轴
+   ========================================================================== */
+const CLIP = 5.09;                      // 每段时长（实测）
+const T2 = CLIP;                        // 第二段起点 5.09
+const T3 = CLIP * 2;                    // 第三段起点 10.18
+
+/* ==========================================================================
+   模式
+   --------------------------------------------------------------------------
+   ?loop=1  纯循环版：去文字、去结尾淡出，结尾接回开头。
+            给序章当全屏背景用 —— 它要一直转，不能"演完就停"。
+   ========================================================================== */
+const LOOP = new URLSearchParams(location.search).has('loop');
+
+/* 文字浮现的时刻。都相对整条片子，不是相对第三段。
+   —— 为什么从第二段末尾就起 ——
+   第二段的画面是"颜色被抽干、沉入全黑"，第三段一开始就是纯黑。
+   文字在那片黑里凝出来，等于借了第二段的收尾做过渡；
+   而且这样能给文字 6.5 秒，从容得多。
+   早先都压在第三段里，只剩 4.9 秒要塞下浮现+中英+淡出，太赶。 */
+const T = {
+  bloom:   9.0,      // 暖光起（第二段末尾，画面已经在变黑）
+  ugIn:    9.8,      // 维吾尔文开始浮现
+  ugFull: 12.2,      // 完全清晰（2.4 秒的浮现过程）
+  rule:   12.5,      // 分隔线展开
+  cn:     12.6,      // 中文
+  lat:    12.9,      // 英文
+  hold:   13.4,      // 到这里全部就位，定格 3 秒
+  fade:   16.4,      // 开始淡出
+  end:    17.6,      // 全黑，收
+};
+
+/* 循环版的周期：三段放完就回开头，末尾留一点时间让交叉淡入完成 */
+const LOOP_LEN = 15.9;
+
+const $ = (s) => document.querySelector(s);
+const v1 = $('#v1'), v2 = $('#v2'), v3 = $('#v3');
+const textEl = $('#text'), bloom = $('#bloom'), fade = $('#fade');
+const ug = $('.ug'), rule = $('.rule'), cn = $('.cn'), lat = $('.lat');
+
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+
+let t0 = 0;          // 起始时间戳
+let running = false;
+let raf = 0;
+
+function reset() {
+  [v1, v2, v3].forEach((v) => {
+    try { v.pause(); v.currentTime = 0; } catch {}
+    v.classList.remove('on');
+  });
+  v1.classList.add('on');
+  textEl.classList.remove('on');
+  bloom.classList.remove('on');
+  fade.style.opacity = '0';
+  ug.style.filter = 'blur(20px) brightness(0.4)';
+  ug.style.transform = 'translateY(12px) scale(0.99)';
+  rule.style.width = '0';
+  rule.style.opacity = '0';
+  cn.style.opacity = '0';
+  lat.style.opacity = '0';
+}
+
+async function play() {
+  reset();
+  running = true;
+  t0 = performance.now();
+
+  // v3 有原声（黑场里那道金线的氛围音），其余两段静音
+  v3.volume = 0.7;
+  try { await v1.play(); } catch {}
+  try { await v3.play(); } catch {}      // 先起 v3 再等，避免到点才缓冲
+  v3.pause();
+  try { v3.currentTime = 0; } catch {}
+
+  loop();
+}
+
+function loop() {
+  if (!running) return;
+  raf = requestAnimationFrame(loop);
+  const t = (performance.now() - t0) / 1000;
+
+  /* ---- 循环版：放完就回到开头，靠下面的淡入淡出接上 ---- */
+  if (LOOP && t >= LOOP_LEN) {
+    t0 = performance.now();
+    [v1, v2, v3].forEach((v) => {
+      try { v.currentTime = 0; } catch {}
+      v.classList.remove('on');
+    });
+    v1.classList.add('on');
+    v3.pause();
+    const p1 = v1.play(); if (p1 && p1.catch) p1.catch(() => {});
+    const p3 = v3.play(); if (p3 && p3.catch) p3.catch(() => {});
+    v3.pause();
+    try { v3.currentTime = 0; } catch {}
+    return;
+  }
+
+  /* ---- 三段切换 ---- */
+  if (t >= T2 && !v2.classList.contains('on')) {
+    v2.classList.add('on'); v1.classList.remove('on');
+    try { v2.currentTime = Math.max(0, t - T2); } catch {}
+    const p = v2.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  if (t >= T3 && !v3.classList.contains('on')) {
+    v3.classList.add('on'); v2.classList.remove('on');
+    try { v3.currentTime = Math.max(0, t - T3); } catch {}
+    // play() 返回 Promise，没接住 reject 会在控制台留 AbortError
+    const p = v3.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  /* 第三段只有 5.09 秒，但文字要定格到 16.4 秒 ——
+     所以播完就停在最后一帧，让黑场继续，别让视频回到第一帧。 */
+  if (v3.classList.contains('on') && v3.duration && !v3.paused &&
+      v3.currentTime >= v3.duration - 0.06) {
+    try { v3.pause(); } catch {}
+  }
+
+  /* ---- 文字浮现（循环版跳过全部文字） ---- */
+  if (!LOOP) {
+    if (t >= T.bloom) bloom.classList.add('on');
+
+    if (t >= T.ugIn) {
+      textEl.classList.add('on');
+      const p = clamp01((t - T.ugIn) / (T.ugFull - T.ugIn));
+      const e = easeOut(p);
+      // 模糊 → 清晰，暗 → 亮
+      ug.style.filter = 'blur(' + (20 * (1 - e)).toFixed(2) + 'px) brightness(' +
+        (0.4 + 0.6 * e).toFixed(3) + ')';
+      ug.style.transform = 'translateY(' + (12 * (1 - e)).toFixed(2) + 'px) scale(' +
+        (0.99 + 0.01 * e).toFixed(4) + ')';
+    }
+
+    if (t >= T.rule) {
+      const p = clamp01((t - T.rule) / 1.1);
+      rule.style.width = (easeOut(p) * 30).toFixed(2) + 'vmin';
+      rule.style.opacity = p.toFixed(3);
+    }
+    if (t >= T.cn)  cn.style.opacity  = clamp01((t - T.cn)  / 1.4).toFixed(3);
+    if (t >= T.lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
+
+    /* ---- 结尾淡出 ---- */
+    if (t >= T.fade) {
+      fade.style.opacity = clamp01((t - T.fade) / (T.end - T.fade)).toFixed(3);
+    }
+
+    if (t >= T.end + 0.35) {
+      running = false;
+      [v1, v2, v3].forEach((v) => { try { v.pause(); } catch {} });
+    }
+  }
+}
+
+/* 首帧：先把第一段画出来 */
+v1.addEventListener('loadeddata', () => { if (!running) v1.classList.add('on'); });
+
+/* 用户一有动作就开播（浏览器不允许自动出声） */
+let armed = true;
+const kick = () => {
+  if (!armed) return;
+  armed = false;
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((e) =>
+    window.removeEventListener(e, kick));
+  play();
+};
+['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((e) =>
+  window.addEventListener(e, kick, { passive: true }));
+
+/* 浮尘 */
+(function dust() {
+  const cv = $('#dust'); const g = cv.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  const motes = [];
+  for (let i = 0; i < 80; i++) {
+    motes.push({ x: Math.random(), y: Math.random(),
+      r: Math.random() * 1.4 + 0.4, vy: Math.random() * 0.0002 + 0.00005,
+      vx: (Math.random() - 0.5) * 0.00007, a: Math.random() * 0.45 + 0.12,
+      ph: Math.random() * Math.PI * 2 });
+  }
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.width = Math.max(1, Math.round(r.width * dpr));
+    H = cv.height = Math.max(1, Math.round(r.height * dpr));
+  }
+  resize(); window.addEventListener('resize', resize);
+  let t = 0;
+  (function loopDust() {
+    requestAnimationFrame(loopDust);
+    t += 1 / 60;
+    cv.style.opacity = String(Math.min(0.85, Math.max(0, (t - 9) / 4)));
+    g.clearRect(0, 0, W, H);
+    for (const m of motes) {
+      m.y += m.vy; m.x += m.vx;
+      if (m.y > 1.02) { m.y = -0.02; m.x = Math.random(); }
+      const a = m.a * (0.55 + 0.45 * Math.sin(t * 0.5 + m.ph));
+      const px = m.x * W, py = m.y * H, rr = m.r * dpr;
+      const grd = g.createRadialGradient(px, py, 0, px, py, rr * 4);
+      grd.addColorStop(0, 'rgba(242,228,196,' + (a * 0.8).toFixed(3) + ')');
+      grd.addColorStop(1, 'rgba(242,228,196,0)');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(px, py, rr * 4, 0, Math.PI * 2); g.fill();
+    }
+  })();
+})();
+
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'r') play();
+  if (k === 'h') $('#hint').classList.toggle('off');
+});
+
+/* 自检用 */
+window.__XM_FILM__ = () => JSON.stringify({
+  t: ((performance.now() - t0) / 1000).toFixed(2),
+  running,
+  on: [v1.classList.contains('on'), v2.classList.contains('on'), v3.classList.contains('on')],
+  /* 视频**真的**加载了吗 —— 只看 class 是不够的。
+     路径写错时 class 照样切、动画照样跑，但一个像素都不显示。
+     判据：readyState >= 3（HAVE_FUTURE_DATA）且 videoWidth > 0。 */
+  videos: [v1, v2, v3].map((v) => ({
+    ready: v.readyState,
+    w: v.videoWidth,
+    h: v.videoHeight,
+    dur: isFinite(v.duration) ? +v.duration.toFixed(2) : null,
+    err: v.error ? v.error.code : null,
+    src: v.getAttribute('src').split('/').pop(),
+  })),
+  textOn: textEl.classList.contains('on'),
+  textOpacity: +(+getComputedStyle(textEl).opacity).toFixed(3),
+  textCls: textEl.className,
+  ugOpacity: +(+getComputedStyle(ug).opacity).toFixed(3),
+  ugText: ug.textContent,
+  ugRect: (() => { const r = ug.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; })(),
+  ugFilter: getComputedStyle(ug).filter,
+  cn: +(cn.style.opacity || 0),
+  lat: +(lat.style.opacity || 0),
+  fade: +(fade.style.opacity || 0),
+  durations: [v1.duration, v2.duration, v3.duration].map((d) => (isFinite(d) ? +d.toFixed(2) : null)),
+});
+window.__XM_PLAY__ = play;
+window.__XM_JUMP__ = (sec) => {          // 跳到某一秒（自检用）
+  play();
+  setTimeout(() => { t0 = performance.now() - sec * 1000; }, 30);
+};
+</script>
+</body>
+</html>

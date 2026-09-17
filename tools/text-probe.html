@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ug">
+<head>
+<meta charset="utf-8">
+<title>文字浮现 · 测试</title>
+<style>
+  html, body { margin: 0; background: #000; color: #fff; }
+  .row { padding: 14px 24px; border-bottom: 1px solid #1a1a1a; }
+  .label { font: 12px/1.6 system-ui, sans-serif; color: #666; letter-spacing: .1em; }
+  .ug {
+    direction: rtl;
+    unicode-bidi: isolate;
+    font-size: 54px;
+    line-height: 1.7;
+    color: #e8dcc0;
+  }
+  .cn { font: 22px/1.6 "Songti SC", "SimSun", serif; letter-spacing: .34em; color: #cbbf9f; }
+  .naskh  { font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri", serif; }
+  .system { font-family: system-ui, "Segoe UI", sans-serif; }
+  .tahoma { font-family: Tahoma, "Segoe UI", sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="row">
+  <div class="label">① Noto Naskh Arabic / 回退 serif</div>
+  <div class="ug naskh">ئۇيغۇر مۇقامى</div>
+</div>
+
+<div class="row">
+  <div class="label">② system-ui</div>
+  <div class="ug system">ئۇيغۇر مۇقامى</div>
+</div>
+
+<div class="row">
+  <div class="label">③ Tahoma</div>
+  <div class="ug tahoma">ئۇيغۇر مۇقامى</div>
+</div>
+
+<div class="row">
+  <div class="label">④ 十二木卡姆（维吾尔文）</div>
+  <div class="ug naskh">ئون ئىككى مۇقام</div>
+</div>
+
+<div class="row" style="text-align:center">
+  <div class="label">⑤ 中英对照</div>
+  <div class="ug naskh" style="text-align:center">ئۇيغۇر مۇقامى</div>
+  <div class="cn">十 二 木 卡 姆</div>
+  <div style="font:14px/2 system-ui,sans-serif;letter-spacing:.5em;color:#8a8272">STRINGLINE HERITAGE</div>
+</div>
+
+<script>
+/* 报告实际用了哪个字体、以及文本方向是否被识别为 RTL ——
+   维吾尔文排错的典型症状是字母孤立不成连写，肉眼看得出但说不清，
+   所以这里量出来。 */
+window.__FONT_REPORT__ = (() => {
+  const out = {};
+  const el = document.querySelector('.naskh');
+  out.ugText = el.textContent;
+  out.rtlDetected = getComputedStyle(el).direction;
+  // 用 canvas 量宽度：连写正确与孤立字母的宽度差别很明显
+  const c = document.createElement('canvas').getContext('2d');
+  const families = ['Noto Naskh Arabic', 'Scheherazade New', 'Amiri',
+                    'Segoe UI', 'Tahoma', 'Arial', 'serif'];
+  c.font = '54px ' + families.map(f => '"' + f + '"').join(', ');
+  out.width = Math.round(c.measureText(el.textContent).width);
+  // 逐字拆开量：如果连写正常，整串宽度会明显小于逐字相加
+  let sum = 0;
+  for (const ch of el.textContent) sum += c.measureText(ch).width;
+  out.perCharSum = Math.round(sum);
+  out.joined = out.width < out.perCharSum * 0.92;
+  out.available = families.map(f => {
+    const t = document.createElement('canvas').getContext('2d');
+    t.font = '54px "' + f + '"';
+    const w = t.measureText(el.textContent).width;
+    t.font = '54px monospace';
+    const wm = t.measureText(el.textContent).width;
+    return f + ':' + Math.round(w);
+  });
+  return JSON.stringify(out);
+})();
+</script>
+</body>
+</html>
