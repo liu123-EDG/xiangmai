@@ -34,6 +34,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** 每个页面入口 → 产物路径 */
 const PAGES = [
+  { entry: 'js/pages/welcome.js', out: 'js/dist/welcome.js' },
   { entry: 'js/pages/home.js', out: 'js/dist/home.js' },
   { entry: 'js/pages/qiongnaieman.js', out: 'js/dist/qiongnaieman.js' },
   { entry: 'js/pages/dastan.js', out: 'js/dist/dastan.js' },

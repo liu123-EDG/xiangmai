@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>弦脉 · Stringline Heritage — 丝路口传音乐的数字档案</title>
+<meta name="description" content="以新疆十二木卡姆为主线的口传音乐数字档案。三段式结构、十二套木卡姆、各民族音乐形态。">
+<meta name="theme-color" content="#0a0908">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="弦脉 · Stringline Heritage">
+<meta property="og:description" content="丝路口传音乐的数字档案。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Crect x='12' y='4' width='8' height='8' fill='%233a2b28'/%3E%3Crect x='12' y='12' width='8' height='8' fill='%23c08a3e'/%3E%3Crect x='12' y='20' width='8' height='8' fill='%23a33b28'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  /* ==========================================================================
+     入口页
+     --------------------------------------------------------------------------
+     这一页只做一件事：**一整屏视频**，加一个"进入"。
+
+     为什么单独开一页：序章的视频是"引子"，滚下去就要让位给三段结构柱 ——
+     那是序章的设计。但如果想要"第一眼就是一整屏画面，别的不许出现"，
+     那就得有一页**不让位**的地方。这里就是。
+
+     视频复用 js/lib/hero-video.js：把 fadeStart 设成 2（永远达不到），
+     它就一直循环、永不淡出。滚动在这页被锁住。
+     ========================================================================== */
+  html, body {
+    margin: 0; height: 100%;
+    background: #000; overflow: hidden;   /* 这一页不许滚 */
+  }
+  /* 滚动条也不要 */
+  body::-webkit-scrollbar { display: none; }
+  body { scrollbar-width: none; }
+
+  #stage { position: fixed; inset: 0; background: #000; }
+
+  /* ---- 视频层 ---- */
+  #hero-video {
+    position: absolute; inset: 0;
+    z-index: 1; overflow: hidden; background: #000;
+    opacity: 1;
+  }
+  #hero-video video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.6s linear;
+  }
+  #hero-video video.on { opacity: 1; }
+
+  /* ---- 压暗：让字压得住，但不压掉画面的冲击力 ---- */
+  .scrim {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      linear-gradient(180deg,
+        rgba(6, 5, 4, 0.50) 0%,
+        rgba(6, 5, 4, 0.12) 26%,
+        rgba(6, 5, 4, 0.26) 55%,
+        rgba(6, 5, 4, 0.84) 100%),
+      radial-gradient(closest-side at 50% 50%,
+        rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.48) 100%);
+  }
+
+  /* ---- 内容 ---- */
+  .entry {
+    position: absolute; inset: 0; z-index: 3;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between;
+    padding: clamp(1.6rem, 4vh, 3.4rem) clamp(1.4rem, 5vw, 3.4rem);
+    text-align: center;
+    pointer-events: none;   /* 只有按钮可点，别挡住鼠标手势 */
+  }
+
+  .brand {
+    display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+    opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.35s forwards;
+  }
+  .brand__glyph {
+    width: 26px; height: 26px;
+    background:
+      linear-gradient(180deg,
+        #3a2b28 0 34%, rgba(0,0,0,0) 34% 36%,
+        #1e3038 36% 67%, rgba(0,0,0,0) 67% 69%,
+        #c08a3e 69% 100%);
+    box-shadow: 0 0 26px -6px rgba(192, 138, 62, 0.6);
+  }
+  .brand__name {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 3.4vw, 2.4rem);
+    letter-spacing: 0.52em; text-indent: 0.52em;
+    color: var(--bone);
+    text-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 2px 20px rgba(0, 0, 0, 1);
+  }
+  .brand__latin {
+    font-family: var(--font-sans);
+    font-size: clamp(0.58rem, 1vw, 0.72rem);
+    letter-spacing: 0.6em; text-indent: 0.6em;
+    color: rgba(222, 214, 200, 0.5);
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 1);
+  }
+
+  .foot {
+    display: flex; flex-direction: column; align-items: center; gap: 1.3rem;
+    /* 按钮别让人等 —— 1.9 秒内到位。
+       早先 1.4s 延迟 + 2.4s 时长 = 3.8 秒才完全出现，太慢。 */
+    opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.9s forwards;
+  }
+  .tagline {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: clamp(0.68rem, 1.15vw, 0.82rem);
+    letter-spacing: 0.36em; text-indent: 0.36em;
+    line-height: 2.2;
+    color: rgba(222, 214, 200, 0.72);
+    text-shadow: 0 1px 16px rgba(0, 0, 0, 1);
+  }
+
+  .go {
+    pointer-events: auto;
+    display: inline-flex; align-items: center; gap: 0.9rem;
+    padding: 0.95rem 2.1rem;
+    font-family: var(--font-sans);
+    font-size: clamp(0.74rem, 1.15vw, 0.86rem);
+    letter-spacing: 0.34em; text-indent: 0.34em;
+    color: var(--bone);
+    text-decoration: none;
+    background: rgba(8, 7, 6, 0.42);
+    border: 1px solid rgba(222, 214, 200, 0.28);
+    backdrop-filter: blur(3px);
+    transition: border-color .6s var(--ease-slow), background .6s var(--ease-slow),
+                color .6s var(--ease-slow), letter-spacing .6s var(--ease-slow);
+  }
+  .go:hover, .go:focus-visible {
+    border-color: rgba(192, 138, 62, 0.85);
+    background: rgba(192, 138, 62, 0.14);
+    color: #f2e4c4;
+    letter-spacing: 0.4em;
+    outline: none;
+  }
+  .go__arrow { transition: transform .6s var(--ease-slow); }
+  .go:hover .go__arrow { transform: translateX(4px); }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* 视频还没起来时的底：一道极暗的暖光，避免纯黑一片像坏了 */
+  .wait {
+    position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(closest-side at 50% 52%,
+      rgba(120, 70, 26, 0.14) 0%, rgba(0, 0, 0, 0) 70%), #050403;
+  }
+
+  @media (max-width: 720px) {
+    .brand__name { letter-spacing: 0.34em; text-indent: 0.34em; }
+    .tagline { letter-spacing: 0.22em; text-indent: 0.22em; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand, .foot { animation-duration: .01s; animation-delay: 0s; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="wait"></div>
+
+  <!-- 概念片：整屏循环，永不让位。
+       src 由 js/pages/welcome.js 注入；手机上不启用（省流量、免卡顿）。 -->
+  <div id="hero-video" aria-hidden="true">
+    <video muted playsinline preload="none"></video>
+    <video muted playsinline preload="none"></video>
+    <video muted playsinline preload="none"></video>
+  </div>
+
+  <div class="scrim"></div>
+
+  <div class="entry">
+    <div class="brand">
+      <i class="brand__glyph" aria-hidden="true"></i>
+      <span class="brand__name">弦脉</span>
+      <span class="brand__latin">Stringline Heritage</span>
+    </div>
+
+    <div class="foot">
+      <p class="tagline">
+        丝路口传音乐的数字档案<br>
+        一套要二十小时才能听完的音乐，由三段构成
+      </p>
+      <a class="go" href="../index.html">
+        进入
+        <span class="go__arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script src="../js/dist/welcome.js" defer></script>
+</body>
+</html>
