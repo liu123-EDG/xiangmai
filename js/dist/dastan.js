@@ -2231,7 +2231,14 @@ const NAV = [
   { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
   { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },
   { id: 'mashrap',   num: '四',    label: '麦西热甫',    href: 'mashrap/index.html',      sub: '歌舞曲' },
-  { id: 'lishi',     num: '五',    label: '历史与传承',  href: 'lishi/index.html' },
+  {
+    id: 'lishi', num: '五', label: '历史与传承', href: 'lishi/index.html',
+    // 和附录在同一道门后面：不跳完那场圆圈，这两页都不该进得去。
+    // 之前只锁了附录，第五章漏了 —— 结果能直接点进去。
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
   {
     id: 'fulu', num: '附录', label: '形制比较', href: 'fulu/index.html',
     requires: 'xiangmai.unlocked.mashrap',

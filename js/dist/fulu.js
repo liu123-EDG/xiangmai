@@ -1780,7 +1780,14 @@ const NAV = [
   { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
   { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },
   { id: 'mashrap',   num: '四',    label: '麦西热甫',    href: 'mashrap/index.html',      sub: '歌舞曲' },
-  { id: 'lishi',     num: '五',    label: '历史与传承',  href: 'lishi/index.html' },
+  {
+    id: 'lishi', num: '五', label: '历史与传承', href: 'lishi/index.html',
+    // 和附录在同一道门后面：不跳完那场圆圈，这两页都不该进得去。
+    // 之前只锁了附录，第五章漏了 —— 结果能直接点进去。
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
   {
     id: 'fulu', num: '附录', label: '形制比较', href: 'fulu/index.html',
     requires: 'xiangmai.unlocked.mashrap',
@@ -2890,9 +2897,11 @@ function __M9__() {
 function createTheme(url, opts = {}) {
   let ctx = opts.ctx || null;
   let buffer = null;
+  let curUrl = url;
+  const cache = new Map();     // url → AudioBuffer，换曲不用重新解码
   let loading = null;
-  let src = null;
-  let gain = null;
+  let src = null;              // 当前正在播的 source
+  let gain = null;             // 当前 source 的增益
   let want = false;
   let waiting = false;        // 想播但 AudioContext 还没被唤醒
   let ctxWatched = false;     // 是否已经挂上 statechange 监听
@@ -2922,12 +2931,12 @@ function createTheme(url, opts = {}) {
     return gain;
   };
 
-  const load = () => {
-    if (buffer) return Promise.resolve(buffer);
-    if (loading) return loading;
+  /** 取一段音频（带缓存）。任一 URL 只解码一次。 */
+  const loadUrl = (u) => {
+    if (cache.has(u)) return Promise.resolve(cache.get(u));
     const c = ensureCtx();
     if (!c) return Promise.resolve(null);
-    loading = fetch(url)
+    return fetch(u)
       .then((r) => {
         if (!r.ok) throw new Error('http ' + r.status);
         return r.arrayBuffer();
@@ -2937,12 +2946,38 @@ function createTheme(url, opts = {}) {
         const p = c.decodeAudioData(buf, res, rej);
         if (p && p.then) p.then(res, rej);
       }))
-      .then((buf) => { buffer = buf; return buf; })
+      .then((buf) => { cache.set(u, buf); return buf; })
       .catch((e) => {
-        if (window.console) console.warn('[弦脉] 主题曲加载失败：', e && e.message);
+        if (window.console) console.warn('[弦脉] 音频加载失败 ' + u + '：', e && e.message);
         return null;
       });
+  };
+
+  const load = () => {
+    if (buffer) return Promise.resolve(buffer);
+    if (loading) return loading;
+    loading = loadUrl(curUrl).then((buf) => { buffer = buf; return buf; });
     return loading;
+  };
+
+  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
+      各曲各的增益，交叉淡入时互不干扰。 */
+  const playBuffer = (buf, fade, from) => {
+    const c = ensureCtx();
+    if (!c) return null;
+    const g = c.createGain();
+    g.gain.value = 0.0001;
+    g.connect(c.destination);
+    const s = c.createBufferSource();
+    s.buffer = buf;
+    s.loop = true;
+    s.connect(g);
+    const t = c.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(from === undefined ? 0.0001 : Math.max(0.0001, from), t);
+    g.gain.linearRampToValueAtTime(volume, t + fade);
+    s.start(t);
+    return { s, g };
   };
 
   /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。
@@ -2968,21 +3003,13 @@ function createTheme(url, opts = {}) {
         return;
       }
       waiting = false;
-      const g = ensureGain();
-      if (src) {                                   // 已经在放
-        g.gain.cancelScheduledValues(cc.currentTime);
-        g.gain.setTargetAtTime(volume, cc.currentTime, fade / 3);
+      if (src) {                                   // 已经在放，只把音量拉回去
+        gain.gain.cancelScheduledValues(cc.currentTime);
+        gain.gain.setTargetAtTime(volume, cc.currentTime, fade / 3);
         return;
       }
-      src = cc.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;                             // 循环铺底
-      src.connect(g);
-      const t = cc.currentTime;
-      g.gain.cancelScheduledValues(t);
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(volume, t + fade);
-      src.start(t);
+      const next = playBuffer(buffer, fade, 0.0001);
+      if (next) { src = next.s; gain = next.g; }
     };
 
     // 上下文醒了就自动接上（浏览器在用户第一次手势后会把 state 推到 running）
@@ -3004,17 +3031,8 @@ function createTheme(url, opts = {}) {
     const c = ensureCtx();
     if (!c || c.state === 'suspended') return false;
     if (src) return true;
-    const fade = fadeSec === undefined ? 2.2 : fadeSec;
-    const g = ensureGain();
-    src = c.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    src.connect(g);
-    const t = c.currentTime;
-    g.gain.cancelScheduledValues(t);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(volume, t + fade);
-    src.start(t);
+    const next = playBuffer(buffer, fadeSec === undefined ? 2.2 : fadeSec, 0.0001);
+    if (next) { src = next.s; gain = next.g; }
     waiting = false;
     return true;
   };
@@ -3036,11 +3054,44 @@ function createTheme(url, opts = {}) {
     if (ctx && src && gain) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
   };
 
+  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
+      各曲各的增益，交叉淡入时互不干扰。 */
+  
+
+  /** 换一段音频并交叉淡入。正在播时换曲不会留空白。
+      滚动驱动的场景切换会频繁调用，所以：目标没变就直接返回。 */
+  const crossfadeTo = (newUrl, fadeSec) => {
+    if (!newUrl || newUrl === curUrl) return Promise.resolve(false);
+    const fade = fadeSec === undefined ? 1.6 : fadeSec;
+    return loadUrl(newUrl).then((buf) => {
+      if (!buf) return false;
+      curUrl = newUrl;
+      buffer = buf;
+      const old = src, oldGain = gain;
+      const c = ensureCtx();
+      if (c && c.state === 'suspended') { const p = c.resume(); if (p && p.then) p.catch(() => {}); }
+      const next = playBuffer(buf, fade, 0.0001);
+      if (next) { src = next.s; gain = next.g; }
+      if (old) {
+        try {
+          const t = c.currentTime;
+          oldGain.gain.cancelScheduledValues(t);
+          oldGain.gain.setValueAtTime(Math.max(0.0001, oldGain.gain.value), t);
+          oldGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+          old.stop(t + fade + 0.1);
+        } catch { try { old.stop(); } catch { /* 已停 */ } }
+      }
+      return true;
+    });
+  };
+
   /* 自检用：报告真实状态，而不是"我觉得应该响了" */
   const state = () => ({
     ready: !!buffer,
     playing: !!src,
     waiting,
+    url: curUrl,
+    cached: cache.size,
     ctxState: ctx ? ctx.state : 'none',
     gain: ctx && gain ? +gain.gain.value.toFixed(4) : -1,
     volume,
@@ -3048,11 +3099,12 @@ function createTheme(url, opts = {}) {
   });
 
   return {
-    start, stop, setVolume, state, useContext, wake,
+    start, stop, setVolume, state, useContext, wake, crossfadeTo, loadUrl,
     preload: load,
     get playing() { return !!src; },
     get waiting() { return waiting; },
     get ready() { return !!buffer; },
+    get url() { return curUrl; },
     get duration() { return buffer ? buffer.duration : 0; },
   };
 }

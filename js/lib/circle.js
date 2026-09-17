@@ -20,8 +20,9 @@ const el = (tag, attrs) => {
   return n;
 };
 
-/** 圈子最多容纳多少人 */
-const MAX = 24;
+/** 圈子最多容纳多少人。
+    24 个点起来太累，16 个既能看出"圈子在变大"，又不至于点到烦。 */
+const MAX = 16;
 
 /**
  * @param {object} opts
