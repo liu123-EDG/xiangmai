@@ -58,6 +58,7 @@ export function buildParallax(opts) {
   });
 
   let ticking = false;
+  let lastCur = -1;
 
   const update = () => {
     ticking = false;
@@ -71,6 +72,17 @@ export function buildParallax(opts) {
     const n = groups.length;
     const pos = p * n;                 // 连续位置
     const cur = Math.min(n - 1, Math.floor(pos));
+
+    /* 场景真的换了才通知 —— 每帧都回调会让音频那边反复交叉淡入。
+       这是达斯坦那页两段配乐的切换信号。 */
+    if (cur !== lastCur) {
+      lastCur = cur;
+      if (opts.onScene) {
+        try { opts.onScene(cur, scenes[cur]); } catch (e) {
+          if (window.console) console.warn('[弦脉] onScene 出错：', e && e.message);
+        }
+      }
+    }
 
     groups.forEach((G, i) => {
       // 交叉淡化：场景在自己的区段里全亮，边缘 12% 内过渡

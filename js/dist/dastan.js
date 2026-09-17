@@ -8,6 +8,7 @@
      js/lib/site.js  → NAV, mountShell, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
      js/lib/parallax.js  → buildParallax
+     js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
      js/pages/dastan.js
 */
 (function () {
@@ -24,6 +25,7 @@ __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
 __XM[8] = {};
+__XM[9] = {};
 
 /* ── js/lib/part-data.js ── */
 function __M0__() {
@@ -2636,6 +2638,7 @@ function buildParallax(opts) {
   });
 
   let ticking = false;
+  let lastCur = -1;
 
   const update = () => {
     ticking = false;
@@ -2649,6 +2652,17 @@ function buildParallax(opts) {
     const n = groups.length;
     const pos = p * n;                 // 连续位置
     const cur = Math.min(n - 1, Math.floor(pos));
+
+    /* 场景真的换了才通知 —— 每帧都回调会让音频那边反复交叉淡入。
+       这是达斯坦那页两段配乐的切换信号。 */
+    if (cur !== lastCur) {
+      lastCur = cur;
+      if (opts.onScene) {
+        try { opts.onScene(cur, scenes[cur]); } catch (e) {
+          if (window.console) console.warn('[弦脉] onScene 出错：', e && e.message);
+        }
+      }
+    }
 
     groups.forEach((G, i) => {
       // 交叉淡化：场景在自己的区段里全亮，边缘 12% 内过渡
@@ -2703,20 +2717,367 @@ __ns = __XM[7];
 __ns.mount_buildParallax = function () { return buildParallax; };
 }
 
-/* ── js/pages/dastan.js ── */
+/* ── js/lib/theme.js ── */
 function __M8__() {
+/* ==========================================================================
+   弦脉 · 主题曲播放
+   --------------------------------------------------------------------------
+   用 Web Audio 播 mp3（不用 <audio> 标签），理由：
+     · 能和已有的手鼓总线上共用一条链路，音量、淡入淡出一致
+     · 能对着 context.currentTime 做精确的交叉淡入
+     · 能无缝循环（AudioBufferSourceNode.loop）
+
+   两个关键点（都踩过）：
+     1) decodeAudioData 是异步的。第一次调用只启动加载，加载完自动接上播 ——
+        不然"点完最后一下要立刻听到声音"会变成半秒空白。
+     2) 一定要**自己 new 一个 AudioContext**，不能借用手鼓那个。
+        两个独立的 context 在浏览器里会互相干扰（一个在跑，另一个不响）。
+   ========================================================================== */
+
+/** 一个简易主题曲播放器
+ *  @param {string} url
+ *  @param {object} [opts]
+ *  @param {AudioContext} [opts.ctx] 复用已有的 AudioContext。
+ *         不传就自己建一个 —— 但**同一个页面上最好只有一个**：
+ *         两个独立的 context 会互相干扰（一个在跑、另一个不响），
+ *         这是排查了很久才定位到的静音原因。 */
+function createTheme(url, opts = {}) {
+  let ctx = opts.ctx || null;
+  let buffer = null;
+  let curUrl = url;
+  const cache = new Map();     // url → AudioBuffer，换曲不用重新解码
+  let loading = null;
+  let src = null;              // 当前正在播的 source
+  let gain = null;             // 当前 source 的增益
+  let want = false;
+  let waiting = false;        // 想播但 AudioContext 还没被唤醒
+  let ctxWatched = false;     // 是否已经挂上 statechange 监听
+  let volume = 0.55;          // 主题曲比手鼓略高，它要站得住
+
+  /** 换用别的 AudioContext —— 页面上应该只有一个。 */
+  const useContext = (c) => {
+    if (!c || c === ctx) return;
+    ctx = c;
+    gain = null;              // 旧增益挂在上一个 context 上，作废
+  };
+
+  const ensureCtx = () => {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    return ctx;
+  };
+
+  /** 延迟建增益节点：必须挂在这个 context 上，且 context 变了要重建 */
+  const ensureGain = () => {
+    if (gain && gain.context === ctx) return gain;
+    gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+    return gain;
+  };
+
+  /** 取一段音频（带缓存）。任一 URL 只解码一次。 */
+  const loadUrl = (u) => {
+    if (cache.has(u)) return Promise.resolve(cache.get(u));
+    const c = ensureCtx();
+    if (!c) return Promise.resolve(null);
+    return fetch(u)
+      .then((r) => {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then((buf) => new Promise((res, rej) => {
+        // Safari 只认回调形式，所以两种都接
+        const p = c.decodeAudioData(buf, res, rej);
+        if (p && p.then) p.then(res, rej);
+      }))
+      .then((buf) => { cache.set(u, buf); return buf; })
+      .catch((e) => {
+        if (window.console) console.warn('[弦脉] 音频加载失败 ' + u + '：', e && e.message);
+        return null;
+      });
+  };
+
+  const load = () => {
+    if (buffer) return Promise.resolve(buffer);
+    if (loading) return loading;
+    loading = loadUrl(curUrl).then((buf) => { buffer = buf; return buf; });
+    return loading;
+  };
+
+  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
+      各曲各的增益，交叉淡入时互不干扰。 */
+  const playBuffer = (buf, fade, from) => {
+    const c = ensureCtx();
+    if (!c) return null;
+    const g = c.createGain();
+    g.gain.value = 0.0001;
+    g.connect(c.destination);
+    const s = c.createBufferSource();
+    s.buffer = buf;
+    s.loop = true;
+    s.connect(g);
+    const t = c.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(from === undefined ? 0.0001 : Math.max(0.0001, from), t);
+    g.gain.linearRampToValueAtTime(volume, t + fade);
+    s.start(t);
+    return { s, g };
+  };
+
+  /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。
+   *
+   *  AudioContext 可能是 suspended（页面还没有用户手势）。
+   *  这里**自己负责唤醒**：先 resume，等 state 变成 running 再起播。
+   *  早期版本直接 return 等调用方来唤醒 —— 结果在没有手鼓的页面
+   *  （附录）没人唤醒它，一直干等，表现就是"点了没声"。 */
+  const start = (fadeSec) => {
+    want = true;
+    const c = ensureCtx();
+    if (!c) return false;
+
+    const fade = fadeSec === undefined ? 2.2 : fadeSec;
+    const begin = () => {
+      if (!want || !buffer) return;
+      const cc = ensureCtx();
+      if (cc.state === 'suspended') {
+        waiting = true;
+        // 先试着唤醒；唤醒成功后 statechange 会再叫我们一次
+        const p = cc.resume();
+        if (p && p.then) p.then(() => { if (cc.state !== 'suspended') begin(); }).catch(() => {});
+        return;
+      }
+      waiting = false;
+      if (src) {                                   // 已经在放，只把音量拉回去
+        gain.gain.cancelScheduledValues(cc.currentTime);
+        gain.gain.setTargetAtTime(volume, cc.currentTime, fade / 3);
+        return;
+      }
+      const next = playBuffer(buffer, fade, 0.0001);
+      if (next) { src = next.s; gain = next.g; }
+    };
+
+    // 上下文醒了就自动接上（浏览器在用户第一次手势后会把 state 推到 running）
+    if (!ctxWatched) {
+      ctxWatched = true;
+      c.addEventListener('statechange', () => {
+        if (want && !src && c.state === 'running') begin();
+      });
+    }
+
+    if (buffer) { begin(); return true; }
+    load().then(begin);
+    return true;
+  };
+
+  /** 被 resume 之后调用：把之前因为 suspended 而没起得来的那次播出去 */
+  const wake = (fadeSec) => {
+    if (!want || !buffer) return false;
+    const c = ensureCtx();
+    if (!c || c.state === 'suspended') return false;
+    if (src) return true;
+    const next = playBuffer(buffer, fadeSec === undefined ? 2.2 : fadeSec, 0.0001);
+    if (next) { src = next.s; gain = next.g; }
+    waiting = false;
+    return true;
+  };
+
+  const stop = (fadeSec) => {
+    want = false;
+    if (!ctx || !src || !gain) return;
+    const fade = fadeSec === undefined ? 1.2 : fadeSec;
+    const t = ctx.currentTime;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setTargetAtTime(0, t, fade / 3);
+    const s = src;
+    src = null;
+    try { s.stop(t + fade * 1.6); } catch { /* 已经停了 */ }
+  };
+
+  const setVolume = (v) => {
+    volume = Math.max(0, Math.min(1, v));
+    if (ctx && src && gain) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
+  };
+
+  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
+      各曲各的增益，交叉淡入时互不干扰。 */
+  
+
+  /** 换一段音频并交叉淡入。正在播时换曲不会留空白。
+      滚动驱动的场景切换会频繁调用，所以：目标没变就直接返回。 */
+  const crossfadeTo = (newUrl, fadeSec) => {
+    if (!newUrl || newUrl === curUrl) return Promise.resolve(false);
+    const fade = fadeSec === undefined ? 1.6 : fadeSec;
+    return loadUrl(newUrl).then((buf) => {
+      if (!buf) return false;
+      curUrl = newUrl;
+      buffer = buf;
+      const old = src, oldGain = gain;
+      const c = ensureCtx();
+      if (c && c.state === 'suspended') { const p = c.resume(); if (p && p.then) p.catch(() => {}); }
+      const next = playBuffer(buf, fade, 0.0001);
+      if (next) { src = next.s; gain = next.g; }
+      if (old) {
+        try {
+          const t = c.currentTime;
+          oldGain.gain.cancelScheduledValues(t);
+          oldGain.gain.setValueAtTime(Math.max(0.0001, oldGain.gain.value), t);
+          oldGain.gain.linearRampToValueAtTime(0.0001, t + fade);
+          old.stop(t + fade + 0.1);
+        } catch { try { old.stop(); } catch { /* 已停 */ } }
+      }
+      return true;
+    });
+  };
+
+  /* 自检用：报告真实状态，而不是"我觉得应该响了" */
+  const state = () => ({
+    ready: !!buffer,
+    playing: !!src,
+    waiting,
+    url: curUrl,
+    cached: cache.size,
+    ctxState: ctx ? ctx.state : 'none',
+    gain: ctx && gain ? +gain.gain.value.toFixed(4) : -1,
+    volume,
+    duration: buffer ? +buffer.duration.toFixed(2) : 0,
+  });
+
+  return {
+    start, stop, setVolume, state, useContext, wake, crossfadeTo, loadUrl,
+    preload: load,
+    get playing() { return !!src; },
+    get waiting() { return waiting; },
+    get ready() { return !!buffer; },
+    get url() { return curUrl; },
+    get duration() { return buffer ? buffer.duration : 0; },
+  };
+}
+
+/* ==========================================================================
+   自动播放：挂在第一次用户交互上
+   --------------------------------------------------------------------------
+   浏览器不允许"无交互自动播放"。所以做法是：**监听第一次手势**
+   （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
+
+   这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
+   声音按钮仍然保留：关掉之后就不再自动开。
+   ========================================================================== */
+function autoPlayOnGesture(opts) {
+  const { theme, seq, band } = opts;
+  let armed = true;
+  const btn = document.getElementById('sound-toggle');
+  const text = document.getElementById('sound-text');
+
+  const on = () => {
+    if (!armed) return;
+    armed = false;
+    detach();
+    if (seq && !seq.enabled) seq.enable();
+    if (seq) {
+      if (band !== undefined) seq.setBand(band);
+      // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
+      if (theme && seq.ctx) theme.useContext(seq.ctx);
+    }
+    /* startTheme:false 的页面（第四章）主题曲由别处触发，
+       但这一次手势仍要让 context 就绪，否则到时候点了也没声。 */
+    if (theme && opts.startTheme !== false && !theme.playing) {
+      theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+    }
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'true');
+      if (text) text.textContent = '声音 开';
+    }
+  };
+
+  const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
+  const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
+  evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
+
+  // 用户主动关掉，就不再自动开
+  if (btn) {
+    btn.addEventListener('click', () => {
+      if (btn.getAttribute('aria-pressed') === 'false') { armed = false; detach(); }
+    });
+  }
+
+  return { trigger: on, get armed() { return armed; } };
+}
+
+/* ==========================================================================
+   解锁标记
+   --------------------------------------------------------------------------
+   互动完成后才允许进其他民族的页面。标记写在 localStorage，
+   所以刷新、换页都还在。
+
+   说明：这是**引导**，不是安全机制 —— 真想绕过的人清一下浏览器数据就行。
+   目的是让人按设计的顺序走一遍，不是防谁。
+   ========================================================================== */
+const KEY = 'xiangmai.unlocked.mashrap';
+
+const unlock = {
+  get done() {
+    try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
+  },
+  set() {
+    try { localStorage.setItem(KEY, '1'); } catch { /* 隐私模式写不了，忽略 */ }
+    window.dispatchEvent(new CustomEvent('xiangmai:unlocked'));
+  },
+  clear() {
+    try { localStorage.removeItem(KEY); } catch { /* 忽略 */ }
+  },
+};
+
+__ns = __XM[8];
+__ns.mount_createTheme = function () { return createTheme; };
+__ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
+__ns.mount_unlock = function () { return unlock; };
+}
+
+/* ── js/pages/dastan.js ── */
+function __M9__() {
 var renderPart = __XM[1]["renderPart"];
 var bootChapter = __XM[6]["bootChapter"];
 var buildParallax = __XM[7]["buildParallax"];
+var createTheme = __XM[8]["createTheme"];
+var autoPlayOnGesture = __XM[8]["autoPlayOnGesture"];
 
-/* 第三章 · 达斯坦 —— 内容在 js/lib/part-data.js，骨架由 js/lib/part.js 生成
-   背景换成滚动视差：三个场景，/3 换一次（层由 tools/slice.py 生成） */
+/* ==========================================================================
+   第三章 · 达斯坦
+   --------------------------------------------------------------------------
+   内容在 js/lib/part-data.js，骨架由 js/lib/part.js 生成。
+   背景是滚动视差：三个场景，滑到 1/3、2/3 各换一次（层由 tools/slice.py 生成）。
+
+   配乐跟着场景走：
+     第一个场景 → scene-a.mp3（18.7 秒）
+     后两个场景 → scene-b.mp3（19.3 秒），之后不再换回
+   切换用交叉淡入，中间不留空白。
+   ========================================================================== */
+
 
 
 
 
 renderPart();
 const ctx = bootChapter({ active: 'dastan', soundBand: 1 });
+
+/* 场景配乐。比主题曲轻 —— 它是氛围，不该压过正文和鼓。 */
+const TRACKS = ['../assets/audio/dastan/scene-a.mp3', '../assets/audio/dastan/scene-b.mp3'];
+const pxAudio = createTheme(TRACKS[0]);
+
+/* 场景 → 音轨。前两场景各一首，最后一个沿用第二首（不换回）。 */
+const trackForScene = (i) => (i === 0 ? TRACKS[0] : TRACKS[1]);
+
+let curScene = 0;
+pxAudio.setVolume(0.30);        // 比主题曲（0.55）轻一档
+pxAudio.preload();
+pxAudio.loadUrl(TRACKS[1]);     // 第二段也提前解码，切场景时不卡
+
+/* 第一次交互就起第一段（浏览器不允许无手势自动播放）。
+   这里不放鼓 —— 达斯坦是叙事章，鼓会盖住配乐。 */
+autoPlayOnGesture({ theme: pxAudio, seq: null, fade: 2.4 });
 
 const pxHost = document.getElementById('px');
 const pxAnchor = document.getElementById('px-anchor');
@@ -2742,9 +3103,18 @@ if (pxHost && pxAnchor) {
     scenes: SCENES,
     maxShift: 96,
     reduced: ctx.REDUCED,
+    onScene: (i) => {
+      curScene = i;
+      const want = trackForScene(i);
+      if (pxAudio.url !== want) pxAudio.crossfadeTo(want, 2.0);
+    },
   });
   document.body.classList.add('has-parallax');
 }
+
+// 自检用
+window.__XM_THEME__ = pxAudio;
+window.__XM_SCENE__ = () => curScene;
 }
 
 /* js/lib/part-data.js */
@@ -2819,11 +3189,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/parallax.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/dastan.js */
+/* js/lib/theme.js */
 try {
   __ns = __XM[8];
   __M8__();
   for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/dastan.js */
+try {
+  __ns = __XM[9];
+  __M9__();
+  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/dastan.js" + " :: " + (e && e.stack || e));
 }
