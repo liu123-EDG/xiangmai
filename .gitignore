@@ -1,7 +1,8 @@
 # 工具产生的临时文件
-# 通配写法：自检脚本会建 .chrome-profile / .chrome-profile-fresh 等多个临时目录，
-# 逐个列举漏过一个，结果几百个浏览器缓存文件被提交进仓库（踩过）。
-.chrome-profile*/
+# 通配前缀 .chrome-*：自检脚本会建 .chrome-profile / .chrome-profile-fresh /
+# .chrome-scene / .chrome-diag 等一堆临时目录。按名字逐个列举永远会漏
+# （已经漏过两次，几百个浏览器缓存文件被提交进仓库）。
+.chrome-*/
 shots/
 .tmp/
 
