@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- 上段：剥落壁画。粗颗粒 + 位移，边缘呈片状崩缺 -->
+    <filter id="xm-plaster" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.62 0.86" numOctaves="5" seed="17" result="grain"/>
+      <feDisplacementMap in="SourceGraphic" in2="grain" scale="15" xChannelSelector="R" yChannelSelector="G" result="chipped"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="4" result="speck"/>
+      <feColorMatrix in="speck" type="saturate" values="0" result="speckGray"/>
+      <feComposite in="speckGray" in2="chipped" operator="in" result="speckIn"/>
+      <feBlend in="chipped" in2="speckIn" mode="multiply"/>
+    </filter>
+
+    <!-- 中段：流动线条。纵向拉长的湍流，读作叙事长句 -->
+    <filter id="xm-flow" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.075" numOctaves="4" seed="29" result="flow"/>
+      <feDisplacementMap in="SourceGraphic" in2="flow" scale="42" xChannelSelector="R" yChannelSelector="G" result="waved"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.22" numOctaves="2" seed="11" result="line"/>
+      <feColorMatrix in="line" type="saturate" values="0" result="lineGray"/>
+      <feComposite in="lineGray" in2="waved" operator="in" result="lineIn"/>
+      <feBlend in="waved" in2="lineIn" mode="soft-light"/>
+    </filter>
+
+    <!-- 下段：鼓点。密集高频颗粒，明暗跳跃 -->
+    <filter id="xm-beat" x="-6%" y="-6%" width="112%" height="112%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence" baseFrequency="1.3 1.1" numOctaves="2" seed="53" result="dots"/>
+      <feDisplacementMap in="SourceGraphic" in2="dots" scale="7" xChannelSelector="R" yChannelSelector="G" result="pocked"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.42" numOctaves="4" seed="8" result="clump"/>
+      <feColorMatrix in="clump" type="saturate" values="0" result="clumpGray"/>
+      <feComposite in="clumpGray" in2="pocked" operator="in" result="clumpIn"/>
+      <feBlend in="pocked" in2="clumpIn" mode="overlay"/>
+    </filter>
+  </defs>
+</svg>

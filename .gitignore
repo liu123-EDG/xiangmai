@@ -1,0 +1,14 @@
+# 工具产生的临时文件
+.chrome-profile/
+shots/
+.tmp/
+
+# 系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp

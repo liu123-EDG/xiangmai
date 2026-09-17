@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>弦脉 · 十二木卡姆｜丝路口传音乐的数字档案</title>
+<meta name="description" content="弦脉 Stringline Heritage：以十二木卡姆为起点，记录丝路口传音乐的结构、师承与当代转化。首屏以穹乃额曼—达斯坦—麦西热甫三段式结构柱，呈现一部需要二十小时才能听完的音乐。">
+<meta name="theme-color" content="#0a0908">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="弦脉 · 十二木卡姆">
+<meta property="og:description" content="一套需要二十小时才能听完的音乐，由三段构成。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Crect x='12' y='4' width='8' height='8' fill='%233a2b28'/%3E%3Crect x='12' y='12' width='8' height='8' fill='%23c08a3e'/%3E%3Crect x='12' y='20' width='8' height='8' fill='%23a33b28'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-stage="0" data-render="pending">
+
+<!-- 无 WebGL 时的兜底纹理。
+     内联而不是外链 assets/filters.svg —— file:// 下外链 SVG 滤镜会被安全策略拦掉，
+     那样兜底路径本身也是坏的。 -->
+<svg class="filter-defs" aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="xm-plaster" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.62 0.86" numOctaves="5" seed="17" result="grain"/>
+      <feDisplacementMap in="SourceGraphic" in2="grain" scale="14" xChannelSelector="R" yChannelSelector="G" result="chipped"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="4" result="speck"/>
+      <feColorMatrix in="speck" type="saturate" values="0" result="speckGray"/>
+      <feComposite in="speckGray" in2="chipped" operator="in" result="speckIn"/>
+      <feBlend in="chipped" in2="speckIn" mode="multiply"/>
+    </filter>
+    <filter id="xm-flow" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.075" numOctaves="4" seed="29" result="flow"/>
+      <feDisplacementMap in="SourceGraphic" in2="flow" scale="40" xChannelSelector="R" yChannelSelector="G" result="waved"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.22" numOctaves="2" seed="11" result="line"/>
+      <feColorMatrix in="line" type="saturate" values="0" result="lineGray"/>
+      <feComposite in="lineGray" in2="waved" operator="in" result="lineIn"/>
+      <feBlend in="waved" in2="lineIn" mode="soft-light"/>
+    </filter>
+    <filter id="xm-beat" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence" baseFrequency="1.3 1.1" numOctaves="2" seed="53" result="dots"/>
+      <feDisplacementMap in="SourceGraphic" in2="dots" scale="7" xChannelSelector="R" yChannelSelector="G" result="pocked"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.42" numOctaves="4" seed="8" result="clump"/>
+      <feColorMatrix in="clump" type="saturate" values="0" result="clumpGray"/>
+      <feComposite in="clumpGray" in2="pocked" operator="in" result="clumpIn"/>
+      <feBlend in="pocked" in2="clumpIn" mode="overlay"/>
+    </filter>
+  </defs>
+</svg>
+
+<a class="sr-only" href="#guide">跳到引导文本</a>
+
+<!-- ===================== 固定层：品牌 / 章节 / 声音 ===================== -->
+<header class="topbar">
+  <a class="brand" href="#top" aria-label="弦脉 Stringline Heritage 首页">
+    <i class="brand__glyph" aria-hidden="true"></i>
+    <span class="brand__name">弦脉</span>
+    <span class="brand__latin">Stringline Heritage</span>
+  </a>
+
+  <div class="topbar__right">
+    <nav aria-label="站点章节">
+      <ul class="sitelinks">
+        <li><a href="index.html" aria-current="page">序</a></li>
+        <li><a href="qiongnaieman/index.html">二 · 穹乃额曼<i class="sitelinks__sub">大曲</i></a></li>
+        <li><a href="dastan/index.html">三 · 达斯坦<i class="sitelinks__sub">叙事诗</i></a></li>
+        <li><a href="mashrap/index.html">四 · 麦西热甫<i class="sitelinks__sub">歌舞曲</i></a></li>
+        <li><a href="lishi/index.html">五 · 历史与传承</a></li>
+        <li><a href="fulu/index.html">附录 · 形制比较</a></li>
+      </ul>
+    </nav>
+    <button class="sound" id="sound-toggle" type="button" aria-pressed="false"
+            aria-label="手鼓节奏音效开关">
+      <span class="sound__ring" aria-hidden="true"></span>
+      <span class="sound__text" id="sound-text">声音 关</span>
+    </button>
+  </div>
+</header>
+
+<!-- 进度轴：三段刻度，可点击跳转 -->
+<aside class="rail" aria-label="结构进度">
+  <div class="rail__marks">
+    <button class="rail__mark" type="button" data-rail="0" style="--seg-h:34px;--rail-tone:#7d97a6"
+            aria-label="跳到第一段 穹乃额曼 · 苍劲"></button>
+    <button class="rail__mark" type="button" data-rail="1" style="--seg-h:22px;--rail-tone:#c08a3e"
+            aria-label="跳到第二段 达斯坦 · 叙事"></button>
+    <button class="rail__mark" type="button" data-rail="2" style="--seg-h:26px;--rail-tone:#4a8071"
+            aria-label="跳到第三段 麦西热甫 · 欢腾"></button>
+  </div>
+  <span class="rail__label" aria-hidden="true">结构</span>
+</aside>
+
+<main id="top">
+
+  <!-- ===================== 首屏：入口，不是封面 ===================== -->
+  <section class="hero" id="hero" aria-labelledby="guide-line">
+    <div class="room">
+
+      <!-- 自研 WebGL 渲染层：三段结构柱 + 尘埃反馈场 -->
+      <canvas class="gl" id="gl" aria-hidden="true"></canvas>
+
+      <div class="column-layer">
+        <div class="pillar-wrap" id="pillar-wrap">
+
+          <!-- 水印：萨塔尔琴颈 / 手鼓轮廓，透明度极低，只提供潜意识暗示 -->
+          <div class="watermarks" aria-hidden="true">
+            <svg class="wm--satar" viewBox="0 0 120 720" preserveAspectRatio="xMidYMid meet">
+              <rect x="43" y="0" width="34" height="720" rx="3"/>
+              <rect x="54" y="6" width="12" height="708" rx="6"/>
+              <line x1="43" y1="96"  x2="0"   y2="70"/>
+              <line x1="43" y1="196" x2="0"   y2="170"/>
+              <line x1="43" y1="296" x2="0"   y2="270"/>
+              <line x1="43" y1="396" x2="0"   y2="370"/>
+              <line x1="77" y1="146" x2="120" y2="120"/>
+              <line x1="77" y1="246" x2="120" y2="220"/>
+              <line x1="77" y1="346" x2="120" y2="320"/>
+              <line x1="77" y1="446" x2="120" y2="420"/>
+              <circle cx="14"  cy="64"  r="7"/><circle cx="14"  cy="164" r="7"/>
+              <circle cx="14"  cy="264" r="7"/><circle cx="14"  cy="364" r="7"/>
+              <circle cx="106" cy="114" r="7"/><circle cx="106" cy="214" r="7"/>
+              <circle cx="106" cy="314" r="7"/><circle cx="106" cy="414" r="7"/>
+              <path d="M60 700 C 60 660 66 640 60 606 C 54 640 60 660 60 700 Z"/>
+            </svg>
+            <svg class="wm--dap" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+              <ellipse cx="200" cy="150" rx="132" ry="130"/>
+              <ellipse cx="200" cy="150" rx="118" ry="116"/>
+              <path d="M68 150 C 68 78 132 20 200 20 C 268 20 332 78 332 150"/>
+              <circle cx="200" cy="150" r="9"/>
+            </svg>
+          </div>
+
+          <!-- 三段式结构柱：硬切堆叠，宽度按各段体量递减。
+               WebGL 可用时这一段是 shader 的量测基准；不可用时它自己就是画面，
+               纹理走 assets/filters.svg 的三套滤镜。 -->
+          <div class="pillar" id="pillar" role="img"
+               aria-label="三段式结构柱：穹乃额曼（苍劲）、达斯坦（叙事）、麦西热甫（欢腾）">
+            <div class="seg seg--qon"     data-seg="0" style="--h:1.18"><span class="seg__breath"></span></div>
+            <div class="seg seg--dastan"  data-seg="1" style="--h:0.86"><span class="seg__breath"></span></div>
+            <div class="seg seg--mashrap" data-seg="2" style="--h:0.96"><span class="seg__breath"></span></div>
+          </div>
+        </div>
+
+        <!-- 情绪关键词：不解释，只标注 -->
+        <div class="stage-words" aria-live="polite">
+          <span class="word word--qon"     data-word="0">苍劲</span>
+          <span class="word word--dastan"  data-word="1">叙事</span>
+          <span class="word word--mashrap" data-word="2">欢腾</span>
+        </div>
+      </div>
+
+      <!-- 引导短句：规模 + 结构 + 悬念 -->
+      <div class="guide" id="guide">
+        <h1 class="guide__line" id="guide-line">一套需要二十小时才能听完的音乐，由三段构成。</h1>
+        <p class="guide__meta">十二木卡姆 · 穹乃额曼 / 达斯坦 / 麦西热甫</p>
+      </div>
+
+      <!-- 档案坐标：三段时间刻度，随结构推进切换 -->
+      <aside class="figure" aria-live="polite" aria-label="结构对应的时间坐标">
+        <span class="figure__tick" aria-hidden="true"></span>
+        <span class="figure__text">
+          <span class="figure__num" id="figure-num">16世纪</span>
+          <span class="figure__cap" id="figure-cap">叶尔羌宫廷 · 套曲系统整理</span>
+        </span>
+      </aside>
+
+      <!-- 底部：滚动提示 → 入口句 → 下一幕 -->
+      <div class="foot">
+        <p class="scrollhint" aria-hidden="true">向下滚动</p>
+        <div class="entry">
+          <button class="entry__btn" id="entry-btn" type="button">
+            有些旋律，只存在于一个人的记忆里。点两个点，把它们连起来。
+          </button>
+        </div>
+      </div>
+
+      <!-- 逐幕推进：不依赖滚动也能走完全程 -->
+      <nav class="actnav" aria-label="分幕导航">
+        <button class="actnav__btn" id="act-prev" type="button" aria-label="回到上一幕">
+          <span class="actnav__arrow" aria-hidden="true">↑</span>
+          <span class="actnav__label" id="act-prev-label">上一幕</span>
+        </button>
+        <ol class="actnav__dots" id="act-dots">
+          <li><button type="button" data-act-jump="0" aria-label="第一幕 结构"><i></i></button></li>
+          <li><button type="button" data-act-jump="1" aria-label="第二幕 苍劲"><i></i></button></li>
+          <li><button type="button" data-act-jump="2" aria-label="第三幕 叙事"><i></i></button></li>
+          <li><button type="button" data-act-jump="3" aria-label="第四幕 欢腾与入口"><i></i></button></li>
+        </ol>
+        <button class="actnav__btn" id="act-next" type="button" aria-label="进入下一幕">
+          <span class="actnav__label" id="act-next-label">下一幕 · 苍劲</span>
+          <span class="actnav__arrow" aria-hidden="true">↓</span>
+        </button>      </nav>
+
+      <div class="room__grain" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- ===================== 传承网络 ===================== -->
+  <section class="network" id="network" aria-hidden="true">
+    <div class="network__inner">
+      <button class="network__close" id="network-close" type="button">返回结构 ／ ESC</button>
+      <p class="network__kicker" id="network-kicker">师承网络 · 口传心授</p>
+      <p class="network__step" id="network-step">先点一位木卡姆其。</p>
+      <svg class="network__svg" id="network-svg" viewBox="0 0 900 560"
+           preserveAspectRatio="xMidYMid meet" role="application"
+           aria-label="师承网络交互图：点选两个节点，连接一条传承关系"></svg>
+      <p class="network__notes">
+        十二木卡姆没有总谱。一个腔弯的走向、一次鼓点的加花、某段达斯坦的气口，靠的是一遍一遍听、一遍一遍跟。<br>
+        这些线不是血缘，是“谁把哪一段，交给了谁”。点开两个名字，就是一次师承。<br>
+        <span class="network__cite">示意的师承关系取自公开的非遗代表性传承人资料，节点的次级分支为结构示意，非完整名录。</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== 后续章节占位 ===================== -->
+  <section class="tail" id="tail">
+    <p>
+      首屏只交付入口。穹乃额曼、达斯坦、麦西热甫三章的谱系、历史坐标与当代转化，
+      以及哈萨克阿依特斯、柯尔克孜玛纳斯、蒙古族长调等不同发展形态的比较，
+      将在后续页面按同一套视觉语法展开。
+    </p>
+      <p class="tail__next"><a href="qiongnaieman/index.html">从第二章开始 →</a></p>
+  </section>
+
+</main>
+
+<!-- 普通脚本，不是 module：file:// 下 module 会被 CORS 拦掉。
+     产物由 tools/build.mjs 从 js/lib + js/pages 合并生成。 -->
+<script src="js/dist/home.js" defer></script>
+</body>
+</html>
