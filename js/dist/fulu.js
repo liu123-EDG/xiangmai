@@ -9,6 +9,7 @@
      js/lib/wheel.js  → buildWheel, bindWheelScroll
      js/lib/heritage-data.js  → HERITAGE, heritageHref
      js/lib/melody.js  → buildMelody, bindMelodyScroll
+     js/lib/theme.js  → createTheme, unlock
      js/pages/fulu.js
 */
 (function () {
@@ -26,6 +27,7 @@ __XM[6] = {};
 __XM[7] = {};
 __XM[8] = {};
 __XM[9] = {};
+__XM[10] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -2818,8 +2820,151 @@ __ns.mount_buildMelody = function () { return buildMelody; };
 __ns.mount_bindMelodyScroll = function () { return bindMelodyScroll; };
 }
 
-/* ── js/pages/fulu.js ── */
+/* ── js/lib/theme.js ── */
 function __M9__() {
+/* ==========================================================================
+   弦脉 · 主题曲播放
+   --------------------------------------------------------------------------
+   用 Web Audio 播 mp3（不用 <audio> 标签），理由：
+     · 能和已有的手鼓总线上共用一条链路，音量、淡入淡出一致
+     · 能对着 context.currentTime 做精确的交叉淡入
+     · 能无缝循环（AudioBufferSourceNode.loop）
+   decodeAudioData 是异步的，所以第一次调用只启动加载，
+   加载完自动接上播。这点对"玩家点完最后一下要立刻听到声音"很重要。
+   ========================================================================== */
+
+/** 一个简易主题曲播放器 */
+function createTheme(url) {
+  let ctx = null;
+  let buffer = null;
+  let loading = null;
+  let src = null;
+  let gain = null;
+  let want = false;
+  let volume = 0.42;
+
+  const ensureCtx = () => {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+    return ctx;
+  };
+
+  const load = () => {
+    if (buffer) return Promise.resolve(buffer);
+    if (loading) return loading;
+    const c = ensureCtx();
+    if (!c) return Promise.resolve(null);
+    loading = fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then((buf) => new Promise((res, rej) => {
+        // Safari 只认回调形式
+        const p = c.decodeAudioData(buf, res, rej);
+        if (p && p.then) p.then(res, rej);
+      }))
+      .then((buf) => { buffer = buf; return buf; })
+      .catch((e) => {
+        if (window.console) console.warn('[弦脉] 主题曲加载失败：', e && e.message);
+        return null;
+      });
+    return loading;
+  };
+
+  /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。 */
+  const start = (fadeSec) => {
+    want = true;
+    const c = ensureCtx();
+    if (!c) return false;
+    if (c.state === 'suspended') c.resume();
+
+    const fade = fadeSec === undefined ? 2.2 : fadeSec;
+    const begin = () => {
+      if (!want || !buffer) return;
+      if (src) { // 已经在放
+        gain.gain.cancelScheduledValues(c.currentTime);
+        gain.gain.setTargetAtTime(volume, c.currentTime, fade / 3);
+        return;
+      }
+      src = c.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;                    // 34 秒，循环铺底
+      src.connect(gain);
+      const t = c.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(volume, t + fade);
+      src.start(t);
+    };
+
+    if (buffer) { begin(); return true; }
+    load().then(begin);
+    return true;
+  };
+
+  const stop = (fadeSec) => {
+    want = false;
+    if (!ctx || !src) return;
+    const fade = fadeSec === undefined ? 1.2 : fadeSec;
+    const t = ctx.currentTime;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setTargetAtTime(0, t, fade / 3);
+    const s = src;
+    src = null;
+    try { s.stop(t + fade * 1.6); } catch { /* 已经停了 */ }
+  };
+
+  const setVolume = (v) => {
+    volume = Math.max(0, Math.min(1, v));
+    if (ctx && src) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
+  };
+
+  return {
+    start, stop, setVolume,
+    preload: load,
+    get playing() { return !!src; },
+    get ready() { return !!buffer; },
+    get duration() { return buffer ? buffer.duration : 0; },
+  };
+}
+
+/* ==========================================================================
+   解锁标记
+   --------------------------------------------------------------------------
+   互动完成后才允许进其他民族的页面。标记写在 localStorage，
+   所以刷新、换页都还在。
+
+   说明：这是**引导**，不是安全机制 —— 真想绕过的人清一下浏览器数据就行。
+   目的是让人按设计的顺序走一遍，不是防谁。
+   ========================================================================== */
+const KEY = 'xiangmai.unlocked.mashrap';
+
+const unlock = {
+  get done() {
+    try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
+  },
+  set() {
+    try { localStorage.setItem(KEY, '1'); } catch { /* 隐私模式写不了，忽略 */ }
+    window.dispatchEvent(new CustomEvent('xiangmai:unlocked'));
+  },
+  clear() {
+    try { localStorage.removeItem(KEY); } catch { /* 忽略 */ }
+  },
+};
+
+__ns = __XM[9];
+__ns.mount_createTheme = function () { return createTheme; };
+__ns.mount_unlock = function () { return unlock; };
+}
+
+/* ── js/pages/fulu.js ── */
+function __M10__() {
 var bootChapter = __XM[4]["bootChapter"];
 var buildWheel = __XM[6]["buildWheel"];
 var bindWheelScroll = __XM[6]["bindWheelScroll"];
@@ -2827,8 +2972,10 @@ var buildMelody = __XM[8]["buildMelody"];
 var bindMelodyScroll = __XM[8]["bindMelodyScroll"];
 var MUQAM = __XM[5]["MUQAM"];
 var HERITAGE = __XM[7]["HERITAGE"];
+var unlock = __XM[9]["unlock"];
 
 /* 附录 · 形制比较 —— 十二套木卡姆轮盘 + 八个民族的旋律入口 */
+
 
 
 
@@ -2838,6 +2985,37 @@ var HERITAGE = __XM[7]["HERITAGE"];
 const ctx = bootChapter({ active: 'fulu', soundBand: 0 });
 const { REDUCED } = ctx;
 const $ = (s) => document.querySelector(s);
+
+/* ------------------------------------------------------------------ 门
+   其他民族的页面要先把麦西热甫那场圆圈玩完才开。
+   没解锁时点任一入口，就把人送回第四章的互动，并说明原因。
+
+   这是引导，不是安全机制 —— 目的是让人按设计的顺序走一遍。 */
+const GATE = {
+  href: '../mashrap/index.html#mq-act',
+  msg: '先把第四章那场麦西热甫跳完（把圈子点满），这里才开。',
+};
+
+/** 给未解锁的元素加统一的"锁着"视觉 */
+function applyLock(root) {
+  if (!root) return;
+  root.classList.add('is-locked');
+  root.setAttribute('aria-disabled', 'true');
+}
+
+function gate(onBlocked) {
+  if (unlock.done) return;
+  // 进入页面时就把视觉改掉
+  document.querySelectorAll('.wnode, .mnote').forEach(applyLock);
+  // 点任何一个都被拦下
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('.wnode, .mnote');
+    if (!a) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (onBlocked) onBlocked();
+  }, true);
+}
 
 /* ---- 十二套木卡姆 ---- */
 const wHost = $('#wheel-host');
@@ -2883,6 +3061,31 @@ if (mHost) {
     onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
   });
   bindMelodyScroll($('#melody-act'), melody, REDUCED);
+}
+
+/* ---- 上锁与解锁提示 ----
+   未解锁：给所有入口加"锁着"的视觉，点任何一处都把人送回第四章的互动。
+   已解锁：不动，正常走。 */
+const gateNote = document.getElementById('gate-note');
+if (!unlock.done) {
+  gate(() => {
+    if (gateNote) {
+      gateNote.innerHTML = '<b>还没开门</b>' + GATE.msg +
+        '<br><a href="' + GATE.href + '">去第四章 · 麦西热甫 →</a>';
+      gateNote.classList.add('is-on');
+      gateNote.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
+    } else {
+      location.href = GATE.href;
+    }
+  });
+  // 提示条里的链接要能点（gate 是捕获阶段拦的，得让它放行）
+  if (gateNote) {
+    gateNote.addEventListener('click', (e) => {
+      if (e.target.tagName === 'A') e.stopPropagation();
+    }, true);
+  }
+} else if (gateNote) {
+  gateNote.remove();
 }
 }
 
@@ -2967,11 +3170,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/melody.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/fulu.js */
+/* js/lib/theme.js */
 try {
   __ns = __XM[9];
   __M9__();
   for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/fulu.js */
+try {
+  __ns = __XM[10];
+  __M10__();
+  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/fulu.js" + " :: " + (e && e.stack || e));
 }

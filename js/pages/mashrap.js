@@ -9,12 +9,18 @@
 import { renderPart } from '../lib/part.js';
 import { bootChapter } from '../lib/chapter.js';
 import { buildCircle } from '../lib/circle.js';
+import { createTheme, unlock } from '../lib/theme.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
 
 const host = document.getElementById('mq-host');
 const readout = document.getElementById('mq-readout');
+
+/* 主题曲。点完圆圈最后一下就开始放 —— 那一下是用户手势，
+   浏览器允许出声；解码是异步的，所以现在就预载。 */
+const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+theme.preload();
 
 if (host) {
   /** 人数 → 一句说明。让"加人"这件事有叙事，不只是数字变大。 */
@@ -25,7 +31,9 @@ if (host) {
     if (r < 0.45) return ['有人跟上', '两三个人就能把节拍立起来。手鼓开始有呼应了。'];
     if (r < 0.7) return ['成圈', '人一多，节奏型就密了。这时候跳错也没人管——本来就是大家一起热闹。'];
     if (r < 1) return ['热起来', '圈快满了。鼓点、纹样、转圈的速度都在往上走。'];
-    return ['满圈', '这是麦西热甫该有的样子：不是谁在表演，是一圈人自己把场子烧起来。'];
+    return ['满圈 · 门开了',
+      '这是麦西热甫该有的样子：不是谁在表演，是一圈人自己把场子烧起来。' +
+      '<br><span style="color:var(--amber)">主题曲响起，其他民族的页面也解开了。</span>'];
   };
 
   const circle = buildCircle({
@@ -37,6 +45,9 @@ if (host) {
       if (ctx.renderer) {
         ctx.renderer.patternZoom = 1.75;      // 纹样整体推近一下
       }
+      // 主题曲淡入；同时解锁其他民族的页面
+      theme.start(2.6);
+      unlock.set();
     },
     onChange: (n, max) => {
       const r = n / max;
@@ -53,11 +64,11 @@ if (host) {
         const [title, text] = stage(n, max);
         readout.innerHTML = '<b>' + title + '</b>' + text +
           (n >= max ? '<br><span style="color:var(--bone-faint)">再点一下重新开始。</span>' : '');
-      }
-    },
+      }    },
   });
 
   // 自检用
   window.__XM_CIRCLE__ = circle;
   window.__XM_RENDERER__ = ctx.renderer;
+  window.__XM_THEME__ = theme;
 }
