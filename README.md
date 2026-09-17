@@ -84,6 +84,32 @@ tools/                构建、预览、自检脚本
 
 ## 部署
 
-静态站点，无后端。GitHub Pages / Vercel / 对象存储静态托管均可。
-若用 GitHub Pages：Settings → Pages → Source 选 `Deploy from a branch`，
-分支选 `main`、目录选 `/ (root)`。
+站点已部署到 GitHub Pages：
+
+**https://liu123-edg.github.io/xiangmai/**
+
+仓库：https://github.com/liu123-EDG/xiangmai
+
+改完之后更新线上：
+
+```bash
+node tools/build.mjs
+git add -A && git commit -m "说明这次改了什么"
+git push
+```
+
+推送后 GitHub 自动重新构建，约 1 分钟生效。
+
+### 为什么不用服务器
+
+全站是静态的——没有数据库、没有登录、没有后端接口。互动（敲鼓、拼套曲、
+跟唱填音）都在浏览器里跑，声音也是现场合成的。所以静态托管就够，
+一分钱不花。
+
+只有出现下面任意一条时才需要后端：
+
+- 要存用户上传的录音/图片
+- 要做全网排行榜（需要跨用户共享数据）
+- 要用户注册登录
+- 要放大量真实录音（建议对象存储，不是服务器）
+
