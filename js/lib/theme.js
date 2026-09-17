@@ -86,6 +86,18 @@ export function createTheme(url, opts = {}) {
     return loading;
   };
 
+  /** 唤醒 AudioContext。必须在**真实用户手势**的调用栈里调用，浏览器才认。
+      没有这个的话，在"没有手鼓"的页面上没人唤醒 context，
+      主题曲会一直卡在 suspended —— 表现是"手势做了也不出声"。 */
+  const resume = () => {
+    const c = ensureCtx();
+    if (!c) return Promise.resolve(false);
+    if (c.state === 'running') return Promise.resolve(true);
+    const p = c.resume();
+    if (p && p.then) return p.then(() => c.state === 'running').catch(() => false);
+    return Promise.resolve(c.state === 'running');
+  };
+
   /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
       各曲各的增益，交叉淡入时互不干扰。 */
   const playBuffer = (buf, fade, from) => {
@@ -225,7 +237,7 @@ export function createTheme(url, opts = {}) {
   });
 
   return {
-    start, stop, setVolume, state, useContext, wake, crossfadeTo, loadUrl,
+    start, stop, setVolume, state, useContext, wake, crossfadeTo, loadUrl, resume,
     preload: load,
     get playing() { return !!src; },
     get waiting() { return waiting; },
@@ -250,6 +262,15 @@ export function autoPlayOnGesture(opts) {
   const btn = document.getElementById('sound-toggle');
   const text = document.getElementById('sound-text');
 
+  const markOn = () => {
+    if (btn) btn.setAttribute('aria-pressed', 'true');
+    if (text) text.textContent = '声音 开';
+  };
+  const markOff = () => {
+    if (btn) btn.setAttribute('aria-pressed', 'false');
+    if (text) text.textContent = '声音 关';
+  };
+
   const on = () => {
     if (!armed) return;
     armed = false;
@@ -260,26 +281,52 @@ export function autoPlayOnGesture(opts) {
       // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
       if (theme && seq.ctx) theme.useContext(seq.ctx);
     }
+    /* 关键：**在这里唤醒 context**。
+       有手鼓的页面由 seq.enable() 顺手唤醒；没有手鼓的页面
+       （比如第三章，它只有配乐）就必须自己唤醒，否则一直 suspended。
+       resume() 要在手势的调用栈里同步发起，浏览器才放行。 */
+    if (theme) {
+      const p = theme.resume();
+      if (p && p.then) p.then(() => { if (theme) theme.wake(opts.fade === undefined ? 2.6 : opts.fade); });
+    }
     /* startTheme:false 的页面（第四章）主题曲由别处触发，
        但这一次手势仍要让 context 就绪，否则到时候点了也没声。 */
     if (theme && opts.startTheme !== false && !theme.playing) {
       theme.start(opts.fade === undefined ? 2.6 : opts.fade);
     }
-    if (btn) {
-      btn.setAttribute('aria-pressed', 'true');
-      if (text) text.textContent = '声音 开';
-    }
+    markOn();
   };
 
   const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
   const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
   evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
 
-  // 用户主动关掉，就不再自动开
-  if (btn) {
-    btn.addEventListener('click', () => {
-      if (btn.getAttribute('aria-pressed') === 'false') { armed = false; detach(); }
-    });
+  /* 自动开之后，声音按钮**必须由这一页的音乐接管**。
+     之前只写了"关掉就不再自动开"，按钮仍挂在别处（比如手鼓）——
+     结果按"声音 开"打开的是鼓点，不是这一页的音乐（踩过）。
+     所以这里用捕获阶段接管：开/关都作用在 theme 上。 */
+  if (btn && opts.ownButton !== false) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const isOn = btn.getAttribute('aria-pressed') === 'true';
+      armed = false;
+      detach();
+      if (isOn) {
+        if (theme) theme.stop(1.0);
+        if (seq) seq.disable();
+        markOff();
+        return;
+      }
+      if (seq && !seq.enabled) seq.enable();
+      if (seq && band !== undefined) seq.setBand(band);
+      if (theme && seq && seq.ctx) theme.useContext(seq.ctx);
+      if (theme) {
+        const p = theme.resume();
+        if (p && p.then) p.then(() => { if (theme) theme.start(1.4); });
+      }
+      markOn();
+    }, true);
   }
 
   return { trigger: on, get armed() { return armed; } };

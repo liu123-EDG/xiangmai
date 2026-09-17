@@ -22,6 +22,9 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  * @param {number} [opts.soundBand=0]  声音默认放第几段的鼓
  * @param {boolean} [opts.heat=true]   是否启用随滚动上升的地火热度
  * @param {'chapter'|'pattern'} [opts.mode='chapter']  底层画面：地火 / 程序化纹样
+ * @param {boolean} [opts.drums=true]  是否挂手鼓音序器。
+ *        有自己配乐的页面要传 false —— 否则声音按钮会接在手鼓上，
+ *        用户按"开"听到的是鼓点，不是这一页该有的音乐（踩过）。
  */
 export function bootChapter(opts = {}) {
   mountShell({ base: opts.base || '../', active: opts.active });
@@ -111,8 +114,11 @@ export function bootChapter(opts = {}) {
     renderer.sample(dt);
   };
 
-  /* ---- 声音（可选） ---- */
-  if (opts.sound !== false) {
+  /* ---- 声音（可选） ----
+     drums:false 的页面（有自己的配乐）不建手鼓音序器，
+     也不接管声音按钮 —— 那个按钮留给页面自己去接配乐。
+     否则会出现"按开听到的是鼓点，不是这一页的音乐"。 */
+  if (opts.sound !== false && opts.drums !== false) {
     seq = new DapSequencer({ volume: 0.34 });
     window.__XM_SEQ__ = seq;                 // 自检用
 

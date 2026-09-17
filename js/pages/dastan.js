@@ -15,7 +15,9 @@ import { buildParallax } from '../lib/parallax.js';
 import { createTheme, autoPlayOnGesture } from '../lib/theme.js';
 
 renderPart();
-const ctx = bootChapter({ active: 'dastan', soundBand: 1 });
+/* drums:false —— 这一页有自己的配乐，不要手鼓音序器。
+   否则声音按钮会接在鼓上，按"开"听到的是序章那套鼓点（踩过）。 */
+const ctx = bootChapter({ active: 'dastan', drums: false });
 
 /* 场景配乐。比主题曲轻 —— 它是氛围，不该压过正文和鼓。 */
 const TRACKS = ['../assets/audio/dastan/scene-a.mp3', '../assets/audio/dastan/scene-b.mp3'];
