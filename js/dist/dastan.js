@@ -1,5 +1,7 @@
 /* 由 tools/build.mjs 生成，请勿直接编辑。改源码后运行 node tools/build.mjs
    本页模块（依依赖序）：
+     js/lib/part-data.js  → PART_TONE, PARTS
+     js/lib/part.js  → renderPart
      js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
      js/lib/sequencer.js  → DapSequencer, PATTERNS
@@ -18,9 +20,307 @@ __XM[2] = {};
 __XM[3] = {};
 __XM[4] = {};
 __XM[5] = {};
+__XM[6] = {};
+__XM[7] = {};
+
+/* ── js/lib/part-data.js ── */
+function __M0__() {
+/* ==========================================================================
+   弦脉 · 三个部分的内容
+   --------------------------------------------------------------------------
+   第二章 穹乃额曼 / 第三章 达斯坦 / 第四章 麦西热甫 —— 结构完全一样，
+   只是内容不同。所以数据写在这里，页面由 js/lib/part.js 统一渲染。
+
+   —— 怎么往里填内容 ——
+   每个部分有 intro（开场）和 sections（若干节）。每一节可以只放文字、
+   只放图片、或者图文都有：
+
+     { title: '小标题', body: ['第一段', '第二段'], images: [{...}] }
+     { images: [{...}] }                       // 纯图片节
+     { title: '小标题', body: ['…'] }           // 纯文字节
+
+   图片写成：
+     { src: '../assets/img/qiongnaieman/xxx.jpg',
+       label: '图片位（缺图时显示的提示）',
+       ratio: '16 / 9',
+       caption: '图注' }
+
+   **文件名不用提前确定**，放好图片后把路径填进来即可；文件不存在时
+   槽位会显示占位样式，版面不会变形。
+
+   —— 内容准则 ——
+   只写可查证的内容。不确定的地方留空或标注"待补"，不要编。
+   你现在看到的下面的文字，是现有资料里能确认的那部分。
+   ========================================================================== */
+
+/** 三段共用的色调，与首屏结构柱、章节卡一一对应 */
+const PART_TONE = {
+  qon: '#7d97a6',
+  dastan: '#c08a3e',
+  mashrap: '#4a8071',
+};
+
+const PARTS = {
+  /* ======================================================== 二 · 穹乃额曼 */
+  qon: {
+    id: 'qon',
+    num: '二',
+    title: '穹乃额曼',
+    sub: '大曲',
+    latin: 'Qonuneqme',
+    tone: PART_TONE.qon,
+    order: '三段中的第一段',
+    mood: '舒缓 → 明朗',
+    lead: '每一套木卡姆都由三大部分构成，情绪层层推进。穹乃额曼是开篇——' +
+          '由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。' +
+          '唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
+    stats: [
+      { v: '一', unit: '', label: '三段中的第一部分' },
+      { v: '散板', unit: '起', label: '由无拍进入有拍' },
+      { v: '舒缓', unit: '→明朗', label: '情绪走向' },
+    ],
+    sections: [
+      {
+        title: '一套木卡姆从哪里开始',
+        body: [
+          '穹乃额曼是每一套木卡姆的开篇，也是整套里最"古典"的一段。' +
+          '它从一个没有固定节拍的散板序唱起头，唱者按自己的气息把句子铺开；' +
+          '随后进入有节拍的段落，节奏一步步立起来，情绪也从沉缓转向明朗。',
+          '唱词多取自古典诗歌，讲究字句的分量，所以这一段考验的不是嗓子有多高，' +
+          '而是气息与分寸。',
+        ],
+      },
+      {
+        images: [{
+          src: '../assets/img/qiongnaieman/section-1.jpg',
+          label: '图片位 · 建议 16:9（约 1600×900）',
+          ratio: '16 / 9',
+          caption: '图注位 · 说明图片内容与来源',
+        }],
+      },
+      {
+        title: '待补',
+        pending: [
+          '段落的构成与先后顺序',
+          '主要乐器，以及它在这一段里的角色',
+          '调式 / 律制上的特点',
+          '聆听要点：听什么、怎么听',
+        ],
+      },
+    ],
+  },
+
+  /* ======================================================== 三 · 达斯坦 */
+  dastan: {
+    id: 'dastan',
+    num: '三',
+    title: '达斯坦',
+    sub: '叙事诗',
+    latin: 'Dastan',
+    tone: PART_TONE.dastan,
+    order: '三段中的第二段',
+    mood: '叙事 · 铺陈',
+    lead: '达斯坦承接大曲，带有鲜明的叙事特征。' +
+          '歌词与民间故事、爱情传说、人生感怀相联系，' +
+          '演唱段落之间穿插器乐曲——唱一段，奏一段，再唱一段。',
+    stats: [
+      { v: '二', unit: '', label: '三段中的第二部分' },
+      { v: '唱·奏·唱', unit: '', label: '演唱与器乐交替' },
+      { v: '叙事', unit: '', label: '讲一个完整的故事' },
+    ],
+    sections: [
+      {
+        title: '从抒情转向讲故事',
+        body: [
+          '如果说穹乃额曼是在铺开一种气质，达斯坦就是在讲一件具体的事。' +
+          '它的歌词与民间故事、爱情传说、人生感怀相连，' +
+          '篇幅更长，句子更密，唱的人要一边记词一边记腔。',
+          '演唱段落之间穿插器乐曲——器乐不是伴奏，是段落之间的过渡与呼吸。' +
+          '所以达斯坦的听感是"唱一段、奏一段、再唱一段"，一段一段往前推。',
+        ],
+      },
+      {
+        images: [{
+          src: '../assets/img/dastan/section-1.jpg',
+          label: '图片位 · 建议 16:9（约 1600×900）',
+          ratio: '16 / 9',
+          caption: '图注位 · 说明图片内容与来源',
+        }],
+      },
+      {
+        title: '待补',
+        pending: [
+          '常唱的曲目与实际唱法',
+          '长诗从哪里来、唱哪些故事',
+          '器乐间奏用什么乐器、什么形制',
+          '聆听要点：听什么、怎么听',
+        ],
+      },
+    ],
+  },
+
+  /* ======================================================== 四 · 麦西热甫 */
+  mashrap: {
+    id: 'mashrap',
+    num: '四',
+    title: '麦西热甫',
+    sub: '歌舞曲',
+    latin: 'Meshrep',
+    tone: PART_TONE.mashrap,
+    order: '三段中的第三段',
+    mood: '高涨 · 欢腾',
+    lead: '麦西热甫是终章。节奏鲜明，气氛逐步高涨，' +
+          '展现群体欢聚时的生命活力——到了这一段，听的人不再只是听，' +
+          '而是要下场跳的。',
+    stats: [
+      { v: '三', unit: '', label: '三段中的第三部分' },
+      { v: '群体', unit: '', label: '不是独唱，是一场聚会' },
+      { v: '高涨', unit: '', label: '情绪走向' },
+    ],
+    sections: [
+      {
+        title: '从一个人唱，到一群人跳',
+        body: [
+          '走到麦西热甫，音乐的性格整个变了。节奏变得鲜明、短促、循环性强，' +
+          '因为它的目的不是让人坐着听，而是让人下场动起来。',
+          '"麦西热甫"既是这一段的名字，也是一种聚会形式的名字。' +
+          '音乐、舞蹈、游戏、罚则都在里面，参加的人既是观众也是演员。',
+        ],
+      },
+      {
+        images: [{
+          src: '../assets/img/mashrap/section-1.jpg',
+          label: '图片位 · 建议 16:9（约 1600×900）',
+          ratio: '16 / 9',
+          caption: '图注位 · 说明图片内容与来源',
+        }],
+      },
+      {
+        title: '待补',
+        pending: [
+          '节奏型与常见鼓点',
+          '舞蹈程式与动作',
+          '一场麦西热甫的流程：谁起头、怎么轮、什么时候罚',
+          '聆听要点：听什么、怎么听',
+        ],
+      },
+    ],
+  },
+};
+
+__ns = __XM[0];
+__ns.mount_PART_TONE = function () { return PART_TONE; };
+__ns.mount_PARTS = function () { return PARTS; };
+}
+
+/* ── js/lib/part.js ── */
+function __M1__() {
+var PARTS = __XM[0]["PARTS"];
+
+/* ==========================================================================
+   弦脉 · 三个部分章的渲染
+   --------------------------------------------------------------------------
+   第二章 / 第三章 / 第四章结构完全一样，只是内容不同。
+   所以页面骨架由这里统一生成，HTML 里只留容器，数据在 part-data.js。
+
+   这样加内容 = 改数据，不用碰 HTML；三个页也不会各自跑偏。
+   ========================================================================== */
+
+
+
+const $ = (s) => document.querySelector(s);
+
+/** 一句一行地排正文 */
+function bodyHTML(lines) {
+  return lines.map((t) => '<p class="body reveal">' + t + '</p>').join('');
+}
+
+function statsHTML(stats) {
+  return '<ul class="chapter-hero__stats reveal" data-delay="4">' + stats.map((s) =>
+    '<li><b>' + s.v + (s.unit ? '<i>' + s.unit + '</i>' : '') + '</b>' +
+    '<span>' + s.label + '</span></li>'
+  ).join('') + '</ul>';
+}
+
+function slotHTML(img, i) {
+  return '<figure class="slot reveal" data-delay="' + Math.min(5, i + 1) + '"' +
+    ' data-src="' + img.src + '"' +
+    ' data-label="' + (img.label || '图片位') + '"' +
+    ' style="--slot-ratio: ' + (img.ratio || '16 / 9') + '">' +
+    '<img alt="' + (img.alt || img.caption || '') + '" loading="lazy" decoding="async">' +
+    (img.caption ? '<figcaption>' + img.caption + '</figcaption>' : '') +
+    '</figure>';
+}
+
+function imagesHTML(images) {
+  if (!images || !images.length) return '';
+  if (images.length === 1) return slotHTML(images[0], 0);
+  // 两张并排
+  return '<div class="slot-pair">' +
+    images.map((im, i) => slotHTML(im, i)).join('') + '</div>';
+}
+
+function pendingHTML(items) {
+  return '<p class="pending reveal">这里还缺：<br>' +
+    items.map((t) => '· ' + t).join('<br>') + '</p>';
+}
+
+function sectionHTML(sec, i) {
+  const delay = Math.min(4, i);
+  return '<section class="act" data-act="' + (i + 1) + '">' +
+    '<span class="act__num" aria-hidden="true">' + '一二三四五六七八'[i] + '</span>' +
+    '<div class="act__inner">' +
+      (sec.title ? '<h2 class="act__title reveal" data-delay="' + delay + '">' + sec.title + '</h2>' : '') +
+      (sec.body ? bodyHTML(sec.body) : '') +
+      (sec.images ? imagesHTML(sec.images) : '') +
+      (sec.pending ? pendingHTML(sec.pending) : '') +
+    '</div></section>';
+}
+
+/**
+ * 用数据铺满整页。HTML 里需要三个容器：
+ *   #part-hero（开场）、#part-body（正文各节）、.chapter-nav（底部，由 site.js 填）
+ * 以及 <body data-part="qon"> 指明用哪一份数据。
+ */
+function renderPart() {
+  const id = document.body.dataset.part;
+  const p = PARTS[id];
+  if (!p) {
+    if (window.console) console.warn('[弦脉] 找不到 part 数据：' + id);
+    return null;
+  }
+
+  document.title = '第' + p.num + '章 · ' + p.title + '（' + p.sub + '）｜十二木卡姆 — 弦脉';
+  const desc = document.querySelector('meta[name="description"]');
+  if (desc) desc.setAttribute('content', p.lead);
+
+  // 这一段的色调，供页面上的小面积强调色使用
+  document.body.style.setProperty('--part-tone', p.tone);
+
+  const hero = $('#part-hero');
+  if (hero) {
+    hero.innerHTML = '<div class="chapter-hero__inner">' +
+      '<p class="chapter-hero__part reveal">第' + p.num + '章 · 十二木卡姆的' +
+        (p.num === '二' ? '第一' : p.num === '三' ? '第二' : '第三') + '部分</p>' +
+      '<h1 class="reveal" data-delay="1">' + p.title + '</h1>' +
+      '<span class="chapter-hero__ug reveal" data-delay="2">' + p.latin + ' · ' + p.sub + '</span>' +
+      '<p class="chapter-hero__lead reveal" data-delay="3">' + p.lead + '</p>' +
+      statsHTML(p.stats) +
+      '</div>';
+  }
+
+  const body = $('#part-body');
+  if (body) body.innerHTML = p.sections.map(sectionHTML).join('');
+
+  return p;
+}
+
+__ns = __XM[1];
+__ns.mount_renderPart = function () { return renderPart; };
+}
 
 /* ── js/lib/materials.js ── */
-function __M0__() {
+function __M2__() {
 /* ==========================================================================
    弦脉 · 共享材质库
    --------------------------------------------------------------------------
@@ -598,7 +898,7 @@ void main() {
 }
 `;
 
-__ns = __XM[0];
+__ns = __XM[2];
 __ns.mount_VERT_SRC = function () { return VERT_SRC; };
 __ns.mount_NOISE_GLSL = function () { return NOISE_GLSL; };
 __ns.mount_MATERIAL_GLSL = function () { return MATERIAL_GLSL; };
@@ -610,14 +910,14 @@ __ns.mount_WALL_FRAG = function () { return WALL_FRAG; };
 }
 
 /* ── js/lib/renderer.js ── */
-function __M1__() {
-var VERT_SRC = __XM[0]["VERT_SRC"];
-var SCENE_FRAG = __XM[0]["SCENE_FRAG"];
-var DUST_FRAG = __XM[0]["DUST_FRAG"];
-var WALL_FRAG = __XM[0]["WALL_FRAG"];
-var EMBER_FRAG = __XM[0]["EMBER_FRAG"];
-var CHAPTER_AIR_FRAG = __XM[0]["CHAPTER_AIR_FRAG"];
-var MATERIAL_GLSL = __XM[0]["MATERIAL_GLSL"];
+function __M3__() {
+var VERT_SRC = __XM[2]["VERT_SRC"];
+var SCENE_FRAG = __XM[2]["SCENE_FRAG"];
+var DUST_FRAG = __XM[2]["DUST_FRAG"];
+var WALL_FRAG = __XM[2]["WALL_FRAG"];
+var EMBER_FRAG = __XM[2]["EMBER_FRAG"];
+var CHAPTER_AIR_FRAG = __XM[2]["CHAPTER_AIR_FRAG"];
+var MATERIAL_GLSL = __XM[2]["MATERIAL_GLSL"];
 
 /* ==========================================================================
    弦脉 · 渲染器
@@ -1022,7 +1322,7 @@ class Renderer {
   }
 }
 
-__ns = __XM[1];
+__ns = __XM[3];
 __ns.mount_COLORS = function () { return COLORS; };
 __ns.mount_SEG_H = function () { return SEG_H; };
 __ns.mount_SEG_BOUNDS = function () { return SEG_BOUNDS; };
@@ -1031,7 +1331,7 @@ __ns.mount_Renderer = function () { return Renderer; };
 }
 
 /* ── js/lib/sequencer.js ── */
-function __M2__() {
+function __M4__() {
 /* ==========================================================================
    弦脉 · 手鼓音序器
    --------------------------------------------------------------------------
@@ -1577,13 +1877,13 @@ class DapSequencer {  /**
   }
 }
 
-__ns = __XM[2];
+__ns = __XM[4];
 __ns.mount_DapSequencer = function () { return DapSequencer; };
 __ns.mount_PATTERNS = function () { return PATTERNS; };
 }
 
 /* ── js/lib/site.js ── */
-function __M3__() {
+function __M5__() {
 /* ==========================================================================
    弦脉 · 站点外壳
    --------------------------------------------------------------------------
@@ -1720,7 +2020,7 @@ function mountSlots() {
   });
 }
 
-__ns = __XM[3];
+__ns = __XM[5];
 __ns.mount_NAV = function () { return NAV; };
 __ns.mount_mountShell = function () { return mountShell; };
 __ns.mount_mountChapterNav = function () { return mountChapterNav; };
@@ -1729,13 +2029,13 @@ __ns.mount_mountSlots = function () { return mountSlots; };
 }
 
 /* ── js/lib/chapter.js ── */
-function __M4__() {
-var Renderer = __XM[1]["Renderer"];
-var DapSequencer = __XM[2]["DapSequencer"];
-var mountShell = __XM[3]["mountShell"];
-var mountChapterNav = __XM[3]["mountChapterNav"];
-var revealOnScroll = __XM[3]["revealOnScroll"];
-var mountSlots = __XM[3]["mountSlots"];
+function __M6__() {
+var Renderer = __XM[3]["Renderer"];
+var DapSequencer = __XM[4]["DapSequencer"];
+var mountShell = __XM[5]["mountShell"];
+var mountChapterNav = __XM[5]["mountChapterNav"];
+var revealOnScroll = __XM[5]["revealOnScroll"];
+var mountSlots = __XM[5]["mountSlots"];
 
 /* ==========================================================================
    弦脉 · 章节页公共启动
@@ -1890,71 +2190,92 @@ function bootChapter(opts = {}) {
   return { renderer, seq, REDUCED, syncSize };
 }
 
-__ns = __XM[4];
+__ns = __XM[6];
 __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
 /* ── js/pages/dastan.js ── */
-function __M5__() {
-var bootChapter = __XM[4]["bootChapter"];
+function __M7__() {
+var renderPart = __XM[1]["renderPart"];
+var bootChapter = __XM[6]["bootChapter"];
 
-/* 第三章 · 达斯坦 —— 只讲这一段 */
+/* 第三章 · 达斯坦 —— 内容在 js/lib/part-data.js，骨架由 js/lib/part.js 生成 */
 
 
+
+renderPart();
 bootChapter({ active: 'dastan', soundBand: 1 });
 }
 
-/* js/lib/materials.js */
+/* js/lib/part-data.js */
 try {
   __ns = __XM[0];
   __M0__();
   for (var k in __XM[0]) { if (k.indexOf("mount_") === 0) __XM[0][k.slice(6)] = __XM[0][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/part-data.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/part.js */
+try {
+  __ns = __XM[1];
+  __M1__();
+  for (var k in __XM[1]) { if (k.indexOf("mount_") === 0) __XM[1][k.slice(6)] = __XM[1][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/part.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/materials.js */
+try {
+  __ns = __XM[2];
+  __M2__();
+  for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/materials.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/renderer.js */
 try {
-  __ns = __XM[1];
-  __M1__();
-  for (var k in __XM[1]) { if (k.indexOf("mount_") === 0) __XM[1][k.slice(6)] = __XM[1][k](); }
+  __ns = __XM[3];
+  __M3__();
+  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/renderer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/sequencer.js */
 try {
-  __ns = __XM[2];
-  __M2__();
-  for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
+  __ns = __XM[4];
+  __M4__();
+  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sequencer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/site.js */
 try {
-  __ns = __XM[3];
-  __M3__();
-  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
+  __ns = __XM[5];
+  __M5__();
+  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/site.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/chapter.js */
 try {
-  __ns = __XM[4];
-  __M4__();
-  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
+  __ns = __XM[6];
+  __M6__();
+  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/dastan.js */
 try {
-  __ns = __XM[5];
-  __M5__();
-  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/dastan.js" + " :: " + (e && e.stack || e));
 }
