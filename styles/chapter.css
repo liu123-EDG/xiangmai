@@ -364,6 +364,68 @@ body.has-parallax .act__inner::before {
 }
 
 /* --------------------------------------------------------------------------
+   2c. 纵贯线（第一章专属）
+   --------------------------------------------------------------------------
+   一个音符钉在开场，符干往下延长、越往下越向右，末端落在下一章的入口上。
+   贴在**文档坐标**上（不是 fixed），所以它随页面一起滚，像画在纸上的一条线。
+   压在正文之下，只做背景层。
+   -------------------------------------------------------------------------- */
+#throughline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1;                     /* 空气层 0，正文 2 */
+  pointer-events: none;           /* 不挡点击；末端的入口本身是正文里的链接 */
+}
+#throughline:empty { display: none; }
+
+.tl {
+  display: block;
+  overflow: visible;
+}
+
+.tl__sleeve {
+  stroke: rgba(10, 9, 8, 0.55);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  filter: blur(1px);
+}
+.tl__path {
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px rgba(125, 151, 166, 0.4));
+}
+
+.tl__headshape {
+  fill: var(--part-tone, #7d97a6);
+  stroke: rgba(10, 9, 8, 0.6);
+  stroke-width: 1;
+  transition: opacity 1.2s var(--ease-slow);
+}
+.tl__stem {
+  stroke: var(--part-tone, #7d97a6);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.tl__head { transition: opacity 1.2s var(--ease-slow); }
+
+.tl__enddot { fill: var(--part-tone, #7d97a6); }
+.tl__end { transition: opacity 1s var(--ease-slow); }
+
+/* 音头要看得清才像音符：加一圈极淡的光 */
+.tl__headshape {
+  filter: drop-shadow(0 0 10px rgba(125, 151, 166, 0.55));
+}
+
+/* 有纵贯线时，实时背景压得更淡，让线读得出来 */
+body.has-throughline .air { opacity: 0.42; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tl__path, .tl__sleeve { transition: none; }
+}
+
+/* --------------------------------------------------------------------------
    4. 时间轴（历史渊源）
    -------------------------------------------------------------------------- */
 .timeline {
