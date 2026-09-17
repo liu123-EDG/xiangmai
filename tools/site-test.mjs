@@ -44,9 +44,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** 页面 → 它必须有的部件 */
 const PAGES = [
   { path: 'index.html', nav: '序', need: { '三段结构柱': '.pillar', '分幕导航': '#act-next', '师承网络': '#network' } },
-  { path: 'qiongnaieman/index.html', nav: '穹乃额曼', need: { '开场': '.chapter-hero', '图片槽': 'figure.slot' } },
-  { path: 'dastan/index.html', nav: '达斯坦', need: { '开场': '.chapter-hero', '图片槽': 'figure.slot' } },
-  { path: 'mashrap/index.html', nav: '麦西热甫', need: { '开场': '.chapter-hero', '图片槽': 'figure.slot' } },
+  { path: 'qiongnaieman/index.html', nav: '穹乃额曼', need: { '开场': '.chapter-hero', '概念图': '.plate img', '正文节': '.act' } },
+  { path: 'dastan/index.html', nav: '达斯坦', need: { '开场': '.chapter-hero', '正文节': '.act' } },
+  { path: 'mashrap/index.html', nav: '麦西热甫', need: { '开场': '.chapter-hero', '正文节': '.act' } },
   { path: 'lishi/index.html', nav: '历史与传承', need: { '时间轴': '.timeline', '对照表': '.duo', '案例': '.case' } },
   { path: 'fulu/index.html', nav: '形制比较', need: { '轮盘': '.wheel', '旋律': '.melody' } },
 ];
