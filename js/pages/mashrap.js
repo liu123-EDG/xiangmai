@@ -9,7 +9,7 @@
 import { renderPart } from '../lib/part.js';
 import { bootChapter } from '../lib/chapter.js';
 import { buildCircle } from '../lib/circle.js';
-import { createTheme, unlock } from '../lib/theme.js';
+import { createTheme, autoPlayOnGesture, unlock } from '../lib/theme.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
@@ -27,45 +27,13 @@ theme.preload();
 
 /* ------------------------------------------------------------------ 自动开声
    这一章没有声音等于白做 —— 鼓点、萨帕依、主题曲都是内容的一部分，
-   不该让人先去找开关。所以第一次交互（滚动/点击/按键）就自动打开。
-
-   浏览器不允许"无交互自动播放"，所以必须挂在第一次手势上：
-   用户一有任何动作，声音就起来，不需要他去找按钮。
-   声音按钮仍然保留 —— 有人想安静看，还能关掉。 */
-function autoSound() {
-  let armed = true;
-  const btn = document.getElementById('sound-toggle');
-  const text = document.getElementById('sound-text');
-
-  const arm = () => {
-    // 已经关过的人不再骚扰
-    if (!armed || (btn && btn.getAttribute('aria-pressed') === 'true')) return;
-    armed = false;
-    if (ctx.seq && !ctx.seq.enabled) ctx.seq.enable();
-    if (ctx.seq) {
-      ctx.seq.setBand(2);
-      // 手鼓的 context 已经建好了，主题曲复用它 —— 一个页面只留一个
-      if (ctx.seq.ctx) theme.useContext(ctx.seq.ctx);
-    }
-    if (btn) {
-      btn.setAttribute('aria-pressed', 'true');
-      if (text) text.textContent = '声音 开';
-    }
-    off();
-  };
-
-  const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
-  const off = () => evs.forEach((e) => window.removeEventListener(e, arm, { passive: true }));
-  evs.forEach((e) => window.addEventListener(e, arm, { passive: true, once: false }));
-
-  // 用户主动关掉，就不再自动开
-  if (btn) {
-    btn.addEventListener('click', () => {
-      if (btn.getAttribute('aria-pressed') === 'false') armed = false;
-    });
-  }
-}
-autoSound();
+   不该让人先去找开关。第一次交互就自动打开。
+   但主题曲**不在这里起**：它要等圈子点满才响（见下面的 onFull）。 */
+const soundArm = autoPlayOnGesture({
+  theme: null,            // 主题曲由 onFull 触发，这里只开手鼓
+  seq: ctx.seq,
+  band: 2,
+});
 
 if (host) {
   /** 人数 → 一句说明。让"加人"这件事有叙事，不只是数字变大。 */
@@ -96,8 +64,7 @@ if (host) {
       // 主题曲淡入；同时解锁其他民族的页面
       theme.start(2.6);
       unlock.set();
-    },
-    onChange: (n, max) => {
+    },    onChange: (n, max) => {
       const r = n / max;
       // 驱动背景纹样：人越多越亮、越推近
       if (ctx.renderer) {
@@ -112,7 +79,8 @@ if (host) {
         const [title, text] = stage(n, max);
         readout.innerHTML = '<b>' + title + '</b>' + text +
           (n >= max ? '<br><span style="color:var(--bone-faint)">再点一下重新开始。</span>' : '');
-      }    },
+      }
+    },
   });
 
   // 自检用

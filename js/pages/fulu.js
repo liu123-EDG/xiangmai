@@ -4,11 +4,20 @@ import { buildWheel, bindWheelScroll } from '../lib/wheel.js';
 import { buildMelody, bindMelodyScroll } from '../lib/melody.js';
 import { MUQAM } from '../lib/muqam-data.js';
 import { HERITAGE } from '../lib/heritage-data.js';
-import { unlock } from '../lib/theme.js';
+import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
 
-const ctx = bootChapter({ active: 'fulu', soundBand: 0 });
+/* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
+   所以 sound:false —— 免得鼓点和主题曲抢。 */
+const ctx = bootChapter({ active: 'fulu', sound: false });
 const { REDUCED } = ctx;
 const $ = (s) => document.querySelector(s);
+
+const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+theme.preload();
+autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+
+// 自检用
+window.__XM_THEME__ = theme;
 
 /* ------------------------------------------------------------------ 门
    其他民族的页面要先把麦西热甫那场圆圈玩完才开。

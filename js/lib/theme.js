@@ -145,6 +145,52 @@ export function createTheme(url, opts = {}) {
 }
 
 /* ==========================================================================
+   自动播放：挂在第一次用户交互上
+   --------------------------------------------------------------------------
+   浏览器不允许"无交互自动播放"。所以做法是：**监听第一次手势**
+   （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
+
+   这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
+   声音按钮仍然保留：关掉之后就不再自动开。
+   ========================================================================== */
+export function autoPlayOnGesture(opts) {
+  const { theme, seq, band } = opts;
+  let armed = true;
+  const btn = document.getElementById('sound-toggle');
+  const text = document.getElementById('sound-text');
+
+  const on = () => {
+    if (!armed) return;
+    armed = false;
+    detach();
+    if (seq && !seq.enabled) seq.enable();
+    if (seq) {
+      if (band !== undefined) seq.setBand(band);
+      // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
+      if (theme && seq.ctx) theme.useContext(seq.ctx);
+    }
+    if (theme) theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'true');
+      if (text) text.textContent = '声音 开';
+    }
+  };
+
+  const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
+  const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
+  evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
+
+  // 用户主动关掉，就不再自动开
+  if (btn) {
+    btn.addEventListener('click', () => {
+      if (btn.getAttribute('aria-pressed') === 'false') { armed = false; detach(); }
+    });
+  }
+
+  return { trigger: on, get armed() { return armed; } };
+}
+
+/* ==========================================================================
    解锁标记
    --------------------------------------------------------------------------
    互动完成后才允许进其他民族的页面。标记写在 localStorage，

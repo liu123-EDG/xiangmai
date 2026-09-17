@@ -9,7 +9,7 @@
      js/lib/wheel.js  → buildWheel, bindWheelScroll
      js/lib/heritage-data.js  → HERITAGE, heritageHref
      js/lib/melody.js  → buildMelody, bindMelodyScroll
-     js/lib/theme.js  → createTheme, unlock
+     js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
      js/pages/fulu.js
 */
 (function () {
@@ -3012,6 +3012,52 @@ function createTheme(url, opts = {}) {
 }
 
 /* ==========================================================================
+   自动播放：挂在第一次用户交互上
+   --------------------------------------------------------------------------
+   浏览器不允许"无交互自动播放"。所以做法是：**监听第一次手势**
+   （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
+
+   这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
+   声音按钮仍然保留：关掉之后就不再自动开。
+   ========================================================================== */
+function autoPlayOnGesture(opts) {
+  const { theme, seq, band } = opts;
+  let armed = true;
+  const btn = document.getElementById('sound-toggle');
+  const text = document.getElementById('sound-text');
+
+  const on = () => {
+    if (!armed) return;
+    armed = false;
+    detach();
+    if (seq && !seq.enabled) seq.enable();
+    if (seq) {
+      if (band !== undefined) seq.setBand(band);
+      // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
+      if (theme && seq.ctx) theme.useContext(seq.ctx);
+    }
+    if (theme) theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+    if (btn) {
+      btn.setAttribute('aria-pressed', 'true');
+      if (text) text.textContent = '声音 开';
+    }
+  };
+
+  const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
+  const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
+  evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
+
+  // 用户主动关掉，就不再自动开
+  if (btn) {
+    btn.addEventListener('click', () => {
+      if (btn.getAttribute('aria-pressed') === 'false') { armed = false; detach(); }
+    });
+  }
+
+  return { trigger: on, get armed() { return armed; } };
+}
+
+/* ==========================================================================
    解锁标记
    --------------------------------------------------------------------------
    互动完成后才允许进其他民族的页面。标记写在 localStorage，
@@ -3037,6 +3083,7 @@ const unlock = {
 
 __ns = __XM[9];
 __ns.mount_createTheme = function () { return createTheme; };
+__ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
@@ -3050,6 +3097,8 @@ var bindMelodyScroll = __XM[8]["bindMelodyScroll"];
 var MUQAM = __XM[5]["MUQAM"];
 var HERITAGE = __XM[7]["HERITAGE"];
 var unlock = __XM[9]["unlock"];
+var createTheme = __XM[9]["createTheme"];
+var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
 
 /* 附录 · 形制比较 —— 十二套木卡姆轮盘 + 八个民族的旋律入口 */
 
@@ -3059,9 +3108,18 @@ var unlock = __XM[9]["unlock"];
 
 
 
-const ctx = bootChapter({ active: 'fulu', soundBand: 0 });
+/* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
+   所以 sound:false —— 免得鼓点和主题曲抢。 */
+const ctx = bootChapter({ active: 'fulu', sound: false });
 const { REDUCED } = ctx;
 const $ = (s) => document.querySelector(s);
+
+const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+theme.preload();
+autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+
+// 自检用
+window.__XM_THEME__ = theme;
 
 /* ------------------------------------------------------------------ 门
    其他民族的页面要先把麦西热甫那场圆圈玩完才开。
