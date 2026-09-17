@@ -3062,15 +3062,14 @@ async function boot() {
   if (hvHost && isDesktop() && !REDUCED) {
     heroVideo = buildHeroVideo({
       host: hvHost,
-      /* 淡出阈值要**给足时间**。
-         早先 fadeStart 0.015 / fadeEnd 0.16 太激进：
-         整段 hero 有 3780px，0.16 只有 605px ——
-         用户一进来随手滚两下，视频还没播完第一段就被判为"让位"，
-         看起来就是"闪一下就没了"（踩过）。
-         现在放到 0.06 / 0.42（约 226px → 1587px），
-         至少能看完整一段（5 秒）再让位。 */
-      fadeStart: 0.06,
-      fadeEnd: 0.42,
+      /* 视频霸屏：前面 4~5 屏全是它，结构柱很晚才出现。
+         整段 hero 3780px、视口 900px，可滚距离 2880px，
+         所以 0.625 / 1.11 换算成滚动距离就是：
+           让位起点 1800px（约 4 屏），完全消失 2880px（滚到底）。
+         早先设 0.06 / 0.42 只有 226 / 1587px ——
+         鼠标滚六七下视频就没了，和"第一眼就是一整屏画面"的意图不符。 */
+      fadeStart: 0.625,   // ≈1800px
+      fadeEnd: 1.0,       // ≈2880px（滚到底）
       reduced: REDUCED,
     });
     document.body.classList.add('has-hero-video');

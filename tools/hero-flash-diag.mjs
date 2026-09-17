@@ -63,39 +63,36 @@ try {
 
   console.log('\n[序章视频排查]');
   await sleep(2600);
-  const before = await evalJs(`(() => {
-    const h = window.__XM_HERO__;
-    return JSON.stringify({ hasHero: !!h, st: h ? h.state() : null });
-  })()`);
-  console.log('   手势前  ' + before);
+  // 先让它播起来
+  await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 800, y: 450, deltaX: 0, deltaY: -2 });
+  await sleep(1800);
 
-  console.log('   发一个真实滚轮事件…');
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseWheel', x: 800, y: 450, deltaX: 0, deltaY: -2,
-  });
-  await sleep(2000);
-
-  for (let i = 0; i < 5; i++) {
-    const s = await evalJs(`(() => {
+  console.log('\n  逐级滚动，看视频在哪个位置消失：');
+  console.log('  scrollY   进度p    opacity  可见性     video播放   时刻');
+  for (const y of [0, 100, 200, 300, 400, 600, 800, 1200, 1600, 2000]) {
+    await evalJs(`window.scrollTo(0, ${y})`);
+    await sleep(900);
+    const s = JSON.parse(await evalJs(`(() => {
       const host = document.getElementById('hero-video');
       const cs = getComputedStyle(host);
-      const v = host.querySelector('video');
-      const h = window.__XM_HERO__;
+      const hero = document.getElementById('hero');
+      const v = host.querySelector('video.on') || host.querySelector('video');
+      const d = Math.max(1, hero.offsetHeight - innerHeight);
       return JSON.stringify({
-        t: Math.round(performance.now()),
+        p: +((window.scrollY - hero.offsetTop) / d).toFixed(3),
         op: +(+cs.opacity).toFixed(3),
         vis: cs.visibility,
-        vOn: v.classList.contains('on'),
-        vReady: v.readyState,
-        vTime: +v.currentTime.toFixed(2),
-        vPaused: v.paused,
-        vErr: v.error ? v.error.code : null,
-        hero: h ? h.state() : null,
+        paused: v.paused,
+        t: +v.currentTime.toFixed(2),
       });
-    })()`);
-    console.log('   ' + String(i).padStart(2) + '  ' + s);
-    await sleep(900);
+    })()`));
+    console.log('  ' + String(y).padStart(6) + '  ' + String(s.p).padStart(6) +
+      '   ' + String(s.op).padStart(6) + '  ' + s.vis.padEnd(9) +
+      '  ' + (s.paused ? '暂停' : '播放中') + '  ' + s.t);
   }
+
+  const after = await evalJs(`JSON.stringify(window.__XM_HERO__.state())`);
+  console.log('\n  最终内部状态 ' + after);
 
   ws.close();
 } catch (e) { console.error('错误：' + e.message); }

@@ -276,9 +276,9 @@ try {
     if (heroState.opacity > 0.9) ok('第一屏由视频占满（opacity=' + heroState.opacity + '）');
     else bad('概念片层不可见：' + heroState.opacity);
 
-    // 滚过之后应当让位给 WebGL 房间
-    await evalJs('window.scrollTo(0, 2200)');
-    await sleep(1400);
+    // 滚过之后应当让位给 WebGL 房间（霸屏档：让位区间约 1800–2880px）
+    await evalJs('window.scrollTo(0, 2880)');
+    await sleep(1600);
     const after = JSON.parse(await evalJs(`(() => {
       const host = document.getElementById('hero-video');
       return JSON.stringify({
@@ -286,10 +286,10 @@ try {
         gone: document.body.classList.contains('video-gone'),
       });
     })()`));
-    if (after.op < 0.05 && after.gone) ok('滚动后概念片让位给结构柱（opacity=' + after.op + '）');
+    if (after.op < 0.05 && after.gone) ok('滚到底后概念片让位给结构柱（opacity=' + after.op + '）');
     else bad('概念片没让位：' + JSON.stringify(after));
     await evalJs('window.scrollTo(0, 0)');
-    await sleep(1200);
+    await sleep(1400);
   } else if (heroState.has) {
     console.log('       （未启用：可能是窄窗口或低配机器，属正常降级）');
   } else {
@@ -438,10 +438,11 @@ try {
      WebGL 画布不保留绘制缓冲，直读那条路在部分环境会拿到清空后的内容。
 
      注意：序章第一屏现在是概念片，它会盖住结构柱。
-     所以量柱体之前必须先滚过视频区，让视频让位 ——
-     否则截图里是壁画，不是柱子（踩过，表现为"柱体位置差了 441px"）。 */
-  await evalJs('window.scrollTo(0, 1100)');
-  await sleep(1600);
+     所以量柱体之前必须先滚过视频的让位区间 ——
+     不然截图里是壁画，不是柱子（踩过，表现为"柱体位置差了 441px"）。
+     霸屏档的让位区间是 1800–2880px，所以这里要滚到 2880。 */
+  await evalJs('window.scrollTo(0, 2880)');
+  await sleep(1800);
   const asciiShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(shotsDir, '_ascii.png'), Buffer.from(asciiShot.data, 'base64'));
   const asciiIm = decodePng(join(shotsDir, '_ascii.png'));
@@ -580,9 +581,10 @@ try {
   await evalJs(`(() => {
     const hero = document.getElementById('hero');
     const d = Math.max(1, hero.offsetHeight - innerHeight);
-    scrollTo(0, hero.offsetTop + d * 0.5);   // 越过视频让位区间（0.42）
+    // 霸屏档：让位区间 0.625–1.0，滚到底才完全让位
+    scrollTo(0, hero.offsetTop + d * 1.0);
   })()`);
-  await sleep(2400);
+  await sleep(2600);
   // 确认视频真的让位了，否则后面量的都是视频
   const gone = await evalJs(`document.body.classList.contains('video-gone')`);
   if (gone) ok('测量前概念片已让位');

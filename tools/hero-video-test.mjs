@@ -115,20 +115,22 @@ try {
   if (parseFloat(st.hostOpacity) > 0.9) ok('概念片层完全可见（opacity=' + st.hostOpacity + '）');
   else bad('概念片层不可见：' + st.hostOpacity);
 
-  /* 滚下去：视频应当淡出，结构柱应当出来 */
-  await realScroll(900);
+  /* 滚下去：视频应当淡出，结构柱应当出来。
+     现在是"霸屏"档 —— 让位起点约 1800px、完全消失约 2880px。
+     取样位置也得跟着往后挪，否则会量到"还没开始淡"，得出假失败（踩过）。 */
+  await realScroll(2200);
   const mid = JSON.parse(await evalJs(`(() => {
     const host = document.getElementById('hero-video');
     return JSON.stringify({
-      op: getComputedStyle(host).opacity,
+      op: +(+getComputedStyle(host).opacity).toFixed(3),
       gone: document.body.classList.contains('video-gone'),
     });
   })()`));
-  console.log('       滚到 900px：opacity=' + mid.op + ' video-gone=' + mid.gone);
-  if (parseFloat(mid.op) < 0.9) ok('滚动后概念片开始淡出');
+  console.log('       滚到 2200px：opacity=' + mid.op + ' video-gone=' + mid.gone);
+  if (mid.op < 1) ok('滚动后概念片开始淡出（opacity=' + mid.op + '）');
   else bad('滚动后没淡出：' + mid.op);
 
-  await realScroll(2400);
+  await realScroll(2880);
   const far = JSON.parse(await evalJs(`(() => {
     const host = document.getElementById('hero-video');
     const pillar = document.querySelector('.pillar-wrap');
@@ -138,8 +140,8 @@ try {
       pillarOp: pillar ? +(+getComputedStyle(pillar).opacity).toFixed(3) : null,
     });
   })()`));
-  console.log('       滚到 2400px：' + JSON.stringify(far));
-  if (far.op < 0.05) ok('滚远后概念片完全让位（opacity=' + far.op + '）');
+  console.log('       滚到底：' + JSON.stringify(far));
+  if (far.op < 0.06) ok('滚到底概念片完全让位（opacity=' + far.op + '）');
   else bad('概念片还占着画面：' + far.op);
   if (far.gone) ok('已切到结构柱阶段（video-gone）');
   else bad('没切阶段');
