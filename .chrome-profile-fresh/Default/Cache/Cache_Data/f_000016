@@ -1,0 +1,1468 @@
+/* ==========================================================================
+   弦脉 · 章节页样式（第二章「穹乃额曼」及各分页面共用）
+   --------------------------------------------------------------------------
+   首屏是"进入一个暗房间"，章节页是"在房间里推进"。
+   所以这里的语法变了：首屏用一条竖向结构柱讲三段结构，
+   章节页用横向推进的幕、时间轴、对照列来讲过程。
+
+   共用的东西保持不变：配色令牌、骨白文字、尘埃、进度轴、无障碍策略。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 页面骨架
+   -------------------------------------------------------------------------- */
+body.chapter {
+  background: var(--ink-900);
+}
+
+/* 固定层之下留出顶部安全区 */
+.chapter main {
+  position: relative;
+  z-index: 2;
+}
+
+/* 章节页的空气层：地火 + 壁面 + 浮尘 */
+.air {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 2.2s var(--ease-slow);
+}
+body.is-ready .air { opacity: 1; }
+body[data-render="basic"] .air { display: none; }
+
+/* 正文要压在空气层之上，且自身不透明 —— 否则大片文字会浮在发亮的纹理上不好读 */
+.act,
+.chapter-hero { position: relative; z-index: 2; }
+
+/* 轮盘一幕：地火只在这一幕里最盛，其余部分收住，免得整页被冲淡 */
+.wheel-act {
+  position: relative;
+}
+.wheel-act::before {
+  content: "";
+  position: absolute;
+  inset: -6% -10%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(58% 52% at 50% 50%, rgba(120, 48, 16, 0.20) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* 兜底：无 WebGL 时给一层静态的地火感渐变 */
+.fallback-ember {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: none;
+  background:
+    radial-gradient(120% 80% at 50% 108%, rgba(150, 60, 20, 0.28) 0%, rgba(0, 0, 0, 0) 62%),
+    radial-gradient(90% 60% at 12% 88%, rgba(110, 45, 15, 0.20) 0%, rgba(0, 0, 0, 0) 60%),
+    var(--ink-900);
+}
+body[data-render="basic"] .fallback-ember { display: block; }
+
+/* 幕：每一幕占据一屏以上的滚动长度 */
+.act {
+  position: relative;
+  padding: clamp(4rem, 12vh, 9rem) clamp(1.2rem, 6vw, 6rem);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 幕序号：大字，极淡，作为空间坐标 */
+.act__num {
+  position: absolute;
+  top: clamp(3rem, 9vh, 6rem);
+  left: clamp(1.2rem, 6vw, 6rem);
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 9vw, 7rem);
+  line-height: 1;
+  color: rgba(222, 214, 200, 0.045);
+  user-select: none;
+  pointer-events: none;
+}
+
+.act__inner {
+  position: relative;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* 幕的推进：进入视口后逐步显形 */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 1.4s var(--ease-slow), transform 1.6s var(--ease-slow);
+}
+.reveal.is-in { opacity: 1; transform: none; }
+.reveal[data-delay="1"] { transition-delay: 0.12s; }
+.reveal[data-delay="2"] { transition-delay: 0.24s; }
+.reveal[data-delay="3"] { transition-delay: 0.36s; }
+.reveal[data-delay="4"] { transition-delay: 0.48s; }
+.reveal[data-delay="5"] { transition-delay: 0.6s; }
+
+/* --------------------------------------------------------------------------
+   2. 章节小标题
+   -------------------------------------------------------------------------- */
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0 0 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.42em;
+  color: var(--bone-faint);
+}
+.kicker::before {
+  content: "";
+  width: 34px; height: 1px;
+  background: linear-gradient(90deg, rgba(192, 138, 62, 0.85), rgba(192, 138, 62, 0));
+}
+
+h2.act__title {
+  margin: 0 0 1.4rem;
+  font-size: clamp(1.7rem, 3.6vw, 2.9rem);
+  font-weight: normal;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: var(--bone);
+}
+h3.block__title {
+  margin: 0 0 0.9rem;
+  font-size: clamp(1.1rem, 1.9vw, 1.4rem);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  color: var(--bone);
+}
+p.body {
+  margin: 0 0 1rem;
+  max-width: 46em;
+  font-size: clamp(0.92rem, 1.15vw, 1.02rem);
+  line-height: 2.15;
+  letter-spacing: 0.045em;
+  color: var(--bone-dim);
+}
+p.body strong,
+p.body b {
+  font-weight: normal;
+  color: var(--bone);
+  /* 不用金色描边，用一点点暖白把重点托起来 */
+  text-shadow: 0 0 22px rgba(222, 214, 200, 0.18);
+}
+.lead {
+  font-size: clamp(1rem, 1.5vw, 1.15rem) !important;
+  color: var(--bone) !important;
+  line-height: 2.1 !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. 开场
+   -------------------------------------------------------------------------- */
+.chapter-hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(6rem, 16vh, 11rem) clamp(1.2rem, 6vw, 6rem) clamp(4rem, 10vh, 7rem);
+}
+.chapter-hero__inner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.chapter-hero__part {
+  margin: 0 0 1.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.44em;
+  color: var(--amber);
+}
+.chapter-hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(2.6rem, 7.5vw, 5.4rem);
+  font-weight: normal;
+  line-height: 1.14;
+  letter-spacing: 0.1em;
+  color: var(--bone);
+}
+.chapter-hero__ug {
+  display: block;
+  margin: 0 0 2.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--bone-faint);
+}
+.chapter-hero__lead {
+  max-width: 40em;
+  margin: 0 0 3rem;
+  font-size: clamp(0.98rem, 1.55vw, 1.2rem);
+  line-height: 2.1;
+  letter-spacing: 0.05em;
+  color: var(--bone);
+}
+.chapter-hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.6rem, 5vw, 4rem);
+  margin: 0;
+  padding: 1.9rem 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+.chapter-hero__stats li { min-width: 8rem; }
+.chapter-hero__stats b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  font-weight: normal;
+  line-height: 1.2;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.chapter-hero__stats b i {
+  font-style: normal;
+  font-size: 0.46em;
+  letter-spacing: 0.16em;
+  color: var(--bone-dim);
+  margin-left: 0.3em;
+}
+.chapter-hero__stats span {
+  display: block;
+  margin-top: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  line-height: 1.9;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   3b. 概念图画框
+   --------------------------------------------------------------------------
+   图是这一章的视觉主题，不是插图。所以给它独立一屏，按原图比例展示，
+   不做裁切；四周留白，让它像画册里的一页。
+   -------------------------------------------------------------------------- */
+.plate-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2rem, 8vh, 6rem) clamp(1rem, 4vw, 3rem);
+  min-height: 92vh;
+}
+.plate-act:empty { display: none; }
+/* 有视差背景时，整屏画框是多余的 —— 背景本身就是画面，
+   再放一张静态图会把视差盖掉 */
+body.has-parallax .plate-act { display: none; }
+
+.plate {
+  position: relative;
+  margin: 0;
+  width: min(100%, 940px);
+  opacity: 0;
+  transform: translateY(30px) scale(0.985);
+  transition: opacity 2s var(--ease-slow), transform 2.4s var(--ease-slow);
+}
+.plate.is-in { opacity: 1; transform: none; }
+
+.plate img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 画册感：一道极细的边，一点点深阴影，不抢画面 */
+  border: 1px solid rgba(222, 214, 200, 0.10);
+  box-shadow: 0 40px 120px -50px rgba(0, 0, 0, 0.95);
+}
+
+.plate figcaption {
+  margin-top: 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.22em;
+  color: var(--bone-faint);
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .plate-act { min-height: auto; padding: 2.4rem 1rem; }
+  .plate { width: 100%; }
+}
+
+/* --------------------------------------------------------------------------
+   2b. 滚动视差场景
+   --------------------------------------------------------------------------
+   层是 position:fixed 铺满视口的，滚动时各自位移产生纵深。
+   场景之间用透明度交叉淡化，不做 display 切换（否则会闪）。
+   这些层压在空气层之上、正文之下。
+   -------------------------------------------------------------------------- */
+.px {
+  position: fixed;
+  inset: 0;
+  z-index: 1;                     /* 空气层是 0，正文是 2 */
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--ink-900);
+}
+.px:empty { display: none; }
+
+.px__scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+}
+.px__scene::after {
+  /* 压一层暗调，保证正文始终读得清 */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--px-tint, rgba(8, 7, 6, 0.62));
+}
+
+.px__layer {
+  position: absolute;
+  inset: -6% -3%;                 /* 留出位移余量，免得移动时露出边缘 */
+  width: 106%;
+  height: 112%;
+  object-fit: cover;
+  will-change: transform;
+  user-select: none;
+}
+
+/* 视差层存在时，章节页的实时背景退到很淡，省算力也免得打架 */
+body.has-parallax .air { opacity: 0.28; }
+body.has-parallax .fallback-ember { display: none; }
+
+/* 有视差背景时，正文区不再需要图片槽那块底色（会变成一块亮斑） */
+body.has-parallax figure.slot {
+  background: rgba(10, 9, 8, 0.30);
+  border-color: rgba(222, 214, 200, 0.07);
+}
+
+/* 纹样背景时：正文与开场下面垫一层暗底。
+   纹样是背景，不能被它压住字 —— 光把纹样调弱不够，
+   得在文字底下单独给一层"可读区"。 */
+body[data-render="pattern"] .act__inner,
+body[data-render="pattern"] .chapter-hero__inner {
+  position: relative;
+}
+body[data-render="pattern"] .act__inner::before,
+body[data-render="pattern"] .chapter-hero__inner::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(74% 58% at 50% 50%,
+    rgba(8, 7, 6, 0.90) 0%, rgba(8, 7, 6, 0.66) 55%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* 互动屏的可读性暗底。
+   这里有个坑：用大范围的径向/带状渐变会连带盖住圆圈里的人 ——
+   人站在圆的下半部分，渐变一铺过去就全被罩住。
+   所以只在**标题那一条**加暗底，圆圈让它完全露出来。 */
+body[data-render="pattern"] .mq-act .act__inner::before {
+  inset: -4% -6% 62% -6%;
+  background: radial-gradient(120% 180% at 50% 40%,
+    rgba(8, 7, 6, 0.88) 0%, rgba(8, 7, 6, 0.55) 55%, rgba(8, 7, 6, 0) 100%);
+  z-index: -1;
+}
+
+/* 视差背景存在时，正文自己带一点底，保证任何画面上都读得清 */
+body.has-parallax .act__inner {
+  position: relative;
+}
+body.has-parallax .act__inner::before {
+  content: "";
+  position: absolute;
+  inset: -8% -6%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(78% 62% at 50% 50%,
+    rgba(8, 7, 6, 0.62) 0%, rgba(8, 7, 6, 0.30) 58%, rgba(8, 7, 6, 0) 100%);
+}
+
+/* --------------------------------------------------------------------------
+   2c. 纵贯线（第一章专属）
+   --------------------------------------------------------------------------
+   一个音符钉在开场，符干往下延长、越往下越向右，末端落在下一章的入口上。
+   贴在**文档坐标**上（不是 fixed），所以它随页面一起滚，像画在纸上的一条线。
+   压在正文之下，只做背景层。
+   -------------------------------------------------------------------------- */
+#throughline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1;                     /* 空气层 0，正文 2 */
+  pointer-events: none;           /* 不挡点击；末端的入口本身是正文里的链接 */
+}
+#throughline:empty { display: none; }
+
+.tl {
+  display: block;
+  overflow: visible;
+}
+
+/* 金丝：暗底 + 圆柱明暗 + 暖衬 + 金属主线 + 流动高光。
+   单靠一个金色只会是"一条黄线"；金属的特征是随表面朝向改变明暗，
+   所以主线挂了 feSpecularLighting 滤镜，下面又垫了一层横向明暗。 */
+.tl__shadow {
+  stroke: rgba(6, 5, 4, 0.8);
+  stroke-width: 8;
+  stroke-linecap: round;
+  filter: blur(1.8px);
+}
+.tl__round {
+  stroke-width: 4.6;
+  stroke-linecap: round;
+  opacity: 0.9;
+  filter: blur(0.5px);
+}
+.tl__sleeve {
+  stroke: rgba(90, 67, 24, 0.55);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  filter: blur(1.1px);
+}
+.tl__path {
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(217, 178, 104, 0.45));
+}
+.tl__sheen {
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+  filter: blur(0.5px);
+}
+
+/* 走针：沿丝前进的光点 */
+.tl__bead { transition: opacity 0.6s var(--ease-slow); }
+.tl__beaddot {
+  fill: #fff6dd;
+  filter: drop-shadow(0 0 7px rgba(246, 226, 171, 0.95));
+}
+
+/* 音头：一块金属，不是一片颜色。
+   斜向渐变 + 金属滤镜 + 一小片高光，三样缺一就像贴纸。 */
+.tl__headshape {
+  fill: url(#tlHead);
+  stroke: rgba(40, 28, 8, 0.75);
+  stroke-width: 0.9;
+  filter: drop-shadow(0 0 12px rgba(217, 178, 104, 0.6)) url(#tlMetal);
+}
+.tl__headspec {
+  fill: rgba(255, 249, 230, 0.9);
+  filter: blur(1.6px);
+}
+.tl__head { transition: opacity 1.2s var(--ease-slow); }
+
+.tl__enddot {
+  fill: #f6e2ab;
+  filter: drop-shadow(0 0 9px rgba(246, 226, 171, 0.95));
+}
+.tl__end { transition: opacity 1s var(--ease-slow); }
+
+/* 有纵贯线时，实时背景压得更淡，让线读得出来 */
+body.has-throughline .air { opacity: 0.42; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tl__path, .tl__sleeve { transition: none; }
+}
+
+/* --------------------------------------------------------------------------
+   4. 时间轴（历史渊源）
+   -------------------------------------------------------------------------- */
+.timeline {
+  margin: 3rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+.tl-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(84px, 132px) 1fr;
+  gap: clamp(1.2rem, 4vw, 3rem);
+  padding: 2.1rem 0 2.1rem 1.4rem;
+  border-top: 1px solid var(--line);
+}
+.tl-item:last-child { border-bottom: 1px solid var(--line); }
+
+/* 时间轴上的刻度点 */
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 2.9rem;
+  width: 7px; height: 7px;
+  border: 1px solid rgba(222, 214, 200, 0.45);
+  border-radius: 50%;
+  background: var(--ink-900);
+  transition: background 0.9s var(--ease-slow), border-color 0.9s var(--ease-slow);
+}
+.tl-item.is-in::before { background: var(--amber); border-color: var(--amber); }
+.tl-item[data-emphasis="1"]::before {
+  width: 11px; height: 11px; left: -2px; top: 2.75rem;
+  box-shadow: 0 0 18px -3px rgba(192, 138, 62, 0.9);
+}
+
+.tl-era {
+  font-family: var(--font-serif);
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  letter-spacing: 0.1em;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.tl-title {
+  margin: 0 0 0.8rem;
+  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  font-weight: normal;
+  letter-spacing: 0.1em;
+  color: var(--bone-dim);
+}
+.tl-item[data-emphasis="1"] .tl-title { color: var(--amber); }
+.tl-tag {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.32rem 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  color: var(--bone-faint);
+  border: 1px solid var(--line);
+}
+
+/* --------------------------------------------------------------------------
+   5. 对照列（万桐书 / 吐尔迪·阿洪）
+   -------------------------------------------------------------------------- */
+.duo {
+  margin: 2.6rem 0 0;
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.duo__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+}
+.duo__cell {
+  padding: clamp(1rem, 2.4vw, 1.7rem);
+  background: rgba(10, 9, 8, 0.72);
+  font-size: clamp(0.86rem, 1.1vw, 0.96rem);
+  line-height: 2;
+  letter-spacing: 0.04em;
+  color: var(--bone-dim);
+}
+.duo__cell--b { color: var(--bone); }
+.duo__head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+}
+.duo__head span {
+  padding: 0.9rem clamp(1rem, 2.4vw, 1.7rem);
+  background: rgba(10, 9, 8, 0.9);
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  color: var(--bone-faint);
+}
+.duo__head span:last-child { color: var(--amber); }
+
+/* --------------------------------------------------------------------------
+   6. 三部曲结构卡
+   -------------------------------------------------------------------------- */
+.parts {
+  margin: 2.8rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.part {
+  position: relative;
+  padding: clamp(1.5rem, 3vw, 2.4rem);
+  background: rgba(10, 9, 8, 0.78);
+  overflow: hidden;
+}
+/* 每块顶部一道该段自己的颜色，与首屏三段柱对应 */
+.part::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: var(--part-tone, var(--amber));
+  opacity: 0.85;
+}
+.part__idx {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  line-height: 1;
+  color: rgba(222, 214, 200, 0.14);
+}
+.part__name {
+  margin: 0.9rem 0 0.2rem;
+  font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+  letter-spacing: 0.14em;
+  color: var(--bone);
+}
+.part__sub {
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.26em;
+  color: var(--part-tone, var(--amber));
+}
+.part__body {
+  margin: 1.2rem 0 0;
+  font-size: 0.9rem;
+  line-height: 2.05;
+  color: var(--bone-dim);
+}
+.part__mood {
+  margin-top: 1.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   7. 数字块
+   -------------------------------------------------------------------------- */
+.numbers {
+  margin: 3rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.6rem, 5vw, 4.5rem);
+  padding: 7rem 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+.numbers li { min-width: 7rem; }
+.numbers b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  font-weight: normal;
+  line-height: 1.1;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.numbers b i {
+  font-style: normal;
+  font-size: 0.4em;
+  letter-spacing: 0.14em;
+  color: var(--bone-dim);
+  margin-left: 0.25em;
+}
+.numbers span {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   8. 双轨（当代传承）
+   -------------------------------------------------------------------------- */
+.tracks {
+  margin: 2.8rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: clamp(1.4rem, 3vw, 2.6rem);
+}
+.track {
+  padding: clamp(1.5rem, 3vw, 2.2rem);
+  border: 1px solid var(--line);
+  background: rgba(10, 9, 8, 0.55);
+}
+.track__tag {
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.3em;
+  color: var(--amber);
+}
+.track__name {
+  margin: 0.8rem 0 1.2rem;
+  font-size: clamp(1.08rem, 1.8vw, 1.3rem);
+  letter-spacing: 0.08em;
+  color: var(--bone);
+}
+.track__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1rem, 2.5vw, 2.2rem);
+  margin: 1.6rem 0 0;
+  padding: 1.2rem 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+.track__stats b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: normal;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.track__stats span {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   9. 当代案例
+   -------------------------------------------------------------------------- */
+.cases {
+  margin: 2.8rem 0 0;
+  display: grid;
+  gap: clamp(1.2rem, 2.6vw, 2rem);
+}
+.case {
+  position: relative;
+  padding: clamp(1.4rem, 3vw, 2.2rem) clamp(1.4rem, 3vw, 2.4rem);
+  border: 1px solid var(--line);
+  background: rgba(10, 9, 8, 0.5);
+  transition: border-color 0.8s var(--ease-slow), background 0.8s var(--ease-slow);
+}
+.case:hover { border-color: rgba(192, 138, 62, 0.35); background: rgba(14, 11, 9, 0.7); }
+.case__org {
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.26em;
+  color: var(--amber);
+}
+.case__title {
+  margin: 0.7rem 0 1.1rem;
+  font-size: clamp(1.05rem, 1.9vw, 1.35rem);
+  letter-spacing: 0.06em;
+  color: var(--bone);
+}
+.case__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.3rem;
+  padding: 0;
+  list-style: none;
+}
+.case__tags li {
+  padding: 0.28rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--bone-faint);
+  border: 1px solid var(--line);
+}
+.case__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1rem, 2.5vw, 2.4rem);
+  margin: 1.3rem 0 0;
+  padding: 1.1rem 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+.case__stats b {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: normal;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.case__stats span {
+  display: block;
+  margin-top: 0.3rem;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   10. 图片槽
+   --------------------------------------------------------------------------
+   设计原则：图片是"插入"进来的，不是"排"进来的。
+   所以槽位自带尺寸、边框、说明位与缺图兜底 ——
+   你只要把文件放进 assets/img/ 并改一个属性，版面不会因此走形。
+   -------------------------------------------------------------------------- */
+figure.slot {
+  position: relative;
+  margin: clamp(1.8rem, 4vw, 3rem) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(222, 214, 200, 0.016) 0 8px,
+      rgba(222, 214, 200, 0) 8px 16px),
+    rgba(14, 12, 11, 0.6);
+  aspect-ratio: var(--slot-ratio, 16 / 9);
+  /* 缺图时的占位字 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+figure.slot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1.4s var(--ease-slow);
+}
+figure.slot img.is-loaded { opacity: 0.94; }
+figure.slot.is-empty::after {
+  content: attr(data-label);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  color: var(--bone-faint);
+  text-align: center;
+  padding: 1rem;
+  line-height: 2;
+}
+figure.slot figcaption {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 2.4rem 1.2rem 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  line-height: 1.9;
+  color: var(--bone-dim);
+  background: linear-gradient(180deg, rgba(8, 7, 6, 0) 0%, rgba(8, 7, 6, 0.88) 62%);
+}
+figure.slot.is-empty figcaption { color: var(--bone-faint); }
+/* 并列两张 */
+.slot-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: clamp(1rem, 2.5vw, 1.8rem);
+}
+.slot-pair figure.slot { margin-top: clamp(1.8rem, 4vw, 3rem); }
+
+/* --------------------------------------------------------------------------
+   11. 十二木卡姆轮盘
+   -------------------------------------------------------------------------- */
+.wheel-act {
+  min-height: 118vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(4rem, 10vh, 7rem) clamp(1rem, 4vw, 3rem);
+}
+.wheel-host {
+  position: relative;
+  width: min(720px, 92vw);
+  aspect-ratio: 1;
+  margin: clamp(1.5rem, 4vh, 3rem) auto 0;
+}
+.wheel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  --wheel-focus: 1;
+}
+
+.wheel__ring {
+  fill: none;
+  stroke: rgba(222, 214, 200, 0.13);
+  stroke-width: 1;
+}
+.wheel__ring--thin { stroke: rgba(222, 214, 200, 0.07); }
+.wheel__star {
+  fill: none;
+  stroke: rgba(192, 138, 62, 0.16);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.wheel__spoke { stroke: rgba(222, 214, 200, 0.055); stroke-width: 1; }
+.wheel__rotor {
+  transition: none;   /* 由 JS 按滚动进度实时写 transform */
+  will-change: transform;
+}
+.wheel__core-num {
+  fill: rgba(222, 214, 200, 0.5);
+  font-family: var(--font-serif);
+  font-size: 46px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-variant-numeric: tabular-nums;
+}
+.wheel__core-label {
+  fill: rgba(222, 214, 200, 0.28);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* 节点 */
+.wnode { cursor: pointer; outline: none; }
+.wnode__halo {
+  fill: none;
+  stroke: hsl(var(--h) 46% 58% / 0.30);
+  stroke-width: 1;
+  opacity: calc(0.35 + 0.65 * var(--wheel-focus));
+  transition: opacity 0.6s var(--ease-slow), stroke-width 0.6s var(--ease-slow), r 0.5s var(--ease-slow);
+}
+.wnode__dot {
+  fill: hsl(var(--h) 52% 62% / 0.85);
+  transition: r 0.45s var(--ease-slow), fill 0.45s var(--ease-slow);
+}
+.wnode__num {
+  fill: rgba(222, 214, 200, 0.3);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-variant-numeric: tabular-nums;
+  transition: fill 0.5s var(--ease-slow);
+}
+.wnode__name {
+  fill: rgba(222, 214, 200, 0.72);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  dominant-baseline: middle;
+  transition: fill 0.5s var(--ease-slow);
+}
+.wnode__ug {
+  fill: rgba(222, 214, 200, 0.26);
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  dominant-baseline: middle;
+  transition: fill 0.5s var(--ease-slow);
+}
+
+.wnode:hover .wnode__halo,
+.wnode:focus-visible .wnode__halo {
+  stroke-width: 1.6;
+  opacity: 1;
+  r: 30;
+}
+.wnode:hover .wnode__dot,
+.wnode:focus-visible .wnode__dot { r: 9; fill: hsl(var(--h) 62% 70%); }
+.wnode:hover .wnode__name,
+.wnode:focus-visible .wnode__name { fill: #fff; }
+.wnode:hover .wnode__ug,
+.wnode:focus-visible .wnode__ug { fill: rgba(222, 214, 200, 0.55); }
+.wnode:hover .wnode__num,
+.wnode:focus-visible .wnode__num { fill: hsl(var(--h) 52% 62% / 0.95); }
+
+/* 右下角读数：悬停哪个就显示哪套的说明 */
+.wheel-readout {
+  width: min(720px, 92vw);
+  min-height: 6.2em;
+  margin: clamp(1.4rem, 3vh, 2.2rem) auto 0;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  line-height: 2.1;
+  color: var(--bone-dim);
+}
+.wheel-readout b {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: normal;
+  letter-spacing: 0.16em;
+  color: var(--bone);
+}
+.wheel-readout em {
+  font-style: normal;
+  color: var(--amber);
+}
+
+/* 还没做的章节：呈现为"待补"，而不是死链 */
+.sitelinks__todo {
+  position: relative;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  color: rgba(108, 103, 95, 0.55);
+  cursor: not-allowed;
+  user-select: none;
+}
+.sitelinks__todo i {
+  margin-left: 0.4em;
+  padding: 0.06em 0.34em;
+  font-style: normal;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  color: rgba(192, 138, 62, 0.6);
+  border: 1px solid rgba(192, 138, 62, 0.22);
+  vertical-align: 0.12em;
+}
+
+/* --------------------------------------------------------------------------
+   11b. 旋律入口图：五线谱 + 八个音符
+   -------------------------------------------------------------------------- */
+.melody-act {
+  min-height: 120vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(4rem, 10vh, 7rem) clamp(1rem, 3vw, 2.5rem);
+}
+
+.melody-host {
+  width: min(1160px, 96vw);
+  margin: clamp(1.5rem, 4vh, 3rem) auto 0;
+}
+
+.melody {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  --melody-play: 1;
+}
+
+/* 五线谱 */
+.melody__line {
+  stroke: rgba(222, 214, 200, 0.16);
+  stroke-width: 1;
+}
+.melody__clef {
+  fill: none;
+  stroke: rgba(222, 214, 200, 0.34);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.melody__timesig text {
+  fill: rgba(222, 214, 200, 0.28);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  text-anchor: middle;
+}
+
+/* 旋律线 */
+.melody__sleeve {
+  fill: none;
+  stroke: rgba(192, 138, 62, 0.10);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.melody__curve {
+  fill: none;
+  stroke: url(#melodyGrad);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(192, 138, 62, 0.35));
+}
+
+/* 游标 */
+.melody__pulse {
+  fill: rgba(232, 201, 143, 0.16);
+  animation: melodyPulse 2.1s var(--ease-slow) infinite;
+}
+.melody__dot { fill: #f0d9a8; }
+@keyframes melodyPulse {
+  0%, 100% { r: 11; opacity: 0.5; }
+  50%      { r: 16; opacity: 1; }
+}
+
+/* 音符 */
+.mnote { cursor: pointer; outline: none; }
+.mnote__hit { fill: transparent; }
+.mnote__stem,
+.mnote__flag {
+  stroke: rgba(222, 214, 200, 0.42);
+  stroke-width: 1.6;
+  fill: none;
+  transition: stroke 0.5s var(--ease-slow);
+}
+.mnote__flag { fill: rgba(222, 214, 200, 0.42); stroke: none; }
+.mnote__head {
+  fill: hsl(var(--h) 42% 56% / 0.92);
+  stroke: rgba(10, 9, 8, 0.65);
+  stroke-width: 1;
+  transition: fill 0.45s var(--ease-slow), filter 0.45s var(--ease-slow);
+}
+.mnote__core {
+  fill: rgba(255, 244, 220, 0.9);
+  opacity: 0;
+  transition: opacity 0.45s var(--ease-slow);
+}
+.mnote__name {
+  fill: rgba(222, 214, 200, 0.9);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  letter-spacing: 0.1em;
+  text-anchor: middle;
+  transition: fill 0.45s var(--ease-slow);
+}
+.mnote__group {
+  fill: rgba(222, 214, 200, 0.34);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-anchor: middle;
+}
+.mnote__kind {
+  fill: hsl(var(--h) 42% 56% / 0.75);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-anchor: middle;
+}
+
+.mnote:hover .mnote__head,
+.mnote:focus-visible .mnote__head {
+  fill: hsl(var(--h) 62% 66%);
+  filter: drop-shadow(0 0 10px hsl(var(--h) 60% 55% / 0.8));
+}
+.mnote:hover .mnote__core,
+.mnote:focus-visible .mnote__core { opacity: 1; }
+.mnote:hover .mnote__stem,
+.mnote:hover .mnote__flag,
+.mnote:focus-visible .mnote__stem,
+.mnote:focus-visible .mnote__flag { stroke: rgba(240, 224, 196, 0.85); fill: rgba(240, 224, 196, 0.85); }
+.mnote:hover .mnote__name,
+.mnote:focus-visible .mnote__name { fill: #fff; }
+
+.melody-readout {
+  width: min(1160px, 96vw);
+  min-height: 5.6em;
+  margin: clamp(1.4rem, 3vh, 2.2rem) auto 0;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  line-height: 2.1;
+  color: var(--bone-dim);
+}
+.melody-readout b {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: normal;
+  letter-spacing: 0.16em;
+  color: var(--bone);
+}
+.melody-readout em { font-style: normal; color: var(--amber); }
+
+@media (max-width: 860px) {
+  .melody-act { min-height: 96vh; }
+  .mnote__name { font-size: 13px; }
+  .mnote__group, .mnote__kind { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   11c. 麦西热甫圆圈（第四章互动）
+   --------------------------------------------------------------------------
+   点一下往圈里加一个人。人越多，鼓点越密、纹样越亮、圈转得越快。
+   -------------------------------------------------------------------------- */
+.mq-act {
+  min-height: 118vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(3rem, 9vh, 6rem) clamp(1rem, 3vw, 2.5rem);
+}
+.mq-host {
+  width: min(560px, 92vw);
+  margin: clamp(1.5rem, 4vh, 3rem) auto 0;
+}
+.mq {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  --mq-heat: 0;
+  cursor: pointer;
+}
+
+.mq__hit { fill: transparent; outline: none; }
+.mq__hit:focus-visible + * { outline: none; }
+.mq:focus-within .mq__pulse { stroke-opacity: 0.9; }
+
+/* 地面 */
+.mq__ring {
+  fill: none;
+  stroke: rgba(222, 214, 200, 0.10);
+  stroke-width: 1;
+}
+.mq__ring--1 { stroke: rgba(192, 138, 62, 0.16); stroke-dasharray: 2 7; }
+.mq__ring--2 { stroke: rgba(192, 138, 62, 0.10); }
+.mq__ring--3 { stroke: rgba(74, 128, 113, 0.20); stroke-dasharray: 1 6; }
+.mq__tick { stroke: rgba(192, 138, 62, 0.22); stroke-width: 1; }
+
+/* 随人数变亮的圈 */
+.mq__pulse {
+  fill: none;
+  stroke: rgba(232, 201, 143, 0.5);
+  stroke-width: 1.4;
+  stroke-opacity: calc(0.15 + 0.75 * var(--mq-heat));
+  transform-origin: 50% 50%;
+  animation: mqPulse 2.4s var(--ease-slow) infinite;
+}
+@keyframes mqPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.035); }
+}
+
+/* 人。
+   注意：这里不要加 transform-box —— 它是给"用 CSS 缩放某个 SVG 元素"用的，
+   加在这里没有好处，只会让调试时误判。真正的坑在 js 那边：
+   SVG 的 transform **属性**不接受单位（"0px" 会让整条 transform 作废）。
+   缩放动画加在 .mq__body 上，那里才需要 fill-box。 */
+.mq__person {
+  opacity: var(--in, 1);
+  transition: opacity 0.5s var(--ease-slow);
+}
+.mq__head { fill: hsl(var(--h) 42% 62% / 0.95); }
+.mq__body {
+  fill: hsl(var(--h) 38% 46% / 0.9);
+  stroke: rgba(10, 9, 8, 0.5);
+  stroke-width: 0.7;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.mq__arm {
+  stroke: hsl(var(--h) 42% 62% / 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+/* 加进来的时候弹一下 */
+.mq__person.is-in .mq__body { animation: mqPop 0.7s var(--ease-slow); }
+@keyframes mqPop {
+  0%   { transform: scale(0.3); }
+  65%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* 中心读数 */
+.mq__count {
+  fill: rgba(232, 214, 184, calc(0.35 + 0.5 * var(--mq-heat)));
+  font-family: var(--font-serif);
+  font-size: 62px;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.mq__cap {
+  fill: rgba(222, 214, 200, 0.42);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-anchor: middle;
+}
+
+/* 满圈庆祝：冲击波环 + 飞散光点 + 中心闪光。
+   平时全透明，由 js 在满圈时推进一次。 */
+.mq__fx { pointer-events: none; }
+.mq__flash { opacity: 0; }
+.mq__wave {
+  fill: none;
+  stroke: rgba(246, 226, 171, 0.9);
+  stroke-width: 1.6;
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(246, 226, 171, 0.7));
+}
+.mq__spark {
+  fill: #ffeec2;
+  opacity: 0;
+  filter: drop-shadow(0 0 5px rgba(246, 226, 171, 0.9));
+}
+
+.mq-readout {
+  width: min(560px, 92vw);
+  min-height: 4.6em;
+  margin: clamp(1.2rem, 3vh, 2rem) auto 0;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  line-height: 2.1;
+  color: var(--bone-dim);
+  text-align: center;
+}
+.mq-readout b {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: normal;
+  letter-spacing: 0.16em;
+  color: var(--bone);
+}
+.mq-readout em { font-style: normal; color: var(--amber); }
+
+@media (max-width: 720px) {
+  .mq-act { min-height: 96vh; }
+  .mq__count { font-size: 48px; }
+}
+
+/* --------------------------------------------------------------------------
+   11d. 未解锁：入口上锁 + 提示条
+   --------------------------------------------------------------------------
+   其他民族的页面要先玩完第四章那场圆圈。没解锁时入口变暗、加一把锁，
+   点任何一处都被送回互动，并说明原因。
+   -------------------------------------------------------------------------- */
+.wnode.is-locked,
+.mnote.is-locked {
+  cursor: not-allowed;
+}
+.wnode.is-locked .wnode__dot,
+.wnode.is-locked .wnode__halo,
+.mnote.is-locked .mnote__head,
+.mnote.is-locked .mnote__stem,
+.mnote.is-locked .mnote__flag {
+  filter: grayscale(1) brightness(0.55);
+}
+.wnode.is-locked .wnode__name,
+.mnote.is-locked .mnote__name { fill: rgba(222, 214, 200, 0.30); }
+.wnode.is-locked .wnode__ug,
+.mnote.is-locked .mnote__group,
+.mnote.is-locked .mnote__kind { fill: rgba(222, 214, 200, 0.16); }
+
+/* 锁的标记：在每个入口右上角点一个小方块 */
+.wnode.is-locked::after,
+.mnote.is-locked::after { content: none; }   /* SVG 里不支持 ::after，标记画在 JS 里 */
+
+.gate-note {
+  display: none;
+  max-width: 46em;
+  margin: clamp(2rem, 5vh, 3.4rem) auto 0;
+  padding: 1.1rem 1.4rem;
+  border: 1px solid rgba(192, 138, 62, 0.35);
+  border-left-width: 3px;
+  background: rgba(10, 9, 8, 0.82);
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  line-height: 2.1;
+  color: var(--bone-dim);
+  text-align: center;
+}
+.gate-note.is-on { display: block; }
+.gate-note b {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: normal;
+  letter-spacing: 0.16em;
+  color: var(--amber);
+}
+.gate-note a {
+  display: inline-block;
+  margin-top: 0.6rem;
+  color: var(--amber);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(192, 138, 62, 0.5);
+}
+.gate-note a:hover { color: #e8c98f; }
+
+/* --------------------------------------------------------------------------
+   12. 章节导航（底部）
+   -------------------------------------------------------------------------- */
+.chapter-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.4rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(3rem, 8vh, 6rem) clamp(1.2rem, 6vw, 6rem) clamp(4rem, 10vh, 7rem);
+  border-top: 1px solid var(--line);
+}
+.chapter-nav a {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--bone-dim);
+  text-decoration: none;
+  transition: color 0.5s var(--ease-slow);
+}
+.chapter-nav a:hover { color: var(--bone); }
+.chapter-nav .next { color: var(--amber); }
+
+/* 后续内容的位置提示：给"待插入"的分页面用 */
+.pending {
+  margin: 1.6rem 0 0;
+  padding: 1rem 1.2rem;
+  border-left: 2px solid rgba(192, 138, 62, 0.45);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  line-height: 2;
+  color: var(--bone-faint);
+}
+
+/* --------------------------------------------------------------------------
+   13. 响应式
+   -------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .tl-item { grid-template-columns: 1fr; gap: 0.6rem; padding-left: 1.2rem; }
+  .tl-item::before { top: 2.4rem; }
+  .duo__row, .duo__head { grid-template-columns: 1fr; }
+  .duo__head span:last-child { display: none; }
+  .wnode__name { font-size: 13px; }
+  .wnode__ug { display: none; }
+  .wnode__num { font-size: 9px; }
+  .wheel__core-num { font-size: 34px; }
+  .numbers { padding-top: 4rem; }
+  .chapter-nav { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 560px) {
+  .chapter-hero__stats { gap: 1.2rem 2rem; }
+  .wnode__name { font-size: 11px; letter-spacing: 0.06em; }
+  .wheel-host { width: 96vw; }
+}
+
+/* --------------------------------------------------------------------------
+   14. 减弱动效
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .wheel__rotor { transform: none !important; }
+  .air { transition: none; }
+}

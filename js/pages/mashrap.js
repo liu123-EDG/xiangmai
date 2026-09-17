@@ -27,12 +27,16 @@ theme.preload();
 
 /* ------------------------------------------------------------------ 自动开声
    这一章没有声音等于白做 —— 鼓点、萨帕依、主题曲都是内容的一部分，
-   不该让人先去找开关。第一次交互就自动打开。
-   但主题曲**不在这里起**：它要等圈子点满才响（见下面的 onFull）。 */
-const soundArm = autoPlayOnGesture({
-  theme: null,            // 主题曲由 onFull 触发，这里只开手鼓
+   不该让人先去找开关。第一次交互就自动打开手鼓。
+
+   主题曲**不在这里起**：它要等圈子点满才响（见下面的 onFull）。
+   但这一次手势必须把 theme 接上同一个 AudioContext ——
+   否则等点满时它的 context 还是 suspended，就"点了也没声"。 */
+autoPlayOnGesture({
+  theme,                  // 传进去只为了复用 context 与唤醒，不会立刻出声
   seq: ctx.seq,
   band: 2,
+  startTheme: false,      // 关键：这一页的主题曲由 onFull 触发
 });
 
 if (host) {

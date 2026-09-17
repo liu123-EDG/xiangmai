@@ -27,6 +27,8 @@ export function createTheme(url, opts = {}) {
   let src = null;
   let gain = null;
   let want = false;
+  let waiting = false;        // 想播但 AudioContext 还没被唤醒
+  let ctxWatched = false;     // 是否已经挂上 statechange 监听
   let volume = 0.55;          // 主题曲比手鼓略高，它要站得住
 
   /** 换用别的 AudioContext —— 页面上应该只有一个。 */
@@ -76,35 +78,77 @@ export function createTheme(url, opts = {}) {
     return loading;
   };
 
-  /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。 */
+  /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。
+   *
+   *  AudioContext 可能是 suspended（页面还没有用户手势）。
+   *  这里**自己负责唤醒**：先 resume，等 state 变成 running 再起播。
+   *  早期版本直接 return 等调用方来唤醒 —— 结果在没有手鼓的页面
+   *  （附录）没人唤醒它，一直干等，表现就是"点了没声"。 */
   const start = (fadeSec) => {
     want = true;
     const c = ensureCtx();
     if (!c) return false;
-    if (c.state === 'suspended') c.resume();
 
     const fade = fadeSec === undefined ? 2.2 : fadeSec;
     const begin = () => {
       if (!want || !buffer) return;
-      const g = ensureGain();
-      if (src) {                                   // 已经在放
-        g.gain.cancelScheduledValues(c.currentTime);
-        g.gain.setTargetAtTime(volume, c.currentTime, fade / 3);
+      const cc = ensureCtx();
+      if (cc.state === 'suspended') {
+        waiting = true;
+        // 先试着唤醒；唤醒成功后 statechange 会再叫我们一次
+        const p = cc.resume();
+        if (p && p.then) p.then(() => { if (cc.state !== 'suspended') begin(); }).catch(() => {});
         return;
       }
-      src = c.createBufferSource();
+      waiting = false;
+      const g = ensureGain();
+      if (src) {                                   // 已经在放
+        g.gain.cancelScheduledValues(cc.currentTime);
+        g.gain.setTargetAtTime(volume, cc.currentTime, fade / 3);
+        return;
+      }
+      src = cc.createBufferSource();
       src.buffer = buffer;
       src.loop = true;                             // 循环铺底
       src.connect(g);
-      const t = c.currentTime;
+      const t = cc.currentTime;
       g.gain.cancelScheduledValues(t);
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(volume, t + fade);
       src.start(t);
     };
 
+    // 上下文醒了就自动接上（浏览器在用户第一次手势后会把 state 推到 running）
+    if (!ctxWatched) {
+      ctxWatched = true;
+      c.addEventListener('statechange', () => {
+        if (want && !src && c.state === 'running') begin();
+      });
+    }
+
     if (buffer) { begin(); return true; }
     load().then(begin);
+    return true;
+  };
+
+  /** 被 resume 之后调用：把之前因为 suspended 而没起得来的那次播出去 */
+  const wake = (fadeSec) => {
+    if (!want || !buffer) return false;
+    const c = ensureCtx();
+    if (!c || c.state === 'suspended') return false;
+    if (src) return true;
+    const fade = fadeSec === undefined ? 2.2 : fadeSec;
+    const g = ensureGain();
+    src = c.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(g);
+    const t = c.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(volume, t + fade);
+    src.start(t);
+    waiting = false;
     return true;
   };
 
@@ -129,6 +173,7 @@ export function createTheme(url, opts = {}) {
   const state = () => ({
     ready: !!buffer,
     playing: !!src,
+    waiting,
     ctxState: ctx ? ctx.state : 'none',
     gain: ctx && gain ? +gain.gain.value.toFixed(4) : -1,
     volume,
@@ -136,9 +181,10 @@ export function createTheme(url, opts = {}) {
   });
 
   return {
-    start, stop, setVolume, state, useContext,
+    start, stop, setVolume, state, useContext, wake,
     preload: load,
     get playing() { return !!src; },
+    get waiting() { return waiting; },
     get ready() { return !!buffer; },
     get duration() { return buffer ? buffer.duration : 0; },
   };
@@ -169,7 +215,11 @@ export function autoPlayOnGesture(opts) {
       // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
       if (theme && seq.ctx) theme.useContext(seq.ctx);
     }
-    if (theme) theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+    /* startTheme:false 的页面（第四章）主题曲由别处触发，
+       但这一次手势仍要让 context 就绪，否则到时候点了也没声。 */
+    if (theme && opts.startTheme !== false && !theme.playing) {
+      theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+    }
     if (btn) {
       btn.setAttribute('aria-pressed', 'true');
       if (text) text.textContent = '声音 开';
