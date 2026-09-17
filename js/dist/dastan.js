@@ -74,9 +74,11 @@ const PARTS = {
     lead: '每一套木卡姆都由三大部分构成，情绪层层推进。穹乃额曼是开篇——' +
           '由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。' +
           '唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
-    /** 概念图：跟在开场之后的一整屏画框。换图只改 src；宽高写上可避免加载时跳动 */
+    /** 概念图：跟在开场之后的一整屏画框。换图只改 src；
+        fallback 是取不到 webp 时的退路；宽高写上可避免加载时跳动 */
     heroImage: {
       src: '../assets/img/qiongnaieman/hero.webp',
+      fallback: '../assets/img/qiongnaieman/hero.png',
       alt: '萨塔尔琴与手抄本，窗外是喀什老城与远处的天山',
       caption: '概念图 · 穹乃额曼',
       w: 1312,
@@ -319,16 +321,26 @@ function renderPart() {
 
   /* 概念图：紧跟开场的一整屏画框。
      图是"这一章的视觉主题"，不是插图，所以给它独立一屏，
-     按原图比例展示，不裁切。 */
+     按原图比例展示，不裁切。
+     用 <picture>：优先 webp（小得多），取不到就退回原作者给的格式。 */
   const heroImg = $('#part-hero-image');
   if (heroImg && p.heroImage) {
     const hi = p.heroImage;
+    const dims = (hi.w ? ' width="' + hi.w + '"' : '') + (hi.h ? ' height="' + hi.h + '"' : '');
+    const sources = [];
+    if (/\.webp$/i.test(hi.src)) sources.push('<source srcset="' + hi.src + '" type="image/webp">');
+    if (hi.fallback) sources.push('<source srcset="' + hi.fallback + '">');
+
     heroImg.innerHTML =
       '<figure class="plate">' +
-        '<img src="' + hi.src + '" alt="' + (hi.alt || p.title) + '" ' +
-          'loading="lazy" decoding="async" width="' + (hi.w || '') + '" height="' + (hi.h || '') + '">' +
+        '<picture>' + sources.join('') +
+          '<img src="' + (hi.fallback || hi.src) + '" alt="' + (hi.alt || p.title) + '"' +
+            ' loading="lazy" decoding="async"' + dims + '>' +
+        '</picture>' +
         (hi.caption ? '<figcaption>' + hi.caption + '</figcaption>' : '') +
       '</figure>';
+  } else if (heroImg) {
+    heroImg.innerHTML = '';          // 没有图就整屏收起（.plate-act:empty 会 display:none）
   }
 
   const body = $('#part-body');
