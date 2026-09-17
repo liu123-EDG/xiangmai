@@ -385,38 +385,52 @@ body.has-parallax .act__inner::before {
   overflow: visible;
 }
 
-.tl__sleeve {
-  stroke: rgba(10, 9, 8, 0.55);
-  stroke-width: 5.5;
+/* 金丝：暗底 + 暖衬 + 多段金主线 + 流动高光，叠出金属的厚度。
+   单靠一个金色只会是"一条黄线"，四层叠起来才有丝的感觉。 */
+.tl__shadow {
+  stroke: rgba(6, 5, 4, 0.78);
+  stroke-width: 7;
   stroke-linecap: round;
-  filter: blur(1px);
+  filter: blur(1.6px);
+}
+.tl__sleeve {
+  stroke: rgba(138, 106, 46, 0.52);
+  stroke-width: 4.2;
+  stroke-linecap: round;
+  filter: blur(0.7px);
 }
 .tl__path {
-  stroke-width: 1.7;
+  stroke-width: 1.9;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 7px rgba(125, 151, 166, 0.4));
+  filter: drop-shadow(0 0 6px rgba(217, 178, 104, 0.5));
+}
+.tl__sheen {
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  opacity: 0.9;
+  filter: blur(0.4px);
+}
+
+/* 走针：沿丝前进的光点 */
+.tl__bead { transition: opacity 0.6s var(--ease-slow); }
+.tl__beaddot {
+  fill: #fff6dd;
+  filter: drop-shadow(0 0 7px rgba(246, 226, 171, 0.95));
 }
 
 .tl__headshape {
-  fill: var(--part-tone, #7d97a6);
-  stroke: rgba(10, 9, 8, 0.6);
+  fill: url(#tlGrad);
+  stroke: rgba(6, 5, 4, 0.55);
   stroke-width: 1;
-  transition: opacity 1.2s var(--ease-slow);
-}
-.tl__stem {
-  stroke: var(--part-tone, #7d97a6);
-  stroke-width: 2.4;
-  stroke-linecap: round;
+  filter: drop-shadow(0 0 12px rgba(217, 178, 104, 0.62));
 }
 .tl__head { transition: opacity 1.2s var(--ease-slow); }
 
-.tl__enddot { fill: var(--part-tone, #7d97a6); }
-.tl__end { transition: opacity 1s var(--ease-slow); }
-
-/* 音头要看得清才像音符：加一圈极淡的光 */
-.tl__headshape {
-  filter: drop-shadow(0 0 10px rgba(125, 151, 166, 0.55));
+.tl__enddot {
+  fill: #f6e2ab;
+  filter: drop-shadow(0 0 9px rgba(246, 226, 171, 0.95));
 }
+.tl__end { transition: opacity 1s var(--ease-slow); }
 
 /* 有纵贯线时，实时背景压得更淡，让线读得出来 */
 body.has-throughline .air { opacity: 0.42; }

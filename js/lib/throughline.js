@@ -33,8 +33,8 @@ export function buildThroughline(opts) {
   const { host, anchor, endRef } = opts;
   if (!host || !anchor || !endRef) return null;
 
-  const tone = opts.tone || '#7d97a6';
-  const drift = opts.drift === undefined ? 0.22 : opts.drift;
+  const tone = opts.tone || '#d9b268';
+  const drift = opts.drift === undefined ? 0.38 : opts.drift;
   const reduced = !!opts.reduced;
 
   /* ---- SVG 骨架。viewBox 用「文档坐标」，这样滚动时不用改路径 ---- */
@@ -43,25 +43,64 @@ export function buildThroughline(opts) {
   });
   const defs = el('defs');
 
-  // 线的渐变：起点实、末端虚，像声音衰减
-  const grad = el('linearGradient', { id: 'tlGrad', x1: '0', y1: '0', x2: '0.35', y2: '1' });
-  grad.appendChild(el('stop', { offset: '0', 'stop-color': tone, 'stop-opacity': '0.85' }));
-  grad.appendChild(el('stop', { offset: '0.55', 'stop-color': tone, 'stop-opacity': '0.5' }));
-  grad.appendChild(el('stop', { offset: '1', 'stop-color': tone, 'stop-opacity': '0.9' }));
+  /* 金丝的"金"不靠一个颜色，靠一条多段渐变：
+     暗金 → 亮金 → 冷金 → 亮金 → 暗金。
+     单一金色看起来只是"一条黄线"，多段才有金属的明暗。 */
+  const grad = el('linearGradient', { id: 'tlGrad', x1: '0', y1: '0', x2: '0.3', y2: '1' });
+  [
+    ['0.00', '#8a6a2e', '0.92'],
+    ['0.18', '#d9b268', '0.95'],
+    ['0.34', '#f6e2ab', '1'],
+    ['0.52', '#c69a4a', '0.92'],
+    ['0.70', '#efd79b', '1'],
+    ['0.86', '#b8873a', '0.88'],
+    ['1.00', '#8a6a2e', '0.95'],
+  ].forEach(([off, col, op]) => {
+    grad.appendChild(el('stop', { offset: off, 'stop-color': col, 'stop-opacity': op }));
+  });
   defs.appendChild(grad);
+
+  // 流动高光用的亮色渐变
+  const sheenGrad = el('linearGradient', { id: 'tlSheen', x1: '0', y1: '0', x2: '1', y2: '0' });
+  sheenGrad.appendChild(el('stop', { offset: '0', 'stop-color': '#fff6dd', 'stop-opacity': '0' }));
+  sheenGrad.appendChild(el('stop', { offset: '0.5', 'stop-color': '#fff6dd', 'stop-opacity': '1' }));
+  sheenGrad.appendChild(el('stop', { offset: '1', 'stop-color': '#fff6dd', 'stop-opacity': '0' }));
+  defs.appendChild(sheenGrad);
+
+  // 走针的光晕
+  const beadGlow = el('radialGradient', { id: 'tlBead' });
+  beadGlow.appendChild(el('stop', { offset: '0', 'stop-color': '#fff3d4', 'stop-opacity': '0.9' }));
+  beadGlow.appendChild(el('stop', { offset: '0.45', 'stop-color': '#e8c98f', 'stop-opacity': '0.34' }));
+  beadGlow.appendChild(el('stop', { offset: '1', 'stop-color': '#d9b268', 'stop-opacity': '0' }));
+  defs.appendChild(beadGlow);
 
   // 末端的光晕
   const glow = el('radialGradient', { id: 'tlGlow' });
-  glow.appendChild(el('stop', { offset: '0', 'stop-color': tone, 'stop-opacity': '0.55' }));
-  glow.appendChild(el('stop', { offset: '1', 'stop-color': tone, 'stop-opacity': '0' }));
+  glow.appendChild(el('stop', { offset: '0', 'stop-color': '#f6e2ab', 'stop-opacity': '0.62' }));
+  glow.appendChild(el('stop', { offset: '1', 'stop-color': '#d9b268', 'stop-opacity': '0' }));
   defs.appendChild(glow);
   svg.appendChild(defs);
 
-  // 底衬：比主线粗，压出一点体积，避免细线被背景吃掉
+  /* 叠四层出"金丝"：
+       shadow  极暗的底，让丝从背景里浮起来
+       sleeve  稍粗的暖衬，做出金属的厚度
+       path    主线（多段金渐变）
+       sheen   沿丝流动的高光
+     再加一个走针。 */
+  const shadow = el('path', { class: 'tl__shadow', fill: 'none' });
   const sleeve = el('path', { class: 'tl__sleeve', fill: 'none' });
   const path = el('path', { class: 'tl__path', fill: 'none', stroke: 'url(#tlGrad)' });
+  const sheen = el('path', { class: 'tl__sheen', fill: 'none', stroke: 'url(#tlSheen)' });
+  svg.appendChild(shadow);
   svg.appendChild(sleeve);
   svg.appendChild(path);
+  svg.appendChild(sheen);
+
+  // 走针：沿丝前进的光点
+  const beadG = el('g', { class: 'tl__bead' });
+  beadG.appendChild(el('circle', { r: 16, fill: 'url(#tlBead)' }));
+  beadG.appendChild(el('circle', { r: 3, class: 'tl__beaddot' }));
+  svg.appendChild(beadG);
 
   // 末端的落点：一圈光晕 + 一个小节点头
   const endG = el('g', { class: 'tl__end' });
@@ -80,6 +119,11 @@ export function buildThroughline(opts) {
   host.appendChild(svg);
 
   let geom = null;
+  /* 动画状态。声明放前面：tick() 会用到它们，而 tick() 在 measure() 之后
+     立刻就被调用一次。 */
+  let phase = 0;
+  let raf = 0;
+  let sheenLen = 0;
 
   /** 量出起点与终点，生成路径 */
   const measure = () => {
@@ -135,7 +179,6 @@ export function buildThroughline(opts) {
   const tick = () => {
     if (!geom) return;
 
-    const r = host.getBoundingClientRect();
     // 进度：文档滚到哪，线画到哪
     const vh = window.innerHeight;
     const docH = Math.max(1, document.documentElement.scrollHeight - vh);
@@ -143,20 +186,28 @@ export function buildThroughline(opts) {
 
     if (!total || total < 10) {
       try { total = path.getTotalLength(); } catch { total = 2000; }
-      path.style.strokeDasharray = total + ' ' + total;
-      sleeve.style.strokeDasharray = total + ' ' + total;
+      // 已经画出来的部分：实线 dash
+      [shadow, sleeve, path].forEach((el2) => {
+        el2.style.strokeDasharray = total + ' ' + total;
+      });
+      /* 流动高光：一小段亮斑（约丝长的 7%），靠负的 dashoffset 往前跑。
+         它和"画线进度"是两个独立的位移，所以单独用一条 dash 模式。 */
+      sheenLen = Math.max(70, total * 0.07);
+      sheen.style.strokeDasharray = sheenLen + ' ' + (total - sheenLen);
     }
 
     if (reduced) {
-      path.style.strokeDashoffset = '0';
-      sleeve.style.strokeDashoffset = '0';
+      [shadow, sleeve, path].forEach((el2) => { el2.style.strokeDashoffset = '0'; });
+      sheen.style.opacity = '0';
+      beadG.style.opacity = '0';
       endG.style.opacity = '1';
       return;
     }
 
     const off = total * (1 - p);
-    path.style.strokeDashoffset = off.toFixed(1);
+    shadow.style.strokeDashoffset = off.toFixed(1);
     sleeve.style.strokeDashoffset = off.toFixed(1);
+    path.style.strokeDashoffset = off.toFixed(1);
 
     // 末端在接近画完时才亮起来
     endG.style.opacity = String(Math.min(1, Math.max(0, (p - 0.55) / 0.35)));
@@ -165,7 +216,30 @@ export function buildThroughline(opts) {
     const headFade = Math.max(0.25, 1 - window.scrollY / (vh * 1.6));
     headG.style.opacity = headFade.toFixed(2);
     host.style.setProperty('--tl-progress', p.toFixed(4));
-    void r;
+
+    // 走针：从音头沿丝走到末端，走到头再回来
+    try {
+      const beadT = (0.5 - 0.5 * Math.cos(phase * 1.15));   // 0→1→0，往返
+      const at = total * beadT * p;                          // 只走在已画出的部分上
+      const pt = path.getPointAtLength(Math.min(total * p, at));
+      beadG.setAttribute('transform', 'translate(' + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ')');
+      // 线还没画多少时不显示走针，免得贴在音头上闪
+      beadG.style.opacity = p > 0.03 ? String(0.35 + 0.65 * Math.min(1, p * 3)) : '0';
+    } catch { /* 路径还没就绪，跳过这一帧 */ }
+  };
+
+  /* ---- 只跑一个动画循环，负责"流动"这类与滚动无关的效果 ---- */
+  const animate = () => {
+    raf = requestAnimationFrame(animate);
+    phase += 0.006;
+    if (reduced) return;
+    // 高光沿丝流动：负位移让它从音头往末端走
+    if (total > 0) {
+      const span = total + sheenLen;
+      const shift = -(phase * 260) % span;
+      sheen.style.strokeDashoffset = shift.toFixed(1);
+    }
+    tick();
   };
 
   let ticking = false;
@@ -182,10 +256,21 @@ export function buildThroughline(opts) {
   window.addEventListener('resize', () => { measure(); total = 0; tick(); }, { passive: true });
   window.addEventListener('scroll', onScroll, { passive: true });
 
+  // 流动高光与走针需要一个常驻循环（与滚动无关）
+  if (!reduced) {
+    raf = requestAnimationFrame(animate);
+    // 标签页切到后台就停，别空转
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else if (!raf) raf = requestAnimationFrame(animate);
+    });
+  }
+
   return {
     svg, measure, tick,
     destroy() {
       window.removeEventListener('scroll', onScroll);
+      if (raf) cancelAnimationFrame(raf);
     },
   };
 }
