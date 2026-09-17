@@ -155,8 +155,8 @@ try {
   if (fx0.waves === 3 && fx0.sparks === 36 && fx0.hasFlash) ok('庆祝层已就位（3 环 + 36 光点 + 闪光）');
   else bad('庆祝层不完整：' + JSON.stringify(fx0));
 
-  /* 爆开最亮的那一刻截图（约 0.6s），晚了就散了 */
-  await sleep(600);
+  /* 爆开最亮的那一刻截图（约 0.35s，晚了就散了） */
+  await sleep(350);
   const shotBurst = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(root, 'shots', 'mq-burst.png'), Buffer.from(shotBurst.result.data, 'base64'));
 
@@ -180,8 +180,8 @@ try {
   if (fx1.op > 0.2) ok('冲击波可见（不透明度 ' + fx1.op + '）');
   else bad('冲击波已经看不见了：' + fx1.op);
 
-  // 再等一会儿量人浪（衰减系数 1.1，约 0.9 秒时还在跳）
-  await sleep(350);
+  // 再等一会儿量人浪（衰减系数 1.1，约 0.6 秒时还在跳）
+  await sleep(250);
   const hop = await evalJs(`(() => {
     const ps = [...document.querySelectorAll('.mq__person')];
     const vals = ps.map(p => parseFloat(p.style.getPropertyValue('--hop') || '0'));

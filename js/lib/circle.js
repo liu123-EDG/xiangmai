@@ -176,10 +176,14 @@ export function buildCircle(opts) {
     }
   };
 
-  /** 人的位置：按人数均匀分布，并整体缓慢旋转（像真的在绕圈） */
+  /** 人的位置：**按当前人数**均匀铺满整圈。
+      这里踩过坑：早先用 (i / MAX) 当角度，人少的时候全挤在圆的头一段
+      （10 个人只占 135°，看上去像"人不见了"）。
+      应该按当前人数分，这样不管几个人都是绕成一整圈的。 */
   const layout = () => {
+    const n = Math.max(1, nodes.length);
     nodes.forEach((g, i) => {
-      const a = (i / MAX) * Math.PI * 2 - Math.PI / 2;
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
       const r = R_PERSON + (i % 3) * 7 - 7;
       g.dataset.a = String(a);
       g.dataset.r = String(r);
@@ -239,10 +243,14 @@ export function buildCircle(opts) {
       const y = CY + Math.sin(a) * r;
       // 站在圈上的人，脚朝圆心
       const rot = (a * 180) / Math.PI + 90;
-      // 庆祝时整体往上跳一下（--hop 由 tickBurst 写入）
+      /* 庆祝时整体往上跳一下。
+         注意：SVG 的 transform **属性**不接受单位 —— 写成 "0px" 会让
+         整条 transform 列表作废，所有人塌回原点叠成一个（踩过）。
+         所以这里只取数字，不加单位。 */
+      const hop = parseFloat(g.style.getPropertyValue('--hop')) || 0;
       g.setAttribute('transform',
         'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')' +
-        ' translate(0 ' + (g.style.getPropertyValue('--hop') || '0px') + ')');
+        (hop ? ' translate(0 ' + (-hop).toFixed(2) + ')' : ''));
     });
   };
 

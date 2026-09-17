@@ -367,10 +367,15 @@ body[data-render="pattern"] .chapter-hero__inner::before {
     rgba(8, 7, 6, 0.90) 0%, rgba(8, 7, 6, 0.66) 55%, rgba(8, 7, 6, 0) 100%);
 }
 
-/* 互动屏也要能看清：圆圈本身亮，但标题和说明要压得住 */
+/* 互动屏的可读性暗底。
+   这里有个坑：用大范围的径向/带状渐变会连带盖住圆圈里的人 ——
+   人站在圆的下半部分，渐变一铺过去就全被罩住。
+   所以只在**标题那一条**加暗底，圆圈让它完全露出来。 */
 body[data-render="pattern"] .mq-act .act__inner::before {
-  background: radial-gradient(66% 60% at 50% 50%,
-    rgba(8, 7, 6, 0.86) 0%, rgba(8, 7, 6, 0.50) 60%, rgba(8, 7, 6, 0) 100%);
+  inset: -4% -6% 62% -6%;
+  background: radial-gradient(120% 180% at 50% 40%,
+    rgba(8, 7, 6, 0.88) 0%, rgba(8, 7, 6, 0.55) 55%, rgba(8, 7, 6, 0) 100%);
+  z-index: -1;
 }
 
 /* 视差背景存在时，正文自己带一点底，保证任何画面上都读得清 */
@@ -1241,10 +1246,13 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   50%      { transform: scale(1.035); }
 }
 
-/* 人 */
+/* 人。
+   注意：这里不要加 transform-box —— 它是给"用 CSS 缩放某个 SVG 元素"用的，
+   加在这里没有好处，只会让调试时误判。真正的坑在 js 那边：
+   SVG 的 transform **属性**不接受单位（"0px" 会让整条 transform 作废）。
+   缩放动画加在 .mq__body 上，那里才需要 fill-box。 */
 .mq__person {
   opacity: var(--in, 1);
-  transform-box: fill-box;
   transition: opacity 0.5s var(--ease-slow);
 }
 .mq__head { fill: hsl(var(--h) 42% 62% / 0.95); }
@@ -1252,6 +1260,8 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   fill: hsl(var(--h) 38% 46% / 0.9);
   stroke: rgba(10, 9, 8, 0.5);
   stroke-width: 0.7;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
 }
 .mq__arm {
   stroke: hsl(var(--h) 42% 62% / 0.85);
