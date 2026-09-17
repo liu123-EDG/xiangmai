@@ -9,17 +9,31 @@
      imageSlot       图片槽（含缺图兜底与说明位）
    ========================================================================== */
 
-/** 章节结构。id 用于高亮当前页 */
+/** 章节结构。id 用于高亮当前页。
+    requires: 需要先完成某件事才能进（值为 localStorage 的键）。
+    有 requires 的章节在未完成时**显示为锁着**，点它不跳转，
+    而是把人送去完成那件事的地方。 */
 export const NAV = [
   { id: 'prologue',  num: '序',    label: '序',         href: 'index.html' },
   { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
   { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },
   { id: 'mashrap',   num: '四',    label: '麦西热甫',    href: 'mashrap/index.html',      sub: '歌舞曲' },
   { id: 'lishi',     num: '五',    label: '历史与传承',  href: 'lishi/index.html' },
-  { id: 'fulu',      num: '附录',  label: '形制比较',    href: 'fulu/index.html' },
+  {
+    id: 'fulu', num: '附录', label: '形制比较', href: 'fulu/index.html',
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
 ];
 
 const $ = (s, r) => (r || document).querySelector(s);
+
+/** 读取解锁状态。localStorage 读不到（隐私模式）就当没锁，别把人挡在外面。 */
+function isLocked(entry) {
+  if (!entry.requires) return false;
+  try { return localStorage.getItem(entry.requires) !== '1'; } catch { return false; }
+}
 
 /**
  * 把顶部导航渲染进 .topbar（HTML 里只留一个占位结构）。
@@ -37,8 +51,16 @@ export function mountShell(opts) {
   const links = NAV.map((n) => {
     const cur = n.id === active ? ' aria-current="page"' : '';
     const sub = n.sub ? '<i class="sitelinks__sub">' + n.sub + '</i>' : '';
-    return '<li><a href="' + base + n.href + '"' + cur + '>' +
-      n.num + ' · ' + n.label + sub + '</a></li>';
+    const locked = isLocked(n);
+    // 锁着时保留原 href（语义仍在），但加标记；点击由下面的监听拦下
+    const attrs = locked
+      ? ' class="is-locked" data-locked="1" aria-disabled="true"' +
+        ' title="' + (n.lockHint || '还没解锁') + '"' +
+        ' data-lock-href="' + base + (n.lockHref || n.href) + '"'
+      : '';
+    return '<li><a href="' + base + n.href + '"' + cur + attrs + '>' +
+      n.num + ' · ' + n.label + sub +
+      (locked ? '<i class="sitelinks__lock" aria-hidden="true"></i>' : '') + '</a></li>';
   }).join('');
 
   const sound = opts.showSound === false ? '' :
@@ -56,6 +78,24 @@ export function mountShell(opts) {
       '<nav aria-label="站点章节"><ul class="sitelinks">' + links + '</ul></nav>' +
       sound +
     '</div>';
+
+  /* 锁着的导航项：点了不跳，而是把人送去该去的地方，并给一句提示。
+     用捕获阶段拦，免得别处的处理器先跳走。 */
+  topbar.addEventListener('click', (e) => {
+    const a = e.target.closest ? e.target.closest('a[data-locked]') : null;
+    if (!a) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const go = a.getAttribute('data-lock-href');
+    const li = a.parentElement;
+    // 先给个"锁着"的抖动反馈，再走
+    if (li) {
+      li.classList.remove('is-nudged');
+      void li.offsetWidth;                 // 强制重排，让动画能重放
+      li.classList.add('is-nudged');
+    }
+    if (go) setTimeout(() => { location.href = go; }, 260);
+  }, true);
 }
 
 /**

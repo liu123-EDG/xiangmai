@@ -102,6 +102,44 @@ body {
 }
 .sitelinks a[aria-current="page"] .sitelinks__sub { color: rgba(192, 138, 62, 0.8); }
 
+/* 锁着的章节：一眼看得出"这里还开不了"，但不至于难看 */
+.sitelinks a.is-locked {
+  position: relative;
+  color: rgba(108, 103, 95, 0.5);
+  cursor: not-allowed;
+}
+.sitelinks a.is-locked:hover { color: rgba(108, 103, 95, 0.72); }
+/* 极简挂锁：一段锁体 + 一段锁梁，用伪元素画 */
+.sitelinks__lock {
+  display: inline-block;
+  position: relative;
+  width: 9px;
+  height: 7px;
+  margin-left: 0.42em;
+  vertical-align: 0.06em;
+  border: 1px solid rgba(192, 138, 62, 0.55);
+  border-radius: 1px;
+  background: rgba(192, 138, 62, 0.16);
+}
+.sitelinks__lock::before {
+  content: "";
+  position: absolute;
+  left: 1.4px;
+  top: -4.6px;
+  width: 4.2px;
+  height: 4.4px;
+  border: 1px solid rgba(192, 138, 62, 0.55);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+/* 点了之后抖一下，说明"这里锁着" */
+.sitelinks li.is-nudged { animation: lockNudge 0.36s var(--ease-slow); }
+@keyframes lockNudge {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  75%      { transform: translateX(3px); }
+}
+
 .sound {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.3rem 0; background: none; border: 0; cursor: pointer;

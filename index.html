@@ -49,32 +49,10 @@
 
 <a class="sr-only" href="#guide">跳到引导文本</a>
 
-<!-- ===================== 固定层：品牌 / 章节 / 声音 ===================== -->
-<header class="topbar">
-  <a class="brand" href="#top" aria-label="弦脉 Stringline Heritage 首页">
-    <i class="brand__glyph" aria-hidden="true"></i>
-    <span class="brand__name">弦脉</span>
-    <span class="brand__latin">Stringline Heritage</span>
-  </a>
-
-  <div class="topbar__right">
-    <nav aria-label="站点章节">
-      <ul class="sitelinks">
-        <li><a href="index.html" aria-current="page">序</a></li>
-        <li><a href="qiongnaieman/index.html">二 · 穹乃额曼<i class="sitelinks__sub">大曲</i></a></li>
-        <li><a href="dastan/index.html">三 · 达斯坦<i class="sitelinks__sub">叙事诗</i></a></li>
-        <li><a href="mashrap/index.html">四 · 麦西热甫<i class="sitelinks__sub">歌舞曲</i></a></li>
-        <li><a href="lishi/index.html">五 · 历史与传承</a></li>
-        <li><a href="fulu/index.html">附录 · 形制比较</a></li>
-      </ul>
-    </nav>
-    <button class="sound" id="sound-toggle" type="button" aria-pressed="false"
-            aria-label="手鼓节奏音效开关">
-      <span class="sound__ring" aria-hidden="true"></span>
-      <span class="sound__text" id="sound-text">声音 关</span>
-    </button>
-  </div>
-</header>
+<!-- ===================== 固定层：品牌 / 章节 / 声音 =====================
+     顶栏内容由 js/lib/site.js 的 mountShell 渲染（home.js 调用）。
+     这样六格的状态 —— 尤其是"附录"那一格的解锁锁定 —— 全站一致。 -->
+<header class="topbar"></header>
 
 <!-- 进度轴：三段刻度，可点击跳转 -->
 <aside class="rail" aria-label="结构进度">

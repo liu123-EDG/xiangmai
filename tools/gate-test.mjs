@@ -66,11 +66,40 @@ try {
 
   console.log('\n[主题曲 + 解锁门自检]');
 
-  /* ---------- 1. 未解锁时，附录的入口应当被拦下 ---------- */
-  await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/fulu/index.html` });
-  await sleep(4200);
+  /* ---------- 0. 导航上那一格应当锁着，并把人送去互动 ---------- */
+  await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/index.html` });
+  await sleep(3800);
   await evalJs('localStorage.removeItem("xiangmai.unlocked.mashrap")');
   await send('Page.reload', { ignoreCache: true });
+  await sleep(3800);
+
+  const navLock = JSON.parse(await evalJs(`(() => {
+    const a = [...document.querySelectorAll('.sitelinks a')].find(x => x.textContent.indexOf('形制比较') >= 0);
+    return JSON.stringify({
+      found: !!a,
+      locked: a ? a.classList.contains('is-locked') : null,
+      hasIcon: a ? !!a.querySelector('.sitelinks__lock') : null,
+      lockHref: a ? a.getAttribute('data-lock-href') : null,
+      navCount: document.querySelectorAll('.sitelinks a').length,
+    });
+  })()`));
+  console.log('       首页导航 ' + JSON.stringify(navLock));
+  if (navLock.navCount === 6) ok('顶栏六格（首页也走 mountShell 了）');
+  else bad('顶栏格数 = ' + navLock.navCount);
+  if (navLock.locked && navLock.hasIcon) ok('「附录」那一格显示为锁着');
+  else bad('导航没上锁：' + JSON.stringify(navLock));
+
+  // 点它：应当不跳去附录，而是被送去第四章互动
+  await evalJs(`[...document.querySelectorAll('.sitelinks a')].find(x => x.textContent.indexOf('形制比较') >= 0)
+    .dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}))`);
+  await sleep(1400);
+  const navJump = await evalJs('location.pathname + location.hash');
+  console.log('       点导航后到 ' + navJump);
+  if (navJump.indexOf('mashrap') >= 0) ok('点锁着的导航 → 被送去第四章互动（' + navJump + '）');
+  else bad('点锁着的导航跑错地方：' + navJump);
+
+  /* ---------- 1. 未解锁时，附录的入口应当被拦下 ---------- */
+  await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/fulu/index.html` });
   await sleep(4200);
 
   const locked = JSON.parse(await evalJs(`JSON.stringify({

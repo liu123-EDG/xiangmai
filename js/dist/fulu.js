@@ -1714,7 +1714,10 @@ class DapSequencer {  /**
      所以另做一个：低频撞击 + 一记炸开的长镲 + 快速滚奏收尾。
      不复用 _hit，因为它不是节奏里的一拍，是一次事件。 */
   flourish() {
-    if (!this.ready || !this.enabled) return false;
+    // 这里**不检查 enabled** —— 互动里的"圈满了"是一声庆祝，
+    // 它靠 theme 那边独立的手势解锁。之前加了 enabled 守卫，
+    // 结果没手动开声音的人点满圈什么都没听见（踩过）。
+    if (!this.ready) return false;
     const ctx = this.ctx;
     const t0 = ctx.currentTime + 0.02;
 
@@ -1768,17 +1771,31 @@ function __M3__() {
      imageSlot       图片槽（含缺图兜底与说明位）
    ========================================================================== */
 
-/** 章节结构。id 用于高亮当前页 */
+/** 章节结构。id 用于高亮当前页。
+    requires: 需要先完成某件事才能进（值为 localStorage 的键）。
+    有 requires 的章节在未完成时**显示为锁着**，点它不跳转，
+    而是把人送去完成那件事的地方。 */
 const NAV = [
   { id: 'prologue',  num: '序',    label: '序',         href: 'index.html' },
   { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
   { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },
   { id: 'mashrap',   num: '四',    label: '麦西热甫',    href: 'mashrap/index.html',      sub: '歌舞曲' },
   { id: 'lishi',     num: '五',    label: '历史与传承',  href: 'lishi/index.html' },
-  { id: 'fulu',      num: '附录',  label: '形制比较',    href: 'fulu/index.html' },
+  {
+    id: 'fulu', num: '附录', label: '形制比较', href: 'fulu/index.html',
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
 ];
 
 const $ = (s, r) => (r || document).querySelector(s);
+
+/** 读取解锁状态。localStorage 读不到（隐私模式）就当没锁，别把人挡在外面。 */
+function isLocked(entry) {
+  if (!entry.requires) return false;
+  try { return localStorage.getItem(entry.requires) !== '1'; } catch { return false; }
+}
 
 /**
  * 把顶部导航渲染进 .topbar（HTML 里只留一个占位结构）。
@@ -1796,8 +1813,16 @@ function mountShell(opts) {
   const links = NAV.map((n) => {
     const cur = n.id === active ? ' aria-current="page"' : '';
     const sub = n.sub ? '<i class="sitelinks__sub">' + n.sub + '</i>' : '';
-    return '<li><a href="' + base + n.href + '"' + cur + '>' +
-      n.num + ' · ' + n.label + sub + '</a></li>';
+    const locked = isLocked(n);
+    // 锁着时保留原 href（语义仍在），但加标记；点击由下面的监听拦下
+    const attrs = locked
+      ? ' class="is-locked" data-locked="1" aria-disabled="true"' +
+        ' title="' + (n.lockHint || '还没解锁') + '"' +
+        ' data-lock-href="' + base + (n.lockHref || n.href) + '"'
+      : '';
+    return '<li><a href="' + base + n.href + '"' + cur + attrs + '>' +
+      n.num + ' · ' + n.label + sub +
+      (locked ? '<i class="sitelinks__lock" aria-hidden="true"></i>' : '') + '</a></li>';
   }).join('');
 
   const sound = opts.showSound === false ? '' :
@@ -1815,6 +1840,24 @@ function mountShell(opts) {
       '<nav aria-label="站点章节"><ul class="sitelinks">' + links + '</ul></nav>' +
       sound +
     '</div>';
+
+  /* 锁着的导航项：点了不跳，而是把人送去该去的地方，并给一句提示。
+     用捕获阶段拦，免得别处的处理器先跳走。 */
+  topbar.addEventListener('click', (e) => {
+    const a = e.target.closest ? e.target.closest('a[data-locked]') : null;
+    if (!a) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const go = a.getAttribute('data-lock-href');
+    const li = a.parentElement;
+    // 先给个"锁着"的抖动反馈，再走
+    if (li) {
+      li.classList.remove('is-nudged');
+      void li.offsetWidth;                 // 强制重排，让动画能重放
+      li.classList.add('is-nudged');
+    }
+    if (go) setTimeout(() => { location.href = go; }, 260);
+  }, true);
 }
 
 /**
@@ -2829,29 +2872,52 @@ function __M9__() {
      · 能和已有的手鼓总线上共用一条链路，音量、淡入淡出一致
      · 能对着 context.currentTime 做精确的交叉淡入
      · 能无缝循环（AudioBufferSourceNode.loop）
-   decodeAudioData 是异步的，所以第一次调用只启动加载，
-   加载完自动接上播。这点对"玩家点完最后一下要立刻听到声音"很重要。
+
+   两个关键点（都踩过）：
+     1) decodeAudioData 是异步的。第一次调用只启动加载，加载完自动接上播 ——
+        不然"点完最后一下要立刻听到声音"会变成半秒空白。
+     2) 一定要**自己 new 一个 AudioContext**，不能借用手鼓那个。
+        两个独立的 context 在浏览器里会互相干扰（一个在跑，另一个不响）。
    ========================================================================== */
 
-/** 一个简易主题曲播放器 */
-function createTheme(url) {
-  let ctx = null;
+/** 一个简易主题曲播放器
+ *  @param {string} url
+ *  @param {object} [opts]
+ *  @param {AudioContext} [opts.ctx] 复用已有的 AudioContext。
+ *         不传就自己建一个 —— 但**同一个页面上最好只有一个**：
+ *         两个独立的 context 会互相干扰（一个在跑、另一个不响），
+ *         这是排查了很久才定位到的静音原因。 */
+function createTheme(url, opts = {}) {
+  let ctx = opts.ctx || null;
   let buffer = null;
   let loading = null;
   let src = null;
   let gain = null;
   let want = false;
-  let volume = 0.42;
+  let volume = 0.55;          // 主题曲比手鼓略高，它要站得住
+
+  /** 换用别的 AudioContext —— 页面上应该只有一个。 */
+  const useContext = (c) => {
+    if (!c || c === ctx) return;
+    ctx = c;
+    gain = null;              // 旧增益挂在上一个 context 上，作废
+  };
 
   const ensureCtx = () => {
     if (ctx) return ctx;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     ctx = new AC();
+    return ctx;
+  };
+
+  /** 延迟建增益节点：必须挂在这个 context 上，且 context 变了要重建 */
+  const ensureGain = () => {
+    if (gain && gain.context === ctx) return gain;
     gain = ctx.createGain();
     gain.gain.value = 0;
     gain.connect(ctx.destination);
-    return ctx;
+    return gain;
   };
 
   const load = () => {
@@ -2865,7 +2931,7 @@ function createTheme(url) {
         return r.arrayBuffer();
       })
       .then((buf) => new Promise((res, rej) => {
-        // Safari 只认回调形式
+        // Safari 只认回调形式，所以两种都接
         const p = c.decodeAudioData(buf, res, rej);
         if (p && p.then) p.then(res, rej);
       }))
@@ -2887,19 +2953,20 @@ function createTheme(url) {
     const fade = fadeSec === undefined ? 2.2 : fadeSec;
     const begin = () => {
       if (!want || !buffer) return;
-      if (src) { // 已经在放
-        gain.gain.cancelScheduledValues(c.currentTime);
-        gain.gain.setTargetAtTime(volume, c.currentTime, fade / 3);
+      const g = ensureGain();
+      if (src) {                                   // 已经在放
+        g.gain.cancelScheduledValues(c.currentTime);
+        g.gain.setTargetAtTime(volume, c.currentTime, fade / 3);
         return;
       }
       src = c.createBufferSource();
       src.buffer = buffer;
-      src.loop = true;                    // 34 秒，循环铺底
-      src.connect(gain);
+      src.loop = true;                             // 循环铺底
+      src.connect(g);
       const t = c.currentTime;
-      gain.gain.cancelScheduledValues(t);
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.linearRampToValueAtTime(volume, t + fade);
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(volume, t + fade);
       src.start(t);
     };
 
@@ -2910,7 +2977,7 @@ function createTheme(url) {
 
   const stop = (fadeSec) => {
     want = false;
-    if (!ctx || !src) return;
+    if (!ctx || !src || !gain) return;
     const fade = fadeSec === undefined ? 1.2 : fadeSec;
     const t = ctx.currentTime;
     gain.gain.cancelScheduledValues(t);
@@ -2922,11 +2989,21 @@ function createTheme(url) {
 
   const setVolume = (v) => {
     volume = Math.max(0, Math.min(1, v));
-    if (ctx && src) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
+    if (ctx && src && gain) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
   };
 
+  /* 自检用：报告真实状态，而不是"我觉得应该响了" */
+  const state = () => ({
+    ready: !!buffer,
+    playing: !!src,
+    ctxState: ctx ? ctx.state : 'none',
+    gain: ctx && gain ? +gain.gain.value.toFixed(4) : -1,
+    volume,
+    duration: buffer ? +buffer.duration.toFixed(2) : 0,
+  });
+
   return {
-    start, stop, setVolume,
+    start, stop, setVolume, state, useContext,
     preload: load,
     get playing() { return !!src; },
     get ready() { return !!buffer; },

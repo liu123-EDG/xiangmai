@@ -547,7 +547,10 @@ export class DapSequencer {  /**
      所以另做一个：低频撞击 + 一记炸开的长镲 + 快速滚奏收尾。
      不复用 _hit，因为它不是节奏里的一拍，是一次事件。 */
   flourish() {
-    if (!this.ready || !this.enabled) return false;
+    // 这里**不检查 enabled** —— 互动里的"圈满了"是一声庆祝，
+    // 它靠 theme 那边独立的手势解锁。之前加了 enabled 守卫，
+    // 结果没手动开声音的人点满圈什么都没听见（踩过）。
+    if (!this.ready) return false;
     const ctx = this.ctx;
     const t0 = ctx.currentTime + 0.02;
 

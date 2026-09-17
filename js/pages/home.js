@@ -13,6 +13,7 @@
 import { Renderer, SEG_BOUNDS, BREATH } from '../lib/renderer.js';
 import { DapSequencer } from '../lib/sequencer.js';
 import { BandScroller } from '../lib/scroll.js';
+import { mountShell } from '../lib/site.js';
 import { initNetwork } from './network.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,12 +36,18 @@ const canvas = $('#gl');
 const railMarks = $$('.rail__mark');
 const words = $$('.word');
 const segs = $$('.seg');
-const soundBtn = $('#sound-toggle');
-const soundText = $('#sound-text');
 const figureNum = $('#figure-num');
 const figureCap = $('#figure-cap');
 const networkEl = $('#network');
 const stageEl = $('.stage-words');
+
+/* 顶栏改为由 site.js 统一渲染 —— 首页原本是静态写死的，
+   结果"附录"那一格的锁定状态不会跟着解锁走。
+   交给 mountShell 之后，全站六格的状态由同一份数据决定。 */
+mountShell({ base: '', active: 'prologue' });
+
+const soundBtn = $('#sound-toggle');
+const soundText = $('#sound-text');
 
 let renderer = null;
 let scroller = null;

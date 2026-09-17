@@ -4,6 +4,7 @@
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/scroll.js  → BandScroller, onScrollThrottled
+     js/lib/site.js  → NAV, mountShell, mountChapterNav, revealOnScroll, mountSlots
      js/pages/network.js  → initNetwork, LINEAGE
      js/pages/home.js
 */
@@ -18,6 +19,7 @@ __XM[2] = {};
 __XM[3] = {};
 __XM[4] = {};
 __XM[5] = {};
+__XM[6] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -1704,7 +1706,10 @@ class DapSequencer {  /**
      所以另做一个：低频撞击 + 一记炸开的长镲 + 快速滚奏收尾。
      不复用 _hit，因为它不是节奏里的一拍，是一次事件。 */
   flourish() {
-    if (!this.ready || !this.enabled) return false;
+    // 这里**不检查 enabled** —— 互动里的"圈满了"是一声庆祝，
+    // 它靠 theme 那边独立的手势解锁。之前加了 enabled 守卫，
+    // 结果没手动开声音的人点满圈什么都没听见（踩过）。
+    if (!this.ready) return false;
     const ctx = this.ctx;
     const t0 = ctx.currentTime + 0.02;
 
@@ -1858,8 +1863,194 @@ __ns.mount_BandScroller = function () { return BandScroller; };
 __ns.mount_onScrollThrottled = function () { return onScrollThrottled; };
 }
 
-/* ── js/pages/network.js ── */
+/* ── js/lib/site.js ── */
 function __M4__() {
+/* ==========================================================================
+   弦脉 · 站点外壳
+   --------------------------------------------------------------------------
+   导航与页脚用同一份数据生成，所有页面（含后续十二个分页面）自动获得完整
+   导航 —— 加新页面只要改这里一处，不用去每个 HTML 里改链接。
+
+   另外提供两个章节页反复用到的小件：
+     revealOnScroll  滚动进入视口时显形
+     imageSlot       图片槽（含缺图兜底与说明位）
+   ========================================================================== */
+
+/** 章节结构。id 用于高亮当前页。
+    requires: 需要先完成某件事才能进（值为 localStorage 的键）。
+    有 requires 的章节在未完成时**显示为锁着**，点它不跳转，
+    而是把人送去完成那件事的地方。 */
+const NAV = [
+  { id: 'prologue',  num: '序',    label: '序',         href: 'index.html' },
+  { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
+  { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },
+  { id: 'mashrap',   num: '四',    label: '麦西热甫',    href: 'mashrap/index.html',      sub: '歌舞曲' },
+  { id: 'lishi',     num: '五',    label: '历史与传承',  href: 'lishi/index.html' },
+  {
+    id: 'fulu', num: '附录', label: '形制比较', href: 'fulu/index.html',
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
+];
+
+const $ = (s, r) => (r || document).querySelector(s);
+
+/** 读取解锁状态。localStorage 读不到（隐私模式）就当没锁，别把人挡在外面。 */
+function isLocked(entry) {
+  if (!entry.requires) return false;
+  try { return localStorage.getItem(entry.requires) !== '1'; } catch { return false; }
+}
+
+/**
+ * 把顶部导航渲染进 .topbar（HTML 里只留一个占位结构）。
+ * @param {object} opts
+ * @param {string} opts.base  相对站点根的路径前缀，如 '../' 或 ''
+ * @param {string} opts.active 当前页的 NAV id
+ * @param {boolean} [opts.showSound] 是否显示声音开关
+ */
+function mountShell(opts) {
+  const base = opts.base || '';
+  const active = opts.active || '';
+  const topbar = $('.topbar');
+  if (!topbar) return;
+
+  const links = NAV.map((n) => {
+    const cur = n.id === active ? ' aria-current="page"' : '';
+    const sub = n.sub ? '<i class="sitelinks__sub">' + n.sub + '</i>' : '';
+    const locked = isLocked(n);
+    // 锁着时保留原 href（语义仍在），但加标记；点击由下面的监听拦下
+    const attrs = locked
+      ? ' class="is-locked" data-locked="1" aria-disabled="true"' +
+        ' title="' + (n.lockHint || '还没解锁') + '"' +
+        ' data-lock-href="' + base + (n.lockHref || n.href) + '"'
+      : '';
+    return '<li><a href="' + base + n.href + '"' + cur + attrs + '>' +
+      n.num + ' · ' + n.label + sub +
+      (locked ? '<i class="sitelinks__lock" aria-hidden="true"></i>' : '') + '</a></li>';
+  }).join('');
+
+  const sound = opts.showSound === false ? '' :
+    '<button class="sound" id="sound-toggle" type="button" aria-pressed="false" aria-label="手鼓节奏音效开关">' +
+    '<span class="sound__ring" aria-hidden="true"></span>' +
+    '<span class="sound__text" id="sound-text">声音 关</span></button>';
+
+  topbar.innerHTML =
+    '<a class="brand" href="' + base + 'index.html" aria-label="弦脉 Stringline Heritage 首页">' +
+      '<i class="brand__glyph" aria-hidden="true"></i>' +
+      '<span class="brand__name">弦脉</span>' +
+      '<span class="brand__latin">Stringline Heritage</span>' +
+    '</a>' +
+    '<div class="topbar__right">' +
+      '<nav aria-label="站点章节"><ul class="sitelinks">' + links + '</ul></nav>' +
+      sound +
+    '</div>';
+
+  /* 锁着的导航项：点了不跳，而是把人送去该去的地方，并给一句提示。
+     用捕获阶段拦，免得别处的处理器先跳走。 */
+  topbar.addEventListener('click', (e) => {
+    const a = e.target.closest ? e.target.closest('a[data-locked]') : null;
+    if (!a) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const go = a.getAttribute('data-lock-href');
+    const li = a.parentElement;
+    // 先给个"锁着"的抖动反馈，再走
+    if (li) {
+      li.classList.remove('is-nudged');
+      void li.offsetWidth;                 // 强制重排，让动画能重放
+      li.classList.add('is-nudged');
+    }
+    if (go) setTimeout(() => { location.href = go; }, 260);
+  }, true);
+}
+
+/**
+ * 页面底部的「上一章 / 下一章」。按 NAV 的链条自动生成 ——
+ * 以后调整章节顺序或插新页，不用改任何 HTML。
+ */
+function mountChapterNav(opts) {
+  const base = opts.base || '';
+  const host = $('.chapter-nav');
+  if (!host) return;
+  const i = NAV.findIndex((n) => n.id === opts.active);
+  if (i < 0) return;
+
+  const prev = NAV[i - 1];
+  const next = NAV[i + 1];
+  const label = (n) => n.num + ' · ' + n.label;
+
+  host.innerHTML =
+    (prev ? '<a href="' + base + prev.href + '">← ' + label(prev) + '</a>' : '<span></span>') +
+    (next ? '<a class="next" href="' + base + next.href + '">' + label(next) + ' →</a>' : '<span></span>');
+}
+
+/**
+ * 滚动进入视口时加 is-in。用于幕的推进、时间轴刻度点亮。
+ * @param {string} selector
+ * @param {object} [opts]
+ * @param {number} [opts.threshold=0.18]
+ * @param {boolean} [opts.once=true]
+ */
+function revealOnScroll(selector, opts = {}) {
+  const nodes = Array.from(document.querySelectorAll(selector));
+  if (!nodes.length) return;
+  const threshold = opts.threshold === undefined ? 0.18 : opts.threshold;
+  const once = opts.once !== false;
+
+  if (!('IntersectionObserver' in window)) {
+    nodes.forEach((n) => n.classList.add('is-in'));
+    return;
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        e.target.classList.add('is-in');
+        if (once) io.unobserve(e.target);
+      } else if (!once) {
+        e.target.classList.remove('is-in');
+      }
+    });
+  }, { threshold, rootMargin: '0px 0px -8% 0px' });
+
+  nodes.forEach((n) => io.observe(n));
+}
+
+/**
+ * 图片槽：设置 src 后自动加载，成功则淡入，失败则保持占位样式。
+ * HTML 里写成 <figure class="slot" data-src="..." data-label="...">，
+ * 这里统一接管，避免每处都写一遍 onerror。
+ */
+function mountSlots() {
+  Array.from(document.querySelectorAll('figure.slot')).forEach((fig) => {
+    const src = fig.getAttribute('data-src');
+    const img = fig.querySelector('img');
+    if (!img) { fig.classList.add('is-empty'); return; }
+
+    if (!src) { fig.classList.add('is-empty'); return; }
+
+    fig.classList.remove('is-empty');
+    img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+    img.addEventListener('error', () => {
+      // 文件还没放进来：退回占位，版面不变形
+      fig.classList.add('is-empty');
+      img.removeAttribute('src');
+    }, { once: true });
+    img.src = src;
+  });
+}
+
+__ns = __XM[4];
+__ns.mount_NAV = function () { return NAV; };
+__ns.mount_mountShell = function () { return mountShell; };
+__ns.mount_mountChapterNav = function () { return mountChapterNav; };
+__ns.mount_revealOnScroll = function () { return revealOnScroll; };
+__ns.mount_mountSlots = function () { return mountSlots; };
+}
+
+/* ── js/pages/network.js ── */
+function __M5__() {
 /* ==========================================================================
    弦脉 · 师承网络
    --------------------------------------------------------------------------
@@ -2254,19 +2445,20 @@ function initNetwork() {
   window.addEventListener('xiangmai:network-open', open);
 }
 
-__ns = __XM[4];
+__ns = __XM[5];
 __ns.mount_initNetwork = function () { return initNetwork; };
 __ns.mount_LINEAGE = function () { return LINEAGE; };
 }
 
 /* ── js/pages/home.js ── */
-function __M5__() {
+function __M6__() {
 var Renderer = __XM[1]["Renderer"];
 var SEG_BOUNDS = __XM[1]["SEG_BOUNDS"];
 var BREATH = __XM[1]["BREATH"];
 var DapSequencer = __XM[2]["DapSequencer"];
 var BandScroller = __XM[3]["BandScroller"];
-var initNetwork = __XM[4]["initNetwork"];
+var mountShell = __XM[4]["mountShell"];
+var initNetwork = __XM[5]["initNetwork"];
 
 /* ==========================================================================
    弦脉 · 序（首屏）
@@ -2279,6 +2471,7 @@ var initNetwork = __XM[4]["initNetwork"];
 
    几何交给布局引擎，材质交给 GPU，空气交给渲染器。这一层只做编排。
    ========================================================================== */
+
 
 
 
@@ -2305,12 +2498,18 @@ const canvas = $('#gl');
 const railMarks = $$('.rail__mark');
 const words = $$('.word');
 const segs = $$('.seg');
-const soundBtn = $('#sound-toggle');
-const soundText = $('#sound-text');
 const figureNum = $('#figure-num');
 const figureCap = $('#figure-cap');
 const networkEl = $('#network');
 const stageEl = $('.stage-words');
+
+/* 顶栏改为由 site.js 统一渲染 —— 首页原本是静态写死的，
+   结果"附录"那一格的锁定状态不会跟着解锁走。
+   交给 mountShell 之后，全站六格的状态由同一份数据决定。 */
+mountShell({ base: '', active: 'prologue' });
+
+const soundBtn = $('#sound-toggle');
+const soundText = $('#sound-text');
 
 let renderer = null;
 let scroller = null;
@@ -2631,20 +2830,29 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/scroll.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/network.js */
+/* js/lib/site.js */
 try {
   __ns = __XM[4];
   __M4__();
   for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/site.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/network.js */
+try {
+  __ns = __XM[5];
+  __M5__();
+  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/network.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/home.js */
 try {
-  __ns = __XM[5];
-  __M5__();
-  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+  __ns = __XM[6];
+  __M6__();
+  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/home.js" + " :: " + (e && e.stack || e));
 }
