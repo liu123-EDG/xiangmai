@@ -261,6 +261,9 @@ p.body b {
   min-height: 92vh;
 }
 .plate-act:empty { display: none; }
+/* 有视差背景时，整屏画框是多余的 —— 背景本身就是画面，
+   再放一张静态图会把视差盖掉 */
+body.has-parallax .plate-act { display: none; }
 
 .plate {
   position: relative;
