@@ -97,14 +97,14 @@
     position: absolute; inset: 0; z-index: 4;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 1.1vmin;
+    gap: 0;
     text-align: center;
     pointer-events: none;
   }
   /* 行高固定成 1.15 —— 两件事一起解决：
-     ① 金线能**正好压在字的中线**上（原来行高 1.5，下半截空着，
+     ① 金线能**正好压在维语的中线**上（原来行高 1.5，下半截空着，
         金线被推到字下面去，跟字脱开了）；
-     ② 字与金线的间距不再靠 gap 撑，好控制。 */
+     ② 这一层的高度可控，下面汉字和金线的位置才算得准。 */
   .w-title__row {
     position: relative;
     display: block;
@@ -112,13 +112,16 @@
   }
 
   .w-title__ug {
-    /* 这里放的是汉字「十二木卡姆」。类名还叫 ug 是历史原因（原来放维语），
-       改名要动 js，为这点事不值得 —— 但内容已经是中文了。
-       字体用宋体一系：发布会那种片子的大字标题用它最稳。 */
-    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    /* 维吾尔文：这套文化的原生名。**在上面当主标题。**
+       用户定的是"维语在上、汉字在下" —— 维语是它自己的名字，
+       汉字是给不识维语的读者。
+       类名保留 ug（它就是维语层），下面另开一层 __cn 放汉字。 */
+    direction: rtl;                 /* 从右往左，必须声明才会连写正确 */
+    unicode-bidi: isolate;
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri",
+                 "Segoe UI", Tahoma, serif;
     font-size: clamp(30px, 7.4vmin, 124px);
     line-height: 1.15;
-    letter-spacing: 0.16em;
     white-space: nowrap;
     /* ② 更亮：接近纯暖白 */
     color: #fff6e2;
@@ -132,13 +135,14 @@
       0 0 120px rgba(190, 140, 70, 0.22);
   }
   /* ④ 光泽扫过：同样文字、同样字体，绝对定位盖在原字上，只多一道反光。
-     字体、字号、字距必须与 .w-title__ug 完全一致才叠得准。 */
+     字体、字号、方向必须与 .w-title__ug 完全一致才叠得准。 */
   .w-title__shine {
     position: absolute; left: 0; right: 0; top: 0;
-    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    direction: rtl; unicode-bidi: isolate;
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri",
+                 "Segoe UI", Tahoma, serif;
     font-size: clamp(30px, 7.4vmin, 124px);
     line-height: 1.15;
-    letter-spacing: 0.16em;
     white-space: nowrap;
     background: linear-gradient(100deg,
       rgba(255,255,255,0) 40%,
@@ -177,7 +181,50 @@
   }
   .w-title__ug.is-live { animation: wBreath 4s ease-in-out infinite; }
 
+  /* 汉字：维语下面一行，小一号。
+     用宋体一系（发布会那种大字标题用它最稳），字距拉开。
+     跟着呼吸一起微微发亮。
+
+     **margin-top 得给得很大**：视频自带的那道金线横穿画面正中
+     （实测视频中线 = 视口中线，y=450），维语压在那条线上。
+     金线周围有一圈辉光，汉字落进那圈里就会被洗掉 ——
+     实测 23px、54px、117px 三档都还在辉光圈里，
+     所以取 26vmin（1600×900 下约 234px），彻底让开。
+     位置是量出来的，不是估的（见 tools/title-layout.mjs）。 */
+  .w-title__cn {
+    margin-top: clamp(90px, 26vmin, 300px);
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    font-size: clamp(14px, 2.5vmin, 40px);
+    line-height: 1.5;
+    letter-spacing: 0.5em; text-indent: 0.5em;
+    white-space: nowrap;
+    color: #f4e9cf;
+    opacity: 0;
+    /* 光晕里带一层**暗底衬**：金线的辉光是一整条亮带，
+       白字压在上面会被洗掉（试过只加暖光晕，没用）。
+       在暖光晕前面插两层近黑的 shadow，等于给字垫了个底，
+       黑底又和画面本身的黑色接得上，看不出来。 */
+    text-shadow:
+      0 0 6px rgba(0, 0, 0, 0.95),
+      0 1px 14px rgba(0, 0, 0, 0.85),
+      0 0 18px rgba(217, 178, 104, 0.45),
+      0 0 44px rgba(217, 178, 104, 0.20);
+    animation: wCnBreath 4s ease-in-out infinite;
+  }
+  @keyframes wCnBreath {
+    0%, 100% {
+      text-shadow: 0 0 6px rgba(0,0,0,0.95), 0 1px 14px rgba(0,0,0,0.85),
+                   0 0 18px rgba(217,178,104,0.40), 0 0 44px rgba(217,178,104,0.16);
+    }
+    50% {
+      text-shadow: 0 0 6px rgba(0,0,0,0.95), 0 1px 14px rgba(0,0,0,0.85),
+                   0 0 26px rgba(217,178,104,0.66), 0 0 62px rgba(217,178,104,0.30);
+    }
+  }
+
+  /* 分隔线：放在汉字下面，不跟任何文字重叠 */
   .w-title__rule {
+    margin-top: clamp(16px, 3vmin, 46px);
     width: 0; height: 1px;
     background: linear-gradient(90deg, transparent, rgba(240, 210, 150, 0.75), transparent);
     box-shadow: 0 0 12px rgba(217, 178, 104, 0.5);
@@ -191,6 +238,7 @@
     50%      { text-shadow: 0 0 22px rgba(217,178,104,0.62), 0 0 56px rgba(217,178,104,0.28); }
   }
   .w-title__lat {
+    margin-top: clamp(10px, 1.8vmin, 26px);
     font-family: var(--font-sans);
     font-size: clamp(7px, 1.1vmin, 17px);
     letter-spacing: 0.66em; text-indent: 0.66em;
@@ -275,17 +323,18 @@
   <div class="w-vig"></div>
   <canvas class="w-dust" id="w-dust" aria-hidden="true"></canvas>
 
-  <!-- 文字浮现：第三段黑场里那道金线上浮出「十二木卡姆」。
-       用汉字，不用维语 —— 那串维语在这个位置喧宾夺主，
-       而且不是所有设备都带阿拉伯字母字体，显示出来可能是一堆方框。
-       （维语在正片里另有位置：第二章开场那一行。） -->
+  <!-- 文字浮现：第三段黑场里那道金线上浮出这套文化的名字。
+       **维语在上、汉字在下**（用户定的）：
+       维语是它自己的名字，汉字是给不识维语的读者。
+       光泽层和维语层必须字体字号完全一致，才叠得准。 -->
   <div class="w-title" id="w-title" aria-hidden="true">
     <div class="w-title__bloom" id="w-bloom"></div>
     <div class="w-title__row">
-      <div class="w-title__ug" id="w-ug">十 二 木 卡 姆</div>
+      <div class="w-title__ug" id="w-ug">ئون ئىككى مۇقام</div>
       <!-- 光泽层：同样文字、同样字体，只是用背景裁切扫一道反光 -->
-      <div class="w-title__shine" aria-hidden="true">十 二 木 卡 姆</div>
+      <div class="w-title__shine" aria-hidden="true">ئون ئىككى مۇقام</div>
     </div>
+    <div class="w-title__cn" id="w-cn">十 二 木 卡 姆</div>
     <div class="w-title__rule"></div>
     <div class="w-title__lat">STRINGLINE HERITAGE</div>
   </div>

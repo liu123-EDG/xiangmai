@@ -105,6 +105,25 @@ try {
     });
   })()`));
   console.log('  入口按钮 ' + JSON.stringify(gb));
+
+  /* 量：汉字那一行离画面中线（视频金线所在）多远。
+     贴太近会被金线的辉光洗掉 —— 这是踩过的坑，量出来才放心。 */
+  const geo = JSON.parse(await evalJs(`(() => {
+    const cn = document.getElementById('w-cn');
+    const ug = document.getElementById('w-ug');
+    const cx = innerHeight / 2;
+    const c = cn.getBoundingClientRect(), u = ug.getBoundingClientRect();
+    return JSON.stringify({
+      mid: Math.round(cx),
+      ugMid: Math.round(u.top + u.height / 2),
+      cnTop: Math.round(c.top),
+      gap: Math.round(c.top - cx),
+      overlaps: c.top < cx + 10 && c.bottom > cx - 10,
+    });
+  })()`));
+  console.log('  中线/汉字 ' + JSON.stringify(geo));
+  if (geo.overlaps) console.log('  ✗ 汉字仍被金线区域覆盖');
+  else console.log('  ✓ 汉字在金线下方 ' + geo.gap + 'px');
   const clip = {
     x: Math.max(0, Math.round(1600 - gb.w - 90)), y: 8,
     width: gb.w + 78, height: gb.h + 46, scale: 3,

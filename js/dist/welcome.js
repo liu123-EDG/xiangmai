@@ -719,7 +719,8 @@ const T = {
 
 const host = document.getElementById('hero-video');
 const title = document.getElementById('w-title');
-const ug = document.getElementById('w-ug');       // 主标题：现在是汉字「十二木卡姆」
+const ug = document.getElementById('w-ug');       // 主标题：维语
+const cn = document.getElementById('w-cn');       // 下面一行：汉字
 const bloom = document.getElementById('w-bloom');
 const rule = title && title.querySelector('.w-title__rule');
 const lat = title && title.querySelector('.w-title__lat');
@@ -799,8 +800,9 @@ function paint(t) {
       rule.style.width = (easeOut(rp) * 30).toFixed(2) + 'vmin';
       rule.style.opacity = rp.toFixed(3);
     }
-    /* 中文那一行已经取消（汉字提到上面当主标题了），所以这里不再驱动它。
-       末尾的英文站名保留。 */
+    /* 汉字那一行：跟英文差不多同时出现，比主标题晚一点，
+       让"维语先出来、汉字跟上"读起来有层次。 */
+    if (cn) cn.style.opacity = clamp01((t - T.cn) / 1.4).toFixed(3);
     if (lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
   }
   /* 入口现在**常驻**。
@@ -821,6 +823,7 @@ function reset() {
   if (bloom) bloom.style.opacity = '0';
   if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
   if (lat) lat.style.opacity = '0';
+  if (cn) cn.style.opacity = '0';
   /* 入口不再需要重置 —— 它常驻，只在片尾亮一档 */
   if (go) go.classList.remove('is-lit');
   if (dustOn) dustOn(0);
