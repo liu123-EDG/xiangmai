@@ -35,10 +35,9 @@ const T = {
 
 const host = document.getElementById('hero-video');
 const title = document.getElementById('w-title');
-const ug = document.getElementById('w-ug');
+const ug = document.getElementById('w-ug');       // 主标题：现在是汉字「十二木卡姆」
 const bloom = document.getElementById('w-bloom');
 const rule = title && title.querySelector('.w-title__rule');
-const cn = title && title.querySelector('.w-title__cn');
 const lat = title && title.querySelector('.w-title__lat');
 const go = document.getElementById('w-go');
 const dustCv = document.getElementById('w-dust');
@@ -116,7 +115,8 @@ function paint(t) {
       rule.style.width = (easeOut(rp) * 30).toFixed(2) + 'vmin';
       rule.style.opacity = rp.toFixed(3);
     }
-    if (cn) cn.style.opacity = clamp01((t - T.cn) / 1.4).toFixed(3);
+    /* 中文那一行已经取消（汉字提到上面当主标题了），所以这里不再驱动它。
+       末尾的英文站名保留。 */
     if (lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
   }
   /* 片尾黑场那两秒：入口亮起来，提示该进去了。
@@ -137,7 +137,6 @@ function reset() {
   }
   if (bloom) bloom.style.opacity = '0';
   if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
-  if (cn) cn.style.opacity = '0';
   if (lat) lat.style.opacity = '0';
   if (go) { go.classList.remove('is-lit'); go.classList.remove('is-here'); }
   if (dustOn) dustOn(0);

@@ -63,28 +63,30 @@ try {
   await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/welcome/index.html` });
   await sleep(4200);
 
-  /* 轮询到"维吾尔文清晰 + 中文也亮了"的那一刻再拍。
-     比猜等待时间可靠 —— 循环起点不确定。 */
+  /* 轮询到"标题最清楚"的那一刻再拍 —— 比猜等待时间可靠，
+     因为循环起点不确定。
+     注意：中文那一行已经取消（汉字提到上面当主标题），
+     所以判据改成"标题清晰 + 分隔线已展开"。 */
   let best = -1;
   for (let i = 0; i < 120; i++) {
     const s = JSON.parse(await evalJs(`(() => {
       const t = document.getElementById('w-title');
       const ug = t.querySelector('.w-title__ug');
-      const cn = t.querySelector('.w-title__cn');
+      const ru = t.querySelector('.w-title__rule');
       const f = getComputedStyle(ug).filter;
       return JSON.stringify({
         op: +(+getComputedStyle(ug).opacity).toFixed(3),
         blur: +(f.match(/blur\\(([\\d.]+)px\\)/) || [0, 99])[1],
-        cn: +(+cn.style.opacity || 0).toFixed(2),
+        rule: parseFloat(ru.style.width) || 0,
       });
     })()`));
-    // 打分：字清楚 + 中文出现 = 最好的时刻
-    const score = s.op * 2 + s.cn + (s.blur < 1 ? 1 : 0);
-    if (score > best && s.op > 0.9 && s.cn > 0.6) {
+    // 打分：标题清晰 + 分隔线展开 = 最好的时刻
+    const score = s.op * 2 + (s.rule > 20 ? 1 : 0) + (s.blur < 1 ? 1 : 0);
+    if (score > best && s.op > 0.95 && s.rule > 20 && s.blur < 1) {
       best = score;
       const shot = await send('Page.captureScreenshot', { format: 'png' });
       await writeFile(join(root, 'shots', 'welcome-title.png'), Buffer.from(shot.result.data, 'base64'));
-      console.log('  拍到：op=' + s.op + ' blur=' + s.blur + ' 中文=' + s.cn);
+      console.log('  拍到：op=' + s.op + ' blur=' + s.blur + ' 分隔线=' + s.rule.toFixed(1) + 'vmin');
       break;
     }
     await sleep(150);

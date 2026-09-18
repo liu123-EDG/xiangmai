@@ -80,48 +80,56 @@ try {
     const ug = t && t.querySelector('.w-title__ug');
     return JSON.stringify({
       hasTitle: !!t,
-      text: ug ? ug.textContent : null,
+      text: ug ? ug.textContent.trim() : null,
       dir: ug ? getComputedStyle(ug).direction : null,
       timer: !!window.__XM_FILM__,
     });
   })()`));
   console.log('       ' + JSON.stringify(st));
   if (st.hasTitle) ok('文字层已就位'); else bad('没有文字层');
-  if (st.text && st.text.indexOf('مۇقام') >= 0) ok('维吾尔文正确：' + st.text);
-  else bad('维吾尔文不对：' + st.text);
-  if (st.dir === 'rtl') ok('方向 RTL（连写才正确）'); else bad('方向不是 rtl：' + st.dir);
+  /* 这里原来是维语 ئون ئىككى مۇقام。
+     用户要求换成汉字 —— 那串维语在这个位置喧宾夺主，
+     而且不是所有设备都带阿拉伯字母字体，可能显示成方框。
+     所以判据也改成汉字。 */
+  if (st.text && st.text.replace(/\s/g, '') === '十二木卡姆') {
+    ok('标题是汉字「' + st.text + '」');
+  } else {
+    bad('标题不对（应为「十二木卡姆」）：' + st.text);
+  }
+  if (st.dir === 'ltr') ok('方向 LTR（汉字正常）'); else bad('方向不是 ltr：' + st.dir);
 
   /* 按时间轴采样：直接调页面里的 tickTitle 看不到（不是导出函数），
-     所以用真实等待 —— 每 1 秒看一眼，覆盖整圈 15.9 秒。 */
-  console.log('\n   墙钟   文字op   blur      规则宽   中文op  英文op');
-  const seen = { anyText: false, cnSeen: false, faded: false };
+     所以用真实等待 —— 每 1 秒看一眼，覆盖整圈 17.6 秒。
+
+     注意：中文那一行已经取消（汉字提到上面当主标题了），
+     所以这里不再读 .w-title__cn —— 读不存在的元素会抛异常。 */
+  console.log('\n   墙钟   标题op   blur      规则宽   英文op');
+  const seen = { anyText: false, latSeen: false, faded: false };
   for (let i = 0; i < 21; i++) {
     const s = JSON.parse(await evalJs(`(() => {
       const t = document.getElementById('w-title');
       const ug = t.querySelector('.w-title__ug');
       const ru = t.querySelector('.w-title__rule');
-      const cn = t.querySelector('.w-title__cn');
       const la = t.querySelector('.w-title__lat');
       const f = getComputedStyle(ug).filter;
       return JSON.stringify({
         op: +(+getComputedStyle(ug).opacity).toFixed(3),
         blur: (f.match(/blur\\(([\\d.]+)px\\)/) || [0, 0])[1],
         ruleW: ru.style.width,
-        cn: +(+cn.style.opacity || 0).toFixed(2),
-        lat: +(+la.style.opacity || 0).toFixed(2),
+        lat: la ? +(+la.style.opacity || 0).toFixed(2) : 0,
       });
     })()`));
     console.log('   ' + String(i).padStart(3) + 's  ' + String(s.op).padStart(6) +
       '  ' + String(s.blur).padStart(6) + '  ' + String(s.ruleW).padStart(8) +
-      '  ' + String(s.cn).padStart(5) + '  ' + String(s.lat).padStart(5));
+      '  ' + String(s.lat).padStart(5));
     if (s.op > 0.5) seen.anyText = true;
-    if (s.cn > 0.5) seen.cnSeen = true;
+    if (s.lat > 0.5) seen.latSeen = true;
     if (seen.anyText && s.op < 0.2) seen.faded = true;
     await sleep(1000);
   }
 
-  if (seen.anyText) ok('维吾尔文浮现过'); else bad('维吾尔文一直没出现');
-  if (seen.cnSeen) ok('中文也出现过'); else bad('中文没出现');
+  if (seen.anyText) ok('标题浮现过'); else bad('标题一直没出现');
+  if (seen.latSeen) ok('英文也出现过'); else bad('英文没出现');
   if (seen.faded) ok('循环前淡掉了（不会硬切）'); else bad('没看到淡出');
 
   // 抓一张文字最清楚的时候
