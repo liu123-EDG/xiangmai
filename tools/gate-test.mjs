@@ -6,6 +6,16 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+/* 导航格数从 site.js 现算，不写死 ——
+   写死的话每加一个页面就报"顶栏格数 = 7"这种假失败，白查一轮（踩过）。 */
+const NAV_COUNT = (() => {
+  const src = readFileSync(new URL('../js/lib/site.js', import.meta.url), 'utf8');
+  const i = src.indexOf('export const NAV');
+  const block = src.slice(i, src.indexOf('];', i));
+  return (block.match(/id:\s*'/g) || []).length;
+})();
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const chromePath = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => existsSync(p));
@@ -84,8 +94,10 @@ try {
     });
   })()`));
   console.log('       首页导航 ' + JSON.stringify(navLock));
-  if (navLock.navCount === 6) ok('顶栏六格（首页也走 mountShell 了）');
-  else bad('顶栏格数 = ' + navLock.navCount);
+  /* 格数从 site.js 的 NAV 现算，不写死 ——
+     加一个页面就报"顶栏格数 = 7"这种假失败，白查一轮（踩过）。 */
+  if (navLock.navCount === NAV_COUNT) ok('顶栏 ' + NAV_COUNT + ' 格（首页也走 mountShell 了）');
+  else bad('顶栏格数 = ' + navLock.navCount + '，应为 ' + NAV_COUNT);
   if (navLock.locked && navLock.hasIcon) ok('「附录」那一格显示为锁着');
   else bad('导航没上锁：' + JSON.stringify(navLock));
 
