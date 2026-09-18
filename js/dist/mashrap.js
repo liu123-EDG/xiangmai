@@ -2303,6 +2303,10 @@ function mountShell(opts) {
     '<span class="sound__ring" aria-hidden="true"></span>' +
     '<span class="sound__text" id="sound-text">声音 关</span></button>';
 
+  /* 窄屏用一个三条横杠的按钮把导航收起来 ——
+     七个章节在手机上横排太挤（用户直接说"给人感觉很挤"）。
+     按钮只在窄屏出现（CSS 控制），宽屏看不见、也不改变原有排布。
+     无障碍：aria-expanded 跟着开合，Esc 关闭，点了链接自动收起。 */
   topbar.innerHTML =
     '<a class="brand" href="' + base + 'index.html" aria-label="弦脉 Stringline Heritage 首页">' +
       '<i class="brand__glyph" aria-hidden="true"></i>' +
@@ -2310,9 +2314,44 @@ function mountShell(opts) {
       '<span class="brand__latin">Stringline Heritage</span>' +
     '</a>' +
     '<div class="topbar__right">' +
-      '<nav aria-label="站点章节"><ul class="sitelinks">' + links + '</ul></nav>' +
+      '<button class="navburger" id="nav-burger" type="button"' +
+        ' aria-controls="site-nav" aria-expanded="false" aria-label="展开章节导航">' +
+        '<i class="navburger__bar" aria-hidden="true"></i>' +
+        '<i class="navburger__bar" aria-hidden="true"></i>' +
+        '<i class="navburger__bar" aria-hidden="true"></i>' +
+      '</button>' +
+      '<nav aria-label="站点章节" id="site-nav"><ul class="sitelinks">' + links + '</ul></nav>' +
       sound +
     '</div>';
+
+  /* 横杠按钮的开合 */
+  const burger = $('#nav-burger', topbar);
+  const wrap = topbar.querySelector('.topbar__right');
+  const setOpen = (open) => {
+    if (wrap) wrap.classList.toggle('is-open', open);
+    if (burger) burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.body.classList.toggle('nav-open', open);
+  };
+  if (burger) {
+    burger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(!(wrap && wrap.classList.contains('is-open')));
+    });
+    // 点空白处收起
+    document.addEventListener('click', (e) => {
+      if (!wrap || !wrap.classList.contains('is-open')) return;
+      if (topbar.contains(e.target)) return;
+      setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+    // 点了导航项就收起，不然展开的菜单会挡着刚打开的页面
+    topbar.addEventListener('click', (e) => {
+      const a = e.target.closest ? e.target.closest('.sitelinks a') : null;
+      if (a) setOpen(false);
+    });
+  }
 
   /* 锁着的导航项：点了不跳，而是把人送去该去的地方，并给一句提示。
      用捕获阶段拦，免得别处的处理器先跳走。 */

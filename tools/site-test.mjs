@@ -182,15 +182,54 @@ try {
         const hit = document.elementFromPoint(Math.round(r.left + r.width/2), Math.round(r.top + r.height/2));
         if (hit && (hit === a || a.contains(hit))) clickable++;
       });
-      return JSON.stringify({ visible: vis.length, clickable });
+      const burger = document.getElementById('nav-burger');
+      return JSON.stringify({
+        visible: vis.length, clickable,
+        hasBurger: !!burger,
+        burgerShown: burger ? getComputedStyle(burger).display !== 'none' : false,
+      });
     })()`));
-    const good = s.visible === NAV_COUNT;
-    if (!good) navFails++;
-    console.log('  ' + (good ? 'ok  ' : 'FAIL') + ' ' + String(w).padStart(4) + 'px  可见 ' +
-      s.visible + '/' + NAV_COUNT + '  可点 ' + s.clickable);
+
+    /* 窄屏现在的设计是：导航**收进横杠**，点开才展开。
+       所以判据分两种：
+         宽屏 —— 七个链接都看得见、可点
+         窄屏 —— 横杠出现，点一下之后七个链接都看得见、可点
+       早先只验"一直可见"，改成横杠后就会报假失败。 */
+    if (s.hasBurger && s.burgerShown) {
+      const after = JSON.parse(await evalJs(`(() => {
+        document.getElementById('nav-burger').click();
+        const links = [...document.querySelectorAll('.sitelinks a')];
+        const vis = links.filter(a => {
+          const r = a.getBoundingClientRect();
+          const cs = getComputedStyle(a);
+          return r.width > 0 && r.height > 0 && cs.display !== 'none' &&
+                 cs.visibility !== 'hidden' && parseFloat(cs.opacity) > 0.1;
+        });
+        let clickable = 0;
+        vis.forEach(a => {
+          const r = a.getBoundingClientRect();
+          if (r.right < 0 || r.left > innerWidth || r.bottom < 0 || r.top > innerHeight) return;
+          const hit = document.elementFromPoint(Math.round(r.left + r.width/2), Math.round(r.top + r.height/2));
+          if (hit && (hit === a || a.contains(hit))) clickable++;
+        });
+        const open = document.querySelector('.topbar__right').classList.contains('is-open');
+        const expanded = document.getElementById('nav-burger').getAttribute('aria-expanded');
+        return JSON.stringify({ visible: vis.length, clickable, open, expanded });
+      })()`));
+      const good = after.open && after.visible === NAV_COUNT && after.clickable === NAV_COUNT;
+      if (!good) navFails++;
+      console.log('  ' + (good ? 'ok  ' : 'FAIL') + ' ' + String(w).padStart(4) +
+        'px  横杠收起（可见 ' + s.visible + '）→ 点开 ' + after.visible + '/' + NAV_COUNT +
+        '  可点 ' + after.clickable + '  aria-expanded=' + after.expanded);
+    } else {
+      const good = s.visible === NAV_COUNT;
+      if (!good) navFails++;
+      console.log('  ' + (good ? 'ok  ' : 'FAIL') + ' ' + String(w).padStart(4) + 'px  可见 ' +
+        s.visible + '/' + NAV_COUNT + '  可点 ' + s.clickable);
+    }
   }
-  if (navFails === 0) ok('各宽度下导航 ' + NAV_COUNT + ' 格均在，且可点');
-  else bad(navFails + ' 个宽度下导航不完整 —— 小屏用户会串不起页面');
+  if (navFails === 0) ok('各宽度下导航都完整可用（宽屏直显 / 窄屏收进横杠，点开即用）');
+  else bad(navFails + ' 个宽度下导航不可用 —— 小屏用户会串不起页面');
 
   ws.close();
 } catch (e) { bad('自检中断：' + e.message); }
