@@ -82,7 +82,7 @@ try {
   const st = JSON.parse(await evalJs(`(() => {
     const host = document.getElementById('hero-video');
     const vs = host ? [...host.querySelectorAll('video')] : [];
-    const go = document.querySelector('.go');
+    const go = document.querySelector('.w-go');
     return JSON.stringify({
       hasHost: !!host,
       videos: vs.length,
@@ -154,7 +154,7 @@ try {
   else bad('「进入」的链接不对：' + st.goHref);
   if (st.goVisible) ok('「进入」可见且可点');
   else bad('「进入」不可见');
-  await evalJs(`document.querySelector('.go').click()`);
+  await evalJs(`document.querySelector('.w-go').click()`);
   await sleep(1800);
   const landed = await evalJs('location.pathname');
   if (landed.indexOf('welcome') < 0) ok('点「进入」成功跳到序章：' + landed);
