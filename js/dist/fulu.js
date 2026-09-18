@@ -3630,7 +3630,13 @@ function buildInheritGame(opts = {}) {
     text.textContent = '两处地方，两次选择，两样文化都还在。' +
       (state.tried ? '你走过一次弯路——那条路上没有人。' : '');
     hideOthers();
+    /* 把选项**内容也清掉**，不只是隐藏。
+       光靠 hidden 不够稳：.g-choices 上有 display: grid，
+       它会盖掉 hidden 属性自带的 display:none，
+       结果"隐藏"了的按钮照样显示（踩过，截图里和结尾页叠在一起）。
+       CSS 那边已经补了 [hidden] 规则，这里再把内容清空，双保险。 */
     choices.hidden = true;
+    choices.innerHTML = '';
     progress.textContent = '（结尾页待做）';
   }
 
