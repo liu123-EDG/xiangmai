@@ -3349,7 +3349,11 @@ if (host) {
       // 主题曲淡入；同时解锁其他民族的页面
       theme.start(2.6);
       unlock.set();
-    },    onChange: (n, max) => {
+      // 圈满了，操作提示就该退场
+      const hint = document.getElementById('mq-hint');
+      if (hint) hint.classList.add('is-done');
+    },
+    onChange: (n, max) => {
       const r = n / max;
       // 驱动背景纹样：人越多越亮、越推近
       if (ctx.renderer) {
@@ -3360,6 +3364,10 @@ if (host) {
       if (ctx.seq) {
         ctx.seq.setBand(r < 0.35 ? 0 : r < 0.75 ? 1 : 2);
       }
+      /* 提示**一直留着**，直到圈满。
+         一开始我写成"点一下就收掉"，但那正好毁掉它的用处 ——
+         用户点了一下、提示消失，就以为完事了，不会接着点。
+         它要说的就是"别停"，那就得陪着到终点。 */
       if (readout) {
         const [title, text] = stage(n, max);
         readout.innerHTML = '<b>' + title + '</b>' + text +

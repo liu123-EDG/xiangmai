@@ -1309,6 +1309,29 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   filter: drop-shadow(0 0 5px rgba(246, 226, 171, 0.9));
 }
 
+/* 操作提示：告诉人要**一直**点，不是点一下。
+   放在圆圈正上方，字距拉开 + 缓慢呼吸 —— 看得见但不吵。
+   圈满了就淡掉（由 js 加 is-done）。 */
+.mq-hint {
+  margin: clamp(1.4rem, 3.5vh, 2.6rem) auto 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.5vmin, 0.98rem);
+  letter-spacing: 0.52em;
+  text-indent: 0.52em;
+  color: var(--amber);
+  text-align: center;
+  transition: opacity 1.2s var(--ease-slow), letter-spacing 1.2s var(--ease-slow);
+  animation: mqHintBreath 3.2s ease-in-out infinite;
+}
+.mq-hint.is-done { opacity: 0; letter-spacing: 0.7em; }
+@keyframes mqHintBreath {
+  0%, 100% { opacity: 0.62; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq-hint { animation: none; opacity: 0.9; }
+}
+
 .mq-readout {
   width: min(560px, 92vw);
   min-height: 4.6em;

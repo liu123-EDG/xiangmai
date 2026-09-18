@@ -1,22 +1,35 @@
 /* ==========================================================================
    入口页
    --------------------------------------------------------------------------
-   整屏循环播放概念片，永不让位。
+   一整屏，只放那条概念片。
 
-   复用 js/lib/hero-video.js —— 那是给序章写的同一套东西，
-   只要把 fadeStart 设成 2（进度永远到不了）并且不调用 setProgress，
-   视频就一直循环、永不淡出。不用再写一份循环逻辑。
+   这条片子就是 tools/film.html 那一版，时间轴原样搬过来，一秒没改。
+   —— 早先我另做了一版"循环用"的，把文字那段删掉了，那是错的：
+      用户要的就是带「十二木卡姆」的那一版。这里按原版还原。
 
-   文字浮现：第三段（黑场那道金线）上浮出「十二木卡姆」。
-   —— 这段本来是有的。我做"可循环"版本时为了能接回开头，
-      把整块文字层删掉了，结果整条片子里再也没出现过那几个字。
-      现在按循环时钟接回来：第三段走到约 0.9 秒开始浮现，
-      循环回第一段之前淡掉，不会硬切。
+   视频本身复用 js/lib/hero-video.js（序章那套同一份代码），
+   文字、浮尘、片尾亮起入口，由本文件按时钟驱动。
 
-   手机上不启用视频：三段全屏视频对手机太重，
-   那时这页退化成"暖光底 + 品牌 + 进入"，一样能用。
+   手机上不放视频：三段全屏视频对手机太重，退化成"暖光底 + 入口"。
    ========================================================================== */
 import { buildHeroVideo, isDesktop } from '../lib/hero-video.js';
+
+/* ---- 时间轴（与 tools/film.html 一致，改这里要两边一起改） ---- */
+const CLIP = 5.09;
+const T2 = CLIP;                 // 5.09   第二段
+const T3 = CLIP * 2;             // 10.18  第三段
+const LOOP_LEN = 17.60;          // 整圈长度（片尾淡出到黑之后回开头）
+
+const T = {
+  bloom:   9.00,                 // 暖光起（第二段末尾已经在变黑）
+  ugIn:    9.80,                 // 维吾尔文开始浮现
+  ugFull: 12.20,                 // 完全清晰
+  rule:   12.50,                 // 分隔线展开
+  cn:     12.60,                 // 中文
+  lat:    12.90,                 // 英文
+  litGo:  16.40,                 // 片尾黑场：入口亮起来
+  end:    17.60,                 // 全黑
+};
 
 const host = document.getElementById('hero-video');
 const title = document.getElementById('w-title');
@@ -24,97 +37,140 @@ const ug = title && title.querySelector('.w-title__ug');
 const rule = title && title.querySelector('.w-title__rule');
 const cn = title && title.querySelector('.w-title__cn');
 const lat = title && title.querySelector('.w-title__lat');
+const go = document.getElementById('w-go');
+const dustCv = document.getElementById('w-dust');
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* 和 hero-video 里的时间轴对齐：三段各 5.09 秒 */
-const CLIP = 5.09;
-const T3 = CLIP * 2;            // 10.18：第三段开始
-const LOOP_LEN = 15.90;         // 整圈长度
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const easeOut = (x) => 1 - Math.pow(1 - x, 3);
 
-/**
- * 按整圈秒数推进文字。s 是"相对第三段起点"的秒数。
- *
- *   0.9 – 3.5   维吾尔文浮现（模糊 → 清晰，暗 → 亮）
- *   2.9 – 4.0   分隔线展开（正好压在视频那道金线上）
- *   3.0 – 4.3   中文
- *   3.3 – 4.6   英文
- *   4.9 – 5.8   整体淡掉，接回第一段
- */
-function tickTitle(t) {
-  if (!title) return;
-  const s = t - T3;
-
-  if (s < 0) {                       // 还没到第三段：全部藏起来
-    if (ug) { ug.style.opacity = '0'; ug.style.filter = 'blur(20px) brightness(0.4)'; }
-    if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
-    if (cn) cn.style.opacity = '0';
-    if (lat) lat.style.opacity = '0';
-    return;
+/* ---------------------------------------------------------------- 浮尘 */
+/* 给黑场一点空气。不做"发光粒子"，只做极暗的、缓慢下沉的尘点 ——
+   高级感的来源是克制。 */
+let dustOn = false;
+function initDust() {
+  if (!dustCv) return null;
+  const g = dustCv.getContext('2d');
+  let W = 0, H = 0, dpr = 1, t = 0;
+  const motes = [];
+  for (let i = 0; i < 80; i++) {
+    motes.push({
+      x: Math.random(), y: Math.random(),
+      r: Math.random() * 1.4 + 0.4,
+      vy: Math.random() * 0.0002 + 0.00005,
+      vx: (Math.random() - 0.5) * 0.00007,
+      a: Math.random() * 0.45 + 0.12,
+      ph: Math.random() * Math.PI * 2,
+    });
   }
-
-  // 整体淡出（循环出去之前）
-  const fade = 1 - clamp01((s - 4.9) / 0.9);
-
-  // 维吾尔文：浮现
-  const p = clamp01((s - 0.9) / 2.6);
-  const e = easeOut(p);
-  if (ug) {
-    ug.style.opacity = String((p <= 0 ? 0 : Math.min(1, p * 1.5)) * fade);
-    ug.style.filter = 'blur(' + (20 * (1 - e)).toFixed(2) + 'px) brightness(' +
-      (0.4 + 0.6 * e).toFixed(3) + ')';
+  function resize() {
+    const r = dustCv.getBoundingClientRect();
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = dustCv.width = Math.max(1, Math.round(r.width * dpr));
+    H = dustCv.height = Math.max(1, Math.round(r.height * dpr));
   }
-  if (rule) {
-    const rp = clamp01((s - 2.9) / 1.1);
-    rule.style.width = (easeOut(rp) * 30).toFixed(2) + 'vmin';
-    rule.style.opacity = String(rp * fade);
-  }
-  if (cn) cn.style.opacity = String(clamp01((s - 3.0) / 1.3) * fade);
-  if (lat) lat.style.opacity = String(clamp01((s - 3.3) / 1.3) * fade);
+  resize();
+  window.addEventListener('resize', resize);
+  return function draw(alpha) {
+    dustCv.style.opacity = String(alpha);
+    if (alpha <= 0.01) return;
+    t += 1 / 60;
+    g.clearRect(0, 0, W, H);
+    for (const m of motes) {
+      m.y += m.vy; m.x += m.vx;
+      if (m.y > 1.02) { m.y = -0.02; m.x = Math.random(); }
+      if (m.x < -0.02) m.x = 1.02;
+      if (m.x > 1.02) m.x = -0.02;
+      const a = m.a * (0.55 + 0.45 * Math.sin(t * 0.5 + m.ph));
+      const px = m.x * W, py = m.y * H, rr = m.r * dpr;
+      const grd = g.createRadialGradient(px, py, 0, px, py, rr * 4);
+      grd.addColorStop(0, 'rgba(242,228,196,' + (a * 0.8).toFixed(3) + ')');
+      grd.addColorStop(1, 'rgba(242,228,196,0)');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(px, py, rr * 4, 0, Math.PI * 2); g.fill();
+    }
+  };
 }
 
-/* 用 setInterval 推进文字 —— 不该跟着帧率走，
-   而且 rAF 在后台标签页会被节流。200ms 足够细。 */
+/* ------------------------------------------------------- 按时钟推进画面 */
+function paint(t) {
+  /* 文字 */
+  if (title) {
+    const p = clamp01((t - T.ugIn) / (T.ugFull - T.ugIn));
+    const e = easeOut(p);
+    if (ug) {
+      ug.style.opacity = t < T.ugIn ? '0' : String(e.toFixed(3));
+      ug.style.filter = 'blur(' + (20 * (1 - e)).toFixed(2) + 'px) brightness(' +
+        (0.4 + 0.6 * e).toFixed(3) + ')';
+    }
+    if (rule) {
+      const rp = clamp01((t - T.rule) / 1.1);
+      rule.style.width = (easeOut(rp) * 30).toFixed(2) + 'vmin';
+      rule.style.opacity = rp.toFixed(3);
+    }
+    if (cn) cn.style.opacity = clamp01((t - T.cn) / 1.4).toFixed(3);
+    if (lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
+  }
+  /* 片尾黑场那两秒：入口亮起来，提示该进去了 */
+  if (go) go.classList.toggle('is-lit', t >= T.litGo);
+  /* 浮尘：黑场起来之后才看得见 */
+  if (dustOn) dustOn(clamp01((t - T.bloom) / 4) * 0.8);
+}
+
+function reset() {
+  if (ug) { ug.style.opacity = '0'; ug.style.filter = 'blur(20px) brightness(0.4)'; }
+  if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
+  if (cn) cn.style.opacity = '0';
+  if (lat) lat.style.opacity = '0';
+  if (go) go.classList.remove('is-lit');
+  if (dustOn) dustOn(0);
+}
+
+/* 用 setInterval 而不是 rAF：时钟不该跟着帧率走，
+   而且 rAF 在后台标签页会被节流甚至停掉。80ms 足够细。
+
+   **关键：时钟取自 hero-video 本身**（film.now()），不另起一个。
+   早先我自己拿 performance.now() 起算，两边会漂移 ——
+   表现是"文字在该出现的时候已经没了"（踩过）。
+   画面和文字必须共用一个时钟。 */
 let timer = 0;
-function startTitleClock(beganAt) {
-  if (timer || !title) return;
+function startClock(film) {
+  if (timer) return;
+  let last = -1;
   timer = setInterval(() => {
-    tickTitle(((performance.now() - beganAt) / 1000) % LOOP_LEN);
-  }, 200);
+    const t = film.now() % LOOP_LEN;
+    if (t < last) reset();     // 绕回开头了：清干净再画
+    last = t;
+    paint(t);
+  }, 80);
 }
 
+/* ---------------------------------------------------------------- 启动 */
 if (host && isDesktop() && !reduced) {
+  dustOn = initDust();
+  reset();
+
   const film = buildHeroVideo({
     host,
     base: '../',          // 这一页在子目录里，素材路径要往上一层
-    /* 关键：让位阈值设成不可能达到的值 ——
-       这一页的视频是主角，不该因为任何滚动而淡出。 */
+    /* 让位阈值设成不可能达到的值 —— 这一页的视频是主角，不该淡出。
+       而且这页锁了滚动，本来也没有进度可算。 */
     fadeStart: 2,
     fadeEnd: 3,
     reduced: false,
   });
 
   if (film) {
-    const beganAt = performance.now();   // 与 film.start() 同一时刻起算
     film.start();
     setTimeout(() => film.start(), 400); // 有些环境要等 readyState 到位
-    startTitleClock(beganAt);
+    startClock(film);                    // 文字跟着**视频的**时钟走
   }
 
   window.__XM_FILM__ = film;
-} else if (host) {
-  /* 手机 / 减弱动效：去掉视频层，露出 .w-wait 那层暖光底。
-     文字也不浮 —— 没有画面托着，字突然出现会很怪。 */
-  host.remove();
+  window.__XM_PAINT__ = paint;           // 自检用：可以拨到任意时刻看状态
+} else {
+  /* 手机 / 减弱动效：去掉视频和文字，只留暖光底和入口 */
+  if (host) host.remove();
   if (title) title.remove();
+  if (dustCv) dustCv.remove();
 }
-
-/* 视频没起来时给个提示，别让人对着一片黑等 */
-setTimeout(() => {
-  const f = window.__XM_FILM__;
-  const first = host && host.querySelector('video');
-  const ok = f && first && first.readyState >= 2;
-  if (!ok) document.body.classList.add('film-slow');
-}, 4000);

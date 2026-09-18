@@ -116,6 +116,29 @@ try {
   if (after5.readout.length > 2) ok('读数文字已更新：' + after5.readout);
   else bad('读数没更新');
 
+  /* 操作提示「请一直点击」：圈满之前不该消失。
+     我一度写成"点一下就收掉"，那正好毁掉它的用处 ——
+     用户点一下、提示没了，就以为完事了。所以要盯着这条。 */
+  const hint = JSON.parse(await evalJs(`(() => {
+    const h = document.getElementById('mq-hint');
+    return JSON.stringify({
+      exists: !!h,
+      text: h ? h.textContent.trim() : null,
+      done: h ? h.classList.contains('is-done') : null,
+      opacity: h ? +(+getComputedStyle(h).opacity).toFixed(2) : null,
+    });
+  })()`));
+  console.log('       操作提示 ' + JSON.stringify(hint));
+  if (hint.exists && hint.text && hint.text.indexOf('一直点') >= 0) {
+    ok('有「请一直点击」提示：' + hint.text);
+  } else {
+    bad('缺操作提示：' + JSON.stringify(hint));
+  }
+  if (hint.done) bad('才点 5 下提示就消失了 —— 那正好毁掉它的用处');
+  else ok('还没满圈，提示仍在（这是对的）');
+  if (hint.opacity > 0.3) ok('提示可见（opacity=' + hint.opacity + '）');
+  else bad('提示看不见：' + hint.opacity);
+
   // 滚到互动屏再加人，截出来的才是圆圈本身
   await evalJs(`(() => {
     const a = document.getElementById('mq-act');

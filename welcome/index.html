@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="ug">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,22 +16,34 @@
   /* ==========================================================================
      入口页
      --------------------------------------------------------------------------
-     这一页只做一件事：**一整屏视频**，加一个"进入"。
+     一整屏，只放这条概念片，别的不许出现。
 
-     为什么单独开一页：序章的视频是"引子"，滚下去就要让位给三段结构柱 ——
-     那是序章的设计。但如果想要"第一眼就是一整屏画面，别的不许出现"，
-     那就得有一页**不让位**的地方。这里就是。
+     这条片子就是 tools/film.html 那一版，时间轴原样搬过来，
+     一秒没改（早先我另做了一版"循环用"的，把文字那段删掉了，是错的）：
 
-     视频复用 js/lib/hero-video.js：把 fadeStart 设成 2（永远达不到），
-     它就一直循环、永不淡出。滚动在这页被锁住。
+       0.00 –  5.09   第一段  壁画推进
+       5.09 – 10.18   第二段  颜色抽干
+       9.00          暖光起（文字从第二段末尾就开始浮）
+       9.80 – 12.20   维吾尔文浮现（模糊 → 清晰）
+      12.50          分隔线展开
+      12.60 – 12.90   中文、英文
+      13.40 – 16.40   定格三秒
+      16.40 – 17.60   淡出到黑
+      17.60 →  0      回到开头，循环
+
+     品牌和引导语都撤了 —— 它们会压住画面。
+     入口做成角落一个很轻的链接，只在片尾那两秒亮起来。
+
+     类名一律带 w- 前缀：styles.css 是序章的样式表，
+     里面有 .entry / .foot / .brand 这些通用名（而且给它们设了隐藏），
+     入口页用同名会被按住 —— 已经因此踩过两次。
      ========================================================================== */
   html, body {
     margin: 0; height: 100%;
-    background: #000; overflow: hidden;   /* 这一页不许滚 */
+    background: #000; overflow: hidden;      /* 这一页不许滚 */
+    scrollbar-width: none;
   }
-  /* 滚动条也不要 */
   body::-webkit-scrollbar { display: none; }
-  body { scrollbar-width: none; }
 
   #stage { position: fixed; inset: 0; background: #000; }
 
@@ -46,19 +58,31 @@
     width: 100%; height: 100%;
     object-fit: cover;
     opacity: 0;
-    transition: opacity 0.6s linear;
+    transition: opacity 0.5s linear;
   }
   #hero-video video.on { opacity: 1; }
 
-  /* ---- 文字浮现层 ----
-     放在第三段（黑场那道金线）上：维吾尔文从模糊里凝出来，
-     金线正好成了它和中文之间的分隔。循环回第一段之前淡掉。
-     这段本来是有的，做"可循环"版本时被我删掉了 —— 现在接回来。 */
+  /* 极轻的压暗：只在四角收一下视线，中间不动，保住画面的冲击力 */
+  .w-vig {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(closest-side at 50% 50%,
+      rgba(0,0,0,0) 46%, rgba(0,0,0,0.42) 100%);
+  }
+
+  /* ---- 浮尘 ---- */
+  .w-dust {
+    position: absolute; inset: 0; z-index: 3;
+    width: 100%; height: 100%;
+    mix-blend-mode: screen; opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ---- 文字浮现层 ---- */
   .w-title {
     position: absolute; inset: 0; z-index: 4;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 1.6vmin;
+    gap: 2.2vmin;
     text-align: center;
     pointer-events: none;
   }
@@ -67,151 +91,73 @@
     unicode-bidi: isolate;
     font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri",
                  "Segoe UI", Tahoma, serif;
-    font-size: clamp(28px, 6.4vmin, 104px);
+    font-size: clamp(28px, 6.8vmin, 112px);
     line-height: 1.5;
     white-space: nowrap;
     color: #f2e4c4;
-    text-shadow: 0 0 26px rgba(217, 178, 104, 0.34), 0 0 74px rgba(217, 178, 104, 0.16);
-    /* 透明度与模糊由 js 按帧写 */
+    text-shadow: 0 0 26px rgba(217, 178, 104, 0.32), 0 0 74px rgba(217, 178, 104, 0.15);
     opacity: 0;
     filter: blur(20px) brightness(0.4);
   }
   .w-title__rule {
     width: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(217, 178, 104, 0.6), transparent);
+    background: linear-gradient(90deg, transparent, rgba(217, 178, 104, 0.55), transparent);
     opacity: 0;
   }
   .w-title__cn {
     font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
-    font-size: clamp(11px, 1.9vmin, 30px);
+    font-size: clamp(11px, 2vmin, 32px);
     letter-spacing: 0.62em; text-indent: 0.62em;
     color: #d8cfb8;
     opacity: 0;
   }
   .w-title__lat {
     font-family: var(--font-sans);
-    font-size: clamp(7px, 1.05vmin, 16px);
+    font-size: clamp(7px, 1.1vmin, 17px);
     letter-spacing: 0.66em; text-indent: 0.66em;
     color: rgba(216, 207, 184, 0.55);
     opacity: 0;
   }
 
-  /* ---- 压暗：让字压得住，但不压掉画面的冲击力 ---- */
-  .w-scrim {
-    position: absolute; inset: 0; z-index: 2; pointer-events: none;
-    background:
-      linear-gradient(180deg,
-        rgba(6, 5, 4, 0.50) 0%,
-        rgba(6, 5, 4, 0.12) 26%,
-        rgba(6, 5, 4, 0.26) 55%,
-        rgba(6, 5, 4, 0.84) 100%),
-      radial-gradient(closest-side at 50% 50%,
-        rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.48) 100%);
-  }
-
-  /* ---- 内容 ----
-     类名一律加 w- 前缀。
-     为什么：styles.css 是序章的样式表，里面有 .entry / .foot / .brand
-     这些通用名（而且序章给它们设了 opacity:0 / visibility:hidden，
-     只在特定幕才显形）。入口页只要用同名，就会被那些规则按住。
-     已经因此踩过两次（.entry 让整块内容不显示、.foot 让居中偏掉），
-     所以这里统一前缀，彻底避开。 */
-  .w-wrap {
-    position: absolute; inset: 0; z-index: 3;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: space-between;
-    padding: clamp(1.6rem, 4vh, 3.4rem) clamp(1.4rem, 5vw, 3.4rem);
-    text-align: center;
-    pointer-events: none;   /* 只有按钮可点，别挡住鼠标手势 */
-  }
-
-  .w-brand {
-    display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
-    opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.35s forwards;
-  }
-  .w-brand__glyph {
-    width: 26px; height: 26px;
-    background:
-      linear-gradient(180deg,
-        #3a2b28 0 34%, rgba(0,0,0,0) 34% 36%,
-        #1e3038 36% 67%, rgba(0,0,0,0) 67% 69%,
-        #c08a3e 69% 100%);
-    box-shadow: 0 0 26px -6px rgba(192, 138, 62, 0.6);
-  }
-  .w-brand__name {
-    font-family: var(--font-serif);
-    font-size: clamp(1.5rem, 3.4vw, 2.4rem);
-    letter-spacing: 0.52em; text-indent: 0.52em;
-    color: var(--bone);
-    text-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 2px 20px rgba(0, 0, 0, 1);
-  }
-  .w-brand__latin {
-    font-family: var(--font-sans);
-    font-size: clamp(0.58rem, 1vw, 0.72rem);
-    letter-spacing: 0.6em; text-indent: 0.6em;
-    color: rgba(222, 214, 200, 0.5);
-    text-shadow: 0 1px 12px rgba(0, 0, 0, 1);
-  }
-
-  .w-foot {
-    display: flex; flex-direction: column; align-items: center; gap: 1.3rem;
-    /* 按钮别让人等 —— 1.9 秒内到位。
-       早先 1.4s 延迟 + 2.4s 时长 = 3.8 秒才完全出现，太慢。 */
-    opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.9s forwards;
-  }
-  .w-tagline {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-size: clamp(0.68rem, 1.15vw, 0.82rem);
-    letter-spacing: 0.36em; text-indent: 0.36em;
-    line-height: 2.2;
-    color: rgba(222, 214, 200, 0.72);
-    text-shadow: 0 1px 16px rgba(0, 0, 0, 1);
-  }
-
+  /* ---- 入口：角落一个很轻的链接 ----
+     平时很淡，不跟画面抢；只在片尾黑场那两秒亮起来（js 加 is-lit）。 */
   .w-go {
-    pointer-events: auto;
-    display: inline-flex; align-items: center; gap: 0.9rem;
-    padding: 0.95rem 2.1rem;
+    position: absolute; z-index: 5;
+    right: clamp(1.2rem, 3.5vw, 2.6rem);
+    bottom: clamp(1.2rem, 3.5vh, 2.2rem);
+    display: inline-flex; align-items: center; gap: 0.7rem;
+    padding: 0.6rem 1.3rem;
     font-family: var(--font-sans);
-    font-size: clamp(0.74rem, 1.15vw, 0.86rem);
+    font-size: clamp(0.7rem, 1.1vw, 0.82rem);
     letter-spacing: 0.34em; text-indent: 0.34em;
-    color: var(--bone);
+    color: rgba(222, 214, 200, 0.42);
     text-decoration: none;
-    background: rgba(8, 7, 6, 0.42);
-    border: 1px solid rgba(222, 214, 200, 0.28);
+    border: 1px solid rgba(222, 214, 200, 0.16);
+    background: rgba(8, 7, 6, 0.30);
     backdrop-filter: blur(3px);
-    transition: border-color .6s var(--ease-slow), background .6s var(--ease-slow),
-                color .6s var(--ease-slow), letter-spacing .6s var(--ease-slow);
+    transition: opacity .9s var(--ease-slow), color .9s var(--ease-slow),
+                border-color .9s var(--ease-slow), background .9s var(--ease-slow);
   }
   .w-go:hover, .w-go:focus-visible {
+    color: #f2e4c4;
     border-color: rgba(192, 138, 62, 0.85);
     background: rgba(192, 138, 62, 0.14);
-    color: #f2e4c4;
-    letter-spacing: 0.4em;
     outline: none;
   }
-  .w-go__arrow { transition: transform .6s var(--ease-slow); }
-  .go:hover .w-go__arrow { transform: translateX(4px); }
-
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: none; }
+  /* 片尾那两秒亮起来，提示"该进去了" */
+  .w-go.is-lit {
+    color: rgba(242, 228, 196, 0.95);
+    border-color: rgba(192, 138, 62, 0.6);
+    background: rgba(192, 138, 62, 0.10);
   }
+  .w-go__arrow { transition: transform .6s var(--ease-slow); }
+  .w-go:hover .w-go__arrow { transform: translateX(4px); }
 
-  /* 视频还没起来时的底：一道极暗的暖光，避免纯黑一片像坏了 */
+  /* 视频还没起来时的底，避免一片纯黑像坏了 */
   .w-wait {
     position: absolute; inset: 0; z-index: 0;
     background: radial-gradient(closest-side at 50% 52%,
       rgba(120, 70, 26, 0.14) 0%, rgba(0, 0, 0, 0) 70%), #050403;
-  }
-
-  @media (max-width: 720px) {
-    .w-brand__name { letter-spacing: 0.34em; text-indent: 0.34em; }
-    .w-tagline { letter-spacing: 0.22em; text-indent: 0.22em; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .w-brand, .w-foot { animation-duration: .01s; animation-delay: 0s; opacity: 1; }
   }
 </style>
 </head>
@@ -220,18 +166,17 @@
 <div id="stage">
   <div class="w-wait"></div>
 
-  <!-- 概念片：整屏循环，永不让位。
-       src 由 js/pages/welcome.js 注入；手机上不启用（省流量、免卡顿）。 -->
+  <!-- 概念片：整屏循环，永不让位。src 由 js/pages/welcome.js 注入 -->
   <div id="hero-video" aria-hidden="true">
     <video muted playsinline preload="none"></video>
     <video muted playsinline preload="none"></video>
     <video muted playsinline preload="none"></video>
   </div>
 
-  <div class="w-scrim"></div>
+  <div class="w-vig"></div>
+  <canvas class="w-dust" id="w-dust" aria-hidden="true"></canvas>
 
-  <!-- 文字浮现：第三段（黑场那道金线）上浮出「十二木卡姆」。
-       维吾尔文按 rtl 排，金线正好成了它和中文之间的分隔。 -->
+  <!-- 文字浮现：第三段黑场里的那道金线上浮出「十二木卡姆」 -->
   <div class="w-title" id="w-title" aria-hidden="true">
     <div class="w-title__ug">ئون ئىككى مۇقام</div>
     <div class="w-title__rule"></div>
@@ -239,24 +184,10 @@
     <div class="w-title__lat">STRINGLINE HERITAGE</div>
   </div>
 
-  <div class="w-wrap">
-    <div class="w-brand">
-      <i class="w-brand__glyph" aria-hidden="true"></i>
-      <span class="w-brand__name">弦脉</span>
-      <span class="w-brand__latin">Stringline Heritage</span>
-    </div>
-
-    <div class="w-foot">
-      <p class="w-tagline">
-        丝路口传音乐的数字档案<br>
-        一套要二十小时才能听完的音乐，由三段构成
-      </p>
-      <a class="w-go" href="../index.html">
-        进入
-        <span class="w-go__arrow" aria-hidden="true">→</span>
-      </a>
-    </div>
-  </div>
+  <a class="w-go" id="w-go" href="../index.html">
+    进入
+    <span class="w-go__arrow" aria-hidden="true">→</span>
+  </a>
 </div>
 
 <script src="../js/dist/welcome.js" defer></script>

@@ -95,7 +95,7 @@ try {
      所以用真实等待 —— 每 1 秒看一眼，覆盖整圈 15.9 秒。 */
   console.log('\n   墙钟   文字op   blur      规则宽   中文op  英文op');
   const seen = { anyText: false, cnSeen: false, faded: false };
-  for (let i = 0; i < 19; i++) {
+  for (let i = 0; i < 21; i++) {
     const s = JSON.parse(await evalJs(`(() => {
       const t = document.getElementById('w-title');
       const ug = t.querySelector('.w-title__ug');

@@ -22,7 +22,7 @@
 const CLIP = 5.09;              // 每段时长（实测，见 tools/mp4info.mjs）
 const T2 = CLIP;                // 5.09
 const T3 = CLIP * 2;            // 10.18
-const LOOP_LEN = 15.90;         // 整圈长度；末尾留一点给交叉淡入
+const LOOP_LEN = 17.60;         // 整圈长度（三段放完 + 片尾定格与淡出）
 
 /** 桌面端？手机/平板不开这个 */
 export function isDesktop() {
@@ -138,7 +138,17 @@ export function buildHeroVideo(opts) {
       showClip(0);
       return;
     }
-    if (t >= T3) showClip(2);
+    if (t >= T3) {
+      showClip(2);
+      /* 第三段本身只有 5.09 秒，但整圈是 17.6 秒 ——
+         后面那几秒留给文字浮现和停留。
+         所以第三段播完就**停在最后一帧**，让黑场继续，
+         别让视频回到第一帧（那样文字就没画面托着了）。 */
+      const v = vids[2];
+      if (v.duration && !v.paused && v.currentTime >= v.duration - 0.06) {
+        try { v.pause(); } catch {}
+      }
+    }
     else if (t >= T2) showClip(1);
     else showClip(0);
   }
@@ -229,6 +239,11 @@ export function buildHeroVideo(opts) {
       mounted: vids.map((v) => !!v.dataset.mounted),
       ready: vids.map((v) => v.readyState),
       on: vids.map((v) => v.classList.contains('on')) }; },
+    /* 当前时钟位置（整圈秒数）。
+       别的图层（文字、浮尘）**必须**用它来对齐 ——
+       各自拿 performance.now() 起算会漂移，
+       表现是"文字在该出现的时候已经没了"（踩过，很难查）。 */
+    now() { return started ? (performance.now() - t0) / 1000 : 0; },
     /* 自检用：把时钟拨到某一秒。
        为什么不靠真等：无头浏览器会把后台页面的定时器节流到近乎停摆
        （实测 17 秒只走 1 秒），等真实时间等于等不到。
