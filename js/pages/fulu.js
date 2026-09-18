@@ -5,6 +5,7 @@ import { buildMelody, bindMelodyScroll } from '../lib/melody.js';
 import { MUQAM } from '../lib/muqam-data.js';
 import { HERITAGE } from '../lib/heritage-data.js';
 import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
+import { buildInheritGame } from '../lib/inherit-game.js';
 
 /* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
    所以 sound:false —— 免得鼓点和主题曲抢。 */
@@ -120,4 +121,15 @@ if (!unlock.done) {
 } else if (gateNote) {
   gateNote.remove();
 }
+
+/* ---- 传承之路（角色扮演） ----
+   放在附录最后一屏：你是一名非遗传承人，两处地方各做一次选择。
+   跟"上锁"无关 —— 它是这一页的正片结尾，不是入口，所以不参与 gate。
+
+   素材是 8 段视频（戈壁/草原 × 环境/活着/失传/案例），
+   桌面 960×540、手机 640×360，共 8.3 / 4.6 MB。
+   素材若缺，游戏会退化成 CSS 底色，机制照常能走完。 */
+const inherit = buildInheritGame({ reduced: REDUCED });
+// 自检用
+window.__XM_GAME__ = inherit;
 

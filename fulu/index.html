@@ -81,6 +81,31 @@
   <!-- 未解锁时的提示条（解锁后由 js 移除） -->
   <p class="gate-note" id="gate-note" aria-live="polite"></p>
 
+  <!-- ===================== 传承之路（角色扮演） =====================
+       接在附录最后：你是一名非遗传承人，两个场景各做一次选择。
+       选错 → 看到这条文化失传的样子 → 闪回，逼你重选。
+       选对 → 看到它还活着的证据 → 一个真实的传承案例。
+       素材是视频，还没做；没有视频时退化成纯色底，机制照常能走。 -->
+  <section class="act inherit-act" id="inherit-act" data-act="3">
+    <div class="inherit" id="inherit">
+      <div class="g-stage">
+        <div class="g-bg" id="g-bg" aria-hidden="true"></div>
+        <div class="g-scrim" aria-hidden="true"></div>
+
+        <div class="g-box">
+          <p class="g-kicker" id="g-kicker">传承之路</p>
+          <h2 class="g-title" id="g-title">你是一名非遗传承人</h2>
+          <p class="g-text" id="g-text"></p>
+          <div class="g-choices" id="g-choices" role="group" aria-label="选择"></div>
+          <p class="g-case" id="g-case" hidden></p>
+          <button class="g-next" id="g-next" type="button" hidden></button>
+        </div>
+
+        <p class="g-progress" id="g-progress" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
   <nav class="chapter-nav" aria-label="章节导航"></nav>
 
 </main>
