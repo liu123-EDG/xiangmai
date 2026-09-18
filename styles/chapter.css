@@ -1743,3 +1743,92 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
 
 /* 游戏页不要页脚章节导航（那一页只有一关） */
 .game-page .chapter-nav { display: none; }
+
+/* --------------------------------------------------------------------------
+   传承之路 · 入口卡片
+   --------------------------------------------------------------------------
+   原来是一条小字链接，用户说"不太明显啊，整个显眼的"。
+   改成整块可点的卡片：暖色描边、底色、悬停时微微抬起并亮起来。
+   卡片本身是 <a>，整块都能点 —— 不用瞄准文字。
+   -------------------------------------------------------------------------- */
+.g-invite {
+  display: block;
+  position: relative;
+  width: min(680px, 92vw);
+  margin: clamp(2.2rem, 6vh, 3.6rem) auto 0;
+  padding: clamp(1.6rem, 3.6vw, 2.4rem) clamp(1.4rem, 4vw, 2.6rem);
+  text-align: center;
+  text-decoration: none;
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(192, 138, 62, 0.14) 0%, rgba(0,0,0,0) 66%),
+    rgba(14, 12, 10, 0.72);
+  border: 1px solid rgba(192, 138, 62, 0.45);
+  transition: border-color .6s var(--ease-slow), transform .6s var(--ease-slow),
+              box-shadow .6s var(--ease-slow), background .6s var(--ease-slow);
+  /* 呼吸感：极慢的明暗起伏，让它在页面里"活着"，但不抢正文 */
+  animation: gInviteBreath 5s ease-in-out infinite;
+}
+@keyframes gInviteBreath {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 138, 62, 0.0), 0 18px 50px -30px rgba(0,0,0,0.9); }
+  50%      { box-shadow: 0 0 26px -6px rgba(192, 138, 62, 0.30), 0 18px 50px -30px rgba(0,0,0,0.9); }
+}
+.g-invite:hover, .g-invite:focus-visible {
+  border-color: rgba(192, 138, 62, 0.95);
+  transform: translateY(-3px);
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(192, 138, 62, 0.22) 0%, rgba(0,0,0,0) 66%),
+    rgba(20, 16, 12, 0.82);
+  outline: none;
+}
+/* 悬停时不再呼吸，免得和抬起动作打架 */
+.g-invite:hover { animation: none; box-shadow: 0 0 34px -6px rgba(192, 138, 62, 0.5); }
+
+.g-invite__tag {
+  display: block;
+  margin-bottom: 0.9rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.66rem, 1vw, 0.74rem);
+  letter-spacing: 0.46em; text-indent: 0.46em;
+  color: var(--amber);
+}
+.g-invite__title {
+  display: block;
+  margin-bottom: 1rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.3rem, 2.8vw, 1.95rem);
+  letter-spacing: 0.08em;
+  color: var(--bone);
+}
+.g-invite__lead {
+  display: block;
+  margin: 0 auto 1.6rem;
+  max-width: 30em;
+  font-family: var(--font-sans);
+  font-size: clamp(0.86rem, 1.3vw, 0.96rem);
+  line-height: 2.1;
+  color: rgba(222, 214, 200, 0.72);
+}
+.g-invite__lead strong { color: var(--bone); font-weight: 500; }
+.g-invite__go {
+  display: inline-flex; align-items: center; gap: 0.7rem;
+  padding: 0.72rem 1.7rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.78rem, 1.1vw, 0.86rem);
+  letter-spacing: 0.3em; text-indent: 0.3em;
+  color: var(--bone);
+  border: 1px solid rgba(192, 138, 62, 0.6);
+  background: rgba(192, 138, 62, 0.10);
+  transition: background .6s var(--ease-slow), border-color .6s var(--ease-slow);
+}
+.g-invite__go i { font-style: normal; transition: transform .6s var(--ease-slow); }
+.g-invite:hover .g-invite__go { background: rgba(192, 138, 62, 0.24); border-color: rgba(192, 138, 62, 0.95); }
+.g-invite:hover .g-invite__go i { transform: translateX(4px); }
+
+/* 瘦版：旋律图下面那个（藏族），占位小一点，别跟上面那张抢 */
+.g-invite--slim { width: min(460px, 88vw); padding: 1.3rem 1.6rem; }
+.g-invite--slim .g-invite__title { font-size: clamp(1.1rem, 2.2vw, 1.4rem); margin-bottom: 0.9rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .g-invite { animation: none; }
+  .g-invite, .g-invite__go { transition: none; }
+}

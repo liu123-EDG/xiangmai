@@ -56,11 +56,19 @@
       鼠标移到点上，或点一下，这里显示对应说明。
     </p>
 
-    <!-- 木卡姆那一关不是"十二套之一"，是这一整套文化的处境，
-         所以单开一个入口，不跟那十二个混在一起。 -->
-    <p class="wheel-enter reveal" data-delay="4">
-      <a href="../game/index.html?level=muqam">走进这一关 · 如果你是传承人 →</a>
-    </p>
+    <!-- 木卡姆那一关不是"十二套之一"，是这一整套文化的处境。
+         做成一张卡片，不做小字链接 —— 小字链接没人看得见（用户原话
+         "不太明显啊，整个显眼的"）。 -->
+    <a class="g-invite reveal" data-delay="4"
+       href="../game/index.html?level=muqam">
+      <span class="g-invite__tag">传承之路 · 第一关</span>
+      <span class="g-invite__title">你是一名非遗传承人</span>
+      <span class="g-invite__lead">
+        你来到新疆的戈壁滩。面前是一整套十二木卡姆——二十多个小时才能唱完，
+        全靠口传。<strong>你只有一次机会</strong>：你怎么做？
+      </span>
+      <span class="g-invite__go">走进这一关 <i aria-hidden="true">→</i></span>
+    </a>
   </section>
 
   <!-- ===================== 八个民族 ===================== -->
@@ -85,9 +93,12 @@
 
     <!-- 音符点击：已做关卡的直接进那一关（藏族→格萨尔），
          其余六族在读数区说明"还在制作中"。 -->
-    <p class="melody-enter reveal" data-delay="4">
-      已经能玩的是 <a href="../game/index.html?level=gesar">藏族 · 格萨尔</a> 那一关。
-    </p>
+    <a class="g-invite g-invite--slim reveal" data-delay="4"
+       href="../game/index.html?level=gesar">
+      <span class="g-invite__tag">传承之路 · 第二关</span>
+      <span class="g-invite__title">藏族 · 格萨尔</span>
+      <span class="g-invite__go">走进这一关 <i aria-hidden="true">→</i></span>
+    </a>
   </section>
 
   <!-- 未解锁时的提示条（解锁后由 js 移除） -->
