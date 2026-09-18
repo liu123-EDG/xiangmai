@@ -77,7 +77,9 @@ try {
     return JSON.parse(await evalJs(`(() => {
       const q = (s) => document.querySelector(s);
       const ug = q('.w-title__ug'), ru = q('.w-title__rule');
-      const cn = q('.w-title__cn'), la = q('.w-title__lat');
+      /* 中文那一行已取消（汉字提到上面当主标题），所以不再读 .w-title__cn ——
+         读不存在的元素会抛异常，把整个自检打断。 */
+      const la = q('.w-title__lat');
       const cl = window.__XM_FILM__.state().curClip;
       const f = getComputedStyle(ug).filter;
       return JSON.stringify({
@@ -85,7 +87,6 @@ try {
         op: +(+getComputedStyle(ug).opacity).toFixed(2),
         blur: +(f.match(/blur\\(([\\d.]+)px\\)/) || [0, 99])[1],
         rule: parseFloat(ru.style.width) || 0,
-        cn: +(+cn.style.opacity || 0).toFixed(2),
         lat: +(+la.style.opacity || 0).toFixed(2),
         lit: q('#w-go').classList.contains('is-lit'),
       });
@@ -95,19 +96,20 @@ try {
   const cases = [
     { s: 2.0,   clip: 0, text: 0,    why: '第一段壁画，无文字' },
     { s: 7.0,   clip: 1, text: 0,    why: '第二段抽色，无文字' },
-    { s: 11.0,  clip: 2, text: 0.3,  why: '第三段，维吾尔文正在浮现' },
-    { s: 13.0,  clip: 2, text: 0.95, why: '维吾尔文清晰 + 中文出现' },
+    { s: 11.0,  clip: 2, text: 0.3,  why: '第三段，标题正在浮现' },
+    { s: 13.0,  clip: 2, text: 0.95, why: '标题清晰 + 中文出现' },
     { s: 15.0,  clip: 2, text: 0.95, why: '定格段，文字仍在' },
     { s: 16.8,  clip: 2, text: 0.95, why: '片尾，入口应亮起' },
     { s: 0.5,   clip: 0, text: 0,    why: '绕回开头，文字应清干净' },
   ];
 
+  console.log('  时刻    段   标题op  blur    规则     英文   入口亮');
   for (const c of cases) {
     const r = await probe(c.s);
     console.log('   ' + String(c.s).padStart(4) + 's   ' + r.clip + '   ' +
       String(r.op).padStart(5) + '  ' + String(r.blur).padStart(5) + '  ' +
-      String(r.rule).padStart(5) + '  ' + String(r.cn).padStart(5) + '  ' +
-      String(r.lat).padStart(5) + '   ' + (r.lit ? '亮' : '暗') + '   ' + c.why);
+      String(r.rule).padStart(5) + '  ' + String(r.lat).padStart(5) + '   ' +
+      (r.lit ? '亮' : '暗') + '   ' + c.why);
     if (r.clip !== c.clip) bad(c.s + 's 的段号应是 ' + c.clip + '，实际 ' + r.clip);
   }
 
@@ -117,13 +119,16 @@ try {
 
   if (a.clip === 0 && a.op === 0) ok('第一段：壁画、无文字'); else bad('第一段状态不对');
   if (b.clip === 1 && b.op === 0) ok('第二段：抽色、无文字'); else bad('第二段状态不对');
-  if (c.op > 0.5 && c.op < 0.98 && c.blur > 0.5) ok('第三段：维吾尔文已基本浮现（op=' + c.op + ' blur=' + c.blur.toFixed(2) + '）');
+  if (c.op > 0.5 && c.op < 0.98 && c.blur > 0.5) ok('第三段：标题已基本浮现（op=' + c.op + ' blur=' + c.blur.toFixed(2) + '）');
   else bad('第三段文字状态不对：op=' + c.op + ' blur=' + c.blur);
-  if (d.op > 0.9 && d.blur < 1) ok('维吾尔文已清晰');
-  else bad('维吾尔文没清晰：op=' + d.op + ' blur=' + d.blur);
+  if (d.op > 0.9 && d.blur < 1) ok('标题已清晰');
+  else bad('标题没清晰：op=' + d.op + ' blur=' + d.blur);
   /* 中文在 12.6s 起、1.4 秒淡完 → 13s 时约一半，14s 才满。
      所以 13 秒这一档只要求"已经在出现"，不要求满。 */
-  if (d.cn > 0.3) ok('中文已开始出现（' + d.cn + '）'); else bad('中文没出现：' + d.cn);
+  /* 中文那一行已取消（汉字提到上面当主标题），改验英文站名 ——
+     它是标题之外唯一的文字。 */
+  if (d.lat > 0.1) ok('英文站名已开始出现（' + d.lat + '）');
+  else bad('英文站名没出现：' + d.lat);
   if (d.rule > 10) ok('分隔线已展开（' + d.rule.toFixed(1) + 'vmin）');
   else bad('分隔线没展开：' + d.rule);
   if (e.op > 0.9) ok('定格段文字仍清晰（片子最长的一段）');
