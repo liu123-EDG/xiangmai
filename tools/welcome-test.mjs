@@ -137,7 +137,7 @@ try {
     if (!f || !f.seek) return JSON.stringify({ err: '没有 seek 接口' });
     const a = f.seek(2);   // 第一段
     const b = f.seek(12);  // 第三段
-    const c = f.seek(16.2); // 过一圈
+    const c = f.seek(18.4); // 过一圈（整圈 17.6 秒，必须拨过它才算绕回）
     return JSON.stringify({ at2: a.on, at12: b.on, at16: c.on, tAfter: c.t });
   })()`);
   const ls = JSON.parse(loopSt);
@@ -154,6 +154,21 @@ try {
   else bad('「进入」的链接不对：' + st.goHref);
   if (st.goVisible) ok('「进入」可见且可点');
   else bad('「进入」不可见');
+  /* 用户明确说过「右上角没有点击跳跃的」。位置写死成断言，
+     以后谁再把它挪回角落，这条会立刻失败。 */
+  const goPos = JSON.parse(await evalJs(`(() => {
+    const g = document.querySelector('.w-go');
+    if (!g) return JSON.stringify({ err: '没有入口链接' });
+    const r = g.getBoundingClientRect();
+    return JSON.stringify({
+      right: Math.round(innerWidth - r.right),
+      top: Math.round(r.top),
+      w: Math.round(r.width),
+    });
+  })()`));
+  console.log('       入口位置 距右 ' + goPos.right + 'px  距顶 ' + goPos.top + 'px  宽 ' + goPos.w);
+  if (goPos.right < 120 && goPos.top < 120) ok('入口在右上角');
+  else bad('入口不在右上角：距右 ' + goPos.right + ' 距顶 ' + goPos.top);
   await evalJs(`document.querySelector('.w-go').click()`);
   await sleep(1800);
   const landed = await evalJs('location.pathname');

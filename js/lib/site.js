@@ -14,6 +14,8 @@
     有 requires 的章节在未完成时**显示为锁着**，点它不跳转，
     而是把人送去完成那件事的地方。 */
 export const NAV = [
+  // 入口页（整屏循环那条概念片）。放第一项，从任何内页都能跳回去重看。
+  { id: 'welcome',   num: '影',    label: '概念片',      href: 'welcome/index.html' },
   { id: 'prologue',  num: '序',    label: '序',         href: 'index.html' },
   { id: 'qon',       num: '二',    label: '穹乃额曼',    href: 'qiongnaieman/index.html', sub: '大曲' },
   { id: 'dastan',    num: '三',    label: '达斯坦',      href: 'dastan/index.html',       sub: '叙事诗' },

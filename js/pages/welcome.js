@@ -27,13 +27,15 @@ const T = {
   rule:   12.50,                 // 分隔线展开
   cn:     12.60,                 // 中文
   lat:    12.90,                 // 英文
+  goIn:    7.00,                 // 右上角入口浮现（开头几秒不摆控件）
   litGo:  16.40,                 // 片尾黑场：入口亮起来
   end:    17.60,                 // 全黑
 };
 
 const host = document.getElementById('hero-video');
 const title = document.getElementById('w-title');
-const ug = title && title.querySelector('.w-title__ug');
+const ug = document.getElementById('w-ug');
+const bloom = document.getElementById('w-bloom');
 const rule = title && title.querySelector('.w-title__rule');
 const cn = title && title.querySelector('.w-title__cn');
 const lat = title && title.querySelector('.w-title__lat');
@@ -102,7 +104,12 @@ function paint(t) {
       ug.style.opacity = t < T.ugIn ? '0' : String(e.toFixed(3));
       ug.style.filter = 'blur(' + (20 * (1 - e)).toFixed(2) + 'px) brightness(' +
         (0.4 + 0.6 * e).toFixed(3) + ')';
+      /* 一旦浮现完，就把呼吸动画挂上 ——
+         静止的光晕看着像贴图，持续起伏才"活"。 */
+      ug.classList.toggle('is-live', p > 0.55);
     }
+    /* 背后的暖光：比字稍早一点起来，字才有"从光里出来"的感觉 */
+    if (bloom) bloom.style.opacity = clamp01((t - T.ugIn + 0.8) / 2.2).toFixed(3);
     if (rule) {
       const rp = clamp01((t - T.rule) / 1.1);
       rule.style.width = (easeOut(rp) * 30).toFixed(2) + 'vmin';
@@ -111,18 +118,27 @@ function paint(t) {
     if (cn) cn.style.opacity = clamp01((t - T.cn) / 1.4).toFixed(3);
     if (lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
   }
-  /* 片尾黑场那两秒：入口亮起来，提示该进去了 */
-  if (go) go.classList.toggle('is-lit', t >= T.litGo);
+  /* 片尾黑场那两秒：入口亮起来，提示该进去了。
+     另外第 7 秒起让它浮现 —— 开头几秒画面最有冲击力，那时不摆控件。 */
+  if (go) {
+    go.classList.toggle('is-here', t >= T.goIn);
+    go.classList.toggle('is-lit', t >= T.litGo);
+  }
   /* 浮尘：黑场起来之后才看得见 */
   if (dustOn) dustOn(clamp01((t - T.bloom) / 4) * 0.8);
 }
 
 function reset() {
-  if (ug) { ug.style.opacity = '0'; ug.style.filter = 'blur(20px) brightness(0.4)'; }
+  if (ug) {
+    ug.style.opacity = '0';
+    ug.style.filter = 'blur(20px) brightness(0.4)';
+    ug.classList.remove('is-live');
+  }
+  if (bloom) bloom.style.opacity = '0';
   if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
   if (cn) cn.style.opacity = '0';
   if (lat) lat.style.opacity = '0';
-  if (go) go.classList.remove('is-lit');
+  if (go) { go.classList.remove('is-lit'); go.classList.remove('is-here'); }
   if (dustOn) dustOn(0);
 }
 
