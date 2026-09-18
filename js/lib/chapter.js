@@ -9,7 +9,7 @@
 
 import { Renderer } from './renderer.js';
 import { DapSequencer } from './sequencer.js';
-import { mountShell, mountChapterNav, revealOnScroll, mountSlots } from './site.js';
+import { mountShell, mountChapterNav, revealOnScroll, mountSlots, mountSoundButton } from './site.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -117,26 +117,23 @@ export function bootChapter(opts = {}) {
   /* ---- 声音（可选） ----
      drums:false 的页面（有自己的配乐）不建手鼓音序器，
      也不接管声音按钮 —— 那个按钮留给页面自己去接配乐。
-     否则会出现"按开听到的是鼓点，不是这一页的音乐"。 */
+     否则会出现"按开听到的是鼓点，不是这一页的音乐"。
+
+     默认开：按钮一开始显示"开"，第一次交互自动把鼓点打开。 */
   if (opts.sound !== false && opts.drums !== false) {
     seq = new DapSequencer({ volume: 0.34 });
     window.__XM_SEQ__ = seq;                 // 自检用
 
-    const btn = document.getElementById('sound-toggle');
-    const text = document.getElementById('sound-text');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        const on = btn.getAttribute('aria-pressed') !== 'true';
-        if (on) {
-          if (!seq.enable()) { if (text) text.textContent = '声音 不可用'; return; }
-          seq.setBand(opts.soundBand || 0);
-        } else {
-          seq.disable();
-        }
-        btn.setAttribute('aria-pressed', String(on));
-        if (text) text.textContent = on ? '声音 开' : '声音 关';
-      });
-    }
+    const enableDrums = () => {
+      if (!seq.enable()) return false;
+      seq.setBand(opts.soundBand || 0);
+      return true;
+    };
+    mountSoundButton({
+      on: enableDrums,
+      off: () => seq.disable(),
+      onFirstGesture: enableDrums,
+    });
   }
 
   /* ---- 显形 ---- */

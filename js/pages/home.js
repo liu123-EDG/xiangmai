@@ -13,7 +13,7 @@
 import { Renderer, SEG_BOUNDS, BREATH } from '../lib/renderer.js';
 import { DapSequencer } from '../lib/sequencer.js';
 import { BandScroller } from '../lib/scroll.js';
-import { mountShell } from '../lib/site.js';
+import { mountShell, mountSoundButton } from '../lib/site.js';
 import { buildHeroVideo, shouldSkipVideo } from '../lib/hero-video.js';
 import { initNetwork } from './network.js';
 
@@ -46,9 +46,6 @@ const stageEl = $('.stage-words');
    结果"附录"那一格的锁定状态不会跟着解锁走。
    交给 mountShell 之后，全站六格的状态由同一份数据决定。 */
 mountShell({ base: '', active: 'prologue' });
-
-const soundBtn = $('#sound-toggle');
-const soundText = $('#sound-text');
 
 let renderer = null;
 let scroller = null;
@@ -228,16 +225,20 @@ function bindInteractions() {
     e.preventDefault();
   });
 
-  soundBtn.addEventListener('click', () => {
-    const on = soundBtn.getAttribute('aria-pressed') !== 'true';
-    if (on) {
-      if (!audio.enable()) { soundText.textContent = '声音 不可用'; return; }
+  /* 声音开关默认开：按钮一开始显示"开"，第一次交互自动起鼓。
+     只把标签写成"开"而不放声音是骗人 —— 浏览器不允许没手势就出声，
+     所以"默认开"必须配一次自动开。 */
+  mountSoundButton({
+    on: () => {
+      if (!audio.enable()) return false;
       audio.setBand(Math.max(0, Math.min(2, scroller.band - 1)));
-    } else {
-      audio.disable();
-    }
-    soundBtn.setAttribute('aria-pressed', String(on));
-    soundText.textContent = on ? '声音 开' : '声音 关';
+      return true;
+    },
+    off: () => audio.disable(),
+    onFirstGesture: () => {
+      if (!audio.enable()) return;
+      audio.setBand(Math.max(0, Math.min(2, scroller.band - 1)));
+    },
   });
 
   $('#entry-btn').addEventListener('click', () => {

@@ -254,6 +254,7 @@ export function createTheme(url, opts = {}) {
    （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
 
    这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
+   **默认开**：按钮一开始就显示"开"，第一次交互自动起。
    声音按钮仍然保留：关掉之后就不再自动开。
    ========================================================================== */
 export function autoPlayOnGesture(opts) {
@@ -270,6 +271,10 @@ export function autoPlayOnGesture(opts) {
     if (btn) btn.setAttribute('aria-pressed', 'false');
     if (text) text.textContent = '声音 关';
   };
+
+  /* 默认开：先把标签落成"开"，和下面第一次手势自动起保持一致。
+     只写标签不放声音是骗人，所以这个"开"必须配自动起。 */
+  markOn();
 
   const on = () => {
     if (!armed) return;

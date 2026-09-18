@@ -3,7 +3,7 @@
      js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MASHRAQ_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
      js/lib/sequencer.js  → DapSequencer, PATTERNS
-     js/lib/site.js  → NAV, mountShell, mountChapterNav, revealOnScroll, mountSlots
+     js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
      js/pages/lishi.js
@@ -1838,9 +1838,9 @@ function mountShell(opts) {
   }).join('');
 
   const sound = opts.showSound === false ? '' :
-    '<button class="sound" id="sound-toggle" type="button" aria-pressed="false" aria-label="手鼓节奏音效开关">' +
+    '<button class="sound" id="sound-toggle" type="button" aria-pressed="true" aria-label="声音开关">' +
     '<span class="sound__ring" aria-hidden="true"></span>' +
-    '<span class="sound__text" id="sound-text">声音 关</span></button>';
+    '<span class="sound__text" id="sound-text">声音 开</span></button>';
 
   /* 窄屏用一个三条横杠的按钮把导航收起来 ——
      七个章节在手机上横排太挤（用户直接说"给人感觉很挤"）。
@@ -1909,6 +1909,59 @@ function mountShell(opts) {
     }
     if (go) setTimeout(() => { location.href = go; }, 260);
   }, true);
+}
+
+/**
+ * 声音开关，**默认开**。
+ *
+ * 为什么不能只把标签写成"开"：
+ *   浏览器的自动播放策略不允许没有用户手势就出声。
+ *   所以"默认开"的正确做法是 —— 按钮一开始就显示"开"，
+ *   然后**第一次交互（点击/滚动/按键）自动把声音打开**。
+ *   只改标签不放声音，就是在骗用户。
+ *
+ * @param {object} opts
+ * @param {string} [opts.on]  用户点"开"时怎么开：返回 false 表示开不了
+ * @param {string} [opts.off] 用户点"关"时怎么关
+ * @param {string} [opts.onFirstGesture]
+ *        第一次手势时自动开。不传就不自动开（那种页面由别处开，
+ *        比如有主题曲的页面用 autoPlayOnGesture）。
+ */
+function mountSoundButton(opts = {}) {
+  const btn = $('#sound-toggle');
+  const text = $('#sound-text');
+  if (!btn) return null;
+
+  const paint = (on, label) => {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (text) text.textContent = label || (on ? '声音 开' : '声音 关');
+  };
+
+  // 默认就显示"开" —— 配合下面的自动开，标签和实际是一致的
+  paint(true);
+
+  if (opts.onFirstGesture) {
+    const arm = () => {
+      ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+        window.removeEventListener(e, arm));
+      opts.onFirstGesture();
+    };
+    ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+      window.addEventListener(e, arm, { passive: true, once: true }));
+  }
+
+  btn.addEventListener('click', () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    if (on) {
+      const r = opts.on ? opts.on() : true;
+      if (r === false) { paint(false, '声音 不可用'); return; }
+    } else if (opts.off) {
+      opts.off();
+    }
+    paint(on);
+  });
+
+  return { paint, setLabel: (t) => { if (text) text.textContent = t; } };
 }
 
 /**
@@ -1990,6 +2043,7 @@ function mountSlots() {
 __ns = __XM[3];
 __ns.mount_NAV = function () { return NAV; };
 __ns.mount_mountShell = function () { return mountShell; };
+__ns.mount_mountSoundButton = function () { return mountSoundButton; };
 __ns.mount_mountChapterNav = function () { return mountChapterNav; };
 __ns.mount_revealOnScroll = function () { return revealOnScroll; };
 __ns.mount_mountSlots = function () { return mountSlots; };
@@ -2003,6 +2057,7 @@ var mountShell = __XM[3]["mountShell"];
 var mountChapterNav = __XM[3]["mountChapterNav"];
 var revealOnScroll = __XM[3]["revealOnScroll"];
 var mountSlots = __XM[3]["mountSlots"];
+var mountSoundButton = __XM[3]["mountSoundButton"];
 
 /* ==========================================================================
    弦脉 · 章节页公共启动
@@ -2123,26 +2178,23 @@ function bootChapter(opts = {}) {
   /* ---- 声音（可选） ----
      drums:false 的页面（有自己的配乐）不建手鼓音序器，
      也不接管声音按钮 —— 那个按钮留给页面自己去接配乐。
-     否则会出现"按开听到的是鼓点，不是这一页的音乐"。 */
+     否则会出现"按开听到的是鼓点，不是这一页的音乐"。
+
+     默认开：按钮一开始显示"开"，第一次交互自动把鼓点打开。 */
   if (opts.sound !== false && opts.drums !== false) {
     seq = new DapSequencer({ volume: 0.34 });
     window.__XM_SEQ__ = seq;                 // 自检用
 
-    const btn = document.getElementById('sound-toggle');
-    const text = document.getElementById('sound-text');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        const on = btn.getAttribute('aria-pressed') !== 'true';
-        if (on) {
-          if (!seq.enable()) { if (text) text.textContent = '声音 不可用'; return; }
-          seq.setBand(opts.soundBand || 0);
-        } else {
-          seq.disable();
-        }
-        btn.setAttribute('aria-pressed', String(on));
-        if (text) text.textContent = on ? '声音 开' : '声音 关';
-      });
-    }
+    const enableDrums = () => {
+      if (!seq.enable()) return false;
+      seq.setBand(opts.soundBand || 0);
+      return true;
+    };
+    mountSoundButton({
+      on: enableDrums,
+      off: () => seq.disable(),
+      onFirstGesture: enableDrums,
+    });
   }
 
   /* ---- 显形 ---- */
@@ -2431,6 +2483,7 @@ function createTheme(url, opts = {}) {
    （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
 
    这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
+   **默认开**：按钮一开始就显示"开"，第一次交互自动起。
    声音按钮仍然保留：关掉之后就不再自动开。
    ========================================================================== */
 function autoPlayOnGesture(opts) {
@@ -2447,6 +2500,10 @@ function autoPlayOnGesture(opts) {
     if (btn) btn.setAttribute('aria-pressed', 'false');
     if (text) text.textContent = '声音 关';
   };
+
+  /* 默认开：先把标签落成"开"，和下面第一次手势自动起保持一致。
+     只写标签不放声音是骗人，所以这个"开"必须配自动起。 */
+  markOn();
 
   const on = () => {
     if (!armed) return;

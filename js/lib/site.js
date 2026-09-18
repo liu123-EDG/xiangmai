@@ -73,9 +73,9 @@ export function mountShell(opts) {
   }).join('');
 
   const sound = opts.showSound === false ? '' :
-    '<button class="sound" id="sound-toggle" type="button" aria-pressed="false" aria-label="手鼓节奏音效开关">' +
+    '<button class="sound" id="sound-toggle" type="button" aria-pressed="true" aria-label="声音开关">' +
     '<span class="sound__ring" aria-hidden="true"></span>' +
-    '<span class="sound__text" id="sound-text">声音 关</span></button>';
+    '<span class="sound__text" id="sound-text">声音 开</span></button>';
 
   /* 窄屏用一个三条横杠的按钮把导航收起来 ——
      七个章节在手机上横排太挤（用户直接说"给人感觉很挤"）。
@@ -144,6 +144,59 @@ export function mountShell(opts) {
     }
     if (go) setTimeout(() => { location.href = go; }, 260);
   }, true);
+}
+
+/**
+ * 声音开关，**默认开**。
+ *
+ * 为什么不能只把标签写成"开"：
+ *   浏览器的自动播放策略不允许没有用户手势就出声。
+ *   所以"默认开"的正确做法是 —— 按钮一开始就显示"开"，
+ *   然后**第一次交互（点击/滚动/按键）自动把声音打开**。
+ *   只改标签不放声音，就是在骗用户。
+ *
+ * @param {object} opts
+ * @param {string} [opts.on]  用户点"开"时怎么开：返回 false 表示开不了
+ * @param {string} [opts.off] 用户点"关"时怎么关
+ * @param {string} [opts.onFirstGesture]
+ *        第一次手势时自动开。不传就不自动开（那种页面由别处开，
+ *        比如有主题曲的页面用 autoPlayOnGesture）。
+ */
+export function mountSoundButton(opts = {}) {
+  const btn = $('#sound-toggle');
+  const text = $('#sound-text');
+  if (!btn) return null;
+
+  const paint = (on, label) => {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (text) text.textContent = label || (on ? '声音 开' : '声音 关');
+  };
+
+  // 默认就显示"开" —— 配合下面的自动开，标签和实际是一致的
+  paint(true);
+
+  if (opts.onFirstGesture) {
+    const arm = () => {
+      ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+        window.removeEventListener(e, arm));
+      opts.onFirstGesture();
+    };
+    ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+      window.addEventListener(e, arm, { passive: true, once: true }));
+  }
+
+  btn.addEventListener('click', () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    if (on) {
+      const r = opts.on ? opts.on() : true;
+      if (r === false) { paint(false, '声音 不可用'); return; }
+    } else if (opts.off) {
+      opts.off();
+    }
+    paint(on);
+  });
+
+  return { paint, setLabel: (t) => { if (text) text.textContent = t; } };
 }
 
 /**

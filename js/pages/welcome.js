@@ -13,6 +13,7 @@
    手机上不放视频：三段全屏视频对手机太重，退化成"暖光底 + 入口"。
    ========================================================================== */
 import { buildHeroVideo, shouldSkipVideo } from '../lib/hero-video.js';
+import { createTheme } from '../lib/theme.js';
 
 /* ---- 时间轴（与 tools/film.html 一致，改这里要两边一起改） ---- */
 const CLIP = 5.09;
@@ -184,6 +185,32 @@ if (host && !shouldSkipVideo() && !reduced) {
 
   window.__XM_FILM__ = film;
   window.__XM_PAINT__ = paint;           // 自检用：可以拨到任意时刻看状态
+
+  /* ---- 声音：默认开，但要轻 ----
+     这一页是"进去之前"的那一屏，音乐不该抢画面，
+     所以音量压到 0.22（正片里是 0.55），淡入也慢（3.5 秒）。
+
+     浏览器不允许没手势就出声，所以"默认开"只能这么做：
+     第一次交互时唤醒 context 并起播。
+     这一页没有声音按钮 —— 访客还没进去，不该先给他一个开关。
+     如果他不想要声音，进正片后可以关。 */
+  if (!reduced) {
+    const amb = createTheme('../assets/audio/mashrap/theme.mp3');
+    amb.setVolume(0.22);
+    window.__XM_AMB__ = amb;             // 自检用
+
+    const beginAudio = () => {
+      ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+        window.removeEventListener(e, beginAudio));
+      /* resume() 必须在手势的调用栈里同步发起，浏览器才认；
+         起来之后再起播，否则 context 还是 suspended，等于没声。 */
+      const p = amb.resume();
+      if (p && p.then) p.then(() => amb.start(3.5));
+      else amb.start(3.5);
+    };
+    ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+      window.addEventListener(e, beginAudio, { passive: true, once: true }));
+  }
 } else {
   /* 低端设备 / 省流 / 用户要求减弱动效：
      去掉视频和文字，只留暖光底和入口。这一页仍然成立。 */

@@ -27,11 +27,20 @@ if (tlHost && heroTitle && nextLink) {
 
   /* ---- 持续音：跟着「声音」开关一起走 ----
      浏览器不允许自动播放，所以只能挂在已有的开关上。
-     开声音 = 手鼓 + 这一层气息同时来；关 = 一起停。 */
+     开声音 = 手鼓 + 这一层气息同时来；关 = 一起停。
+
+     注意：开关现在**默认就是"开"**（chapter.js 里的 mountSoundButton），
+     所以这里不能再"点了才开始" —— 那样用户点一下反而会把它关掉。
+     要跟着默认开走：第一次交互就起。 */
   const drone = createDrone();
   const btn = document.getElementById('sound-toggle');
   if (btn) {
+    const startDrone = () => { drone.start(); };
+    ['pointerdown', 'keydown', 'wheel', 'scroll', 'touchstart'].forEach((e) =>
+      window.addEventListener(e, startDrone, { passive: true, once: true }));
+
     btn.addEventListener('click', () => {
+      // aria-pressed 已经是最终状态了（mountSoundButton 写的）
       const nowOn = btn.getAttribute('aria-pressed') === 'true';
       if (nowOn) drone.start(); else drone.stop();
     });
