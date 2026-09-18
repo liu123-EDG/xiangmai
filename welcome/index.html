@@ -51,7 +51,7 @@
   #hero-video video.on { opacity: 1; }
 
   /* ---- 压暗：让字压得住，但不压掉画面的冲击力 ---- */
-  .scrim {
+  .w-scrim {
     position: absolute; inset: 0; z-index: 2; pointer-events: none;
     background:
       linear-gradient(180deg,
@@ -63,8 +63,14 @@
         rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.48) 100%);
   }
 
-  /* ---- 内容 ---- */
-  .entry {
+  /* ---- 内容 ----
+     类名一律加 w- 前缀。
+     为什么：styles.css 是序章的样式表，里面有 .entry / .foot / .brand
+     这些通用名（而且序章给它们设了 opacity:0 / visibility:hidden，
+     只在特定幕才显形）。入口页只要用同名，就会被那些规则按住。
+     已经因此踩过两次（.entry 让整块内容不显示、.foot 让居中偏掉），
+     所以这里统一前缀，彻底避开。 */
+  .w-wrap {
     position: absolute; inset: 0; z-index: 3;
     display: flex; flex-direction: column;
     align-items: center; justify-content: space-between;
@@ -73,11 +79,11 @@
     pointer-events: none;   /* 只有按钮可点，别挡住鼠标手势 */
   }
 
-  .brand {
+  .w-brand {
     display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
     opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.35s forwards;
   }
-  .brand__glyph {
+  .w-brand__glyph {
     width: 26px; height: 26px;
     background:
       linear-gradient(180deg,
@@ -86,14 +92,14 @@
         #c08a3e 69% 100%);
     box-shadow: 0 0 26px -6px rgba(192, 138, 62, 0.6);
   }
-  .brand__name {
+  .w-brand__name {
     font-family: var(--font-serif);
     font-size: clamp(1.5rem, 3.4vw, 2.4rem);
     letter-spacing: 0.52em; text-indent: 0.52em;
     color: var(--bone);
     text-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 2px 20px rgba(0, 0, 0, 1);
   }
-  .brand__latin {
+  .w-brand__latin {
     font-family: var(--font-sans);
     font-size: clamp(0.58rem, 1vw, 0.72rem);
     letter-spacing: 0.6em; text-indent: 0.6em;
@@ -101,13 +107,13 @@
     text-shadow: 0 1px 12px rgba(0, 0, 0, 1);
   }
 
-  .foot {
+  .w-foot {
     display: flex; flex-direction: column; align-items: center; gap: 1.3rem;
     /* 按钮别让人等 —— 1.9 秒内到位。
        早先 1.4s 延迟 + 2.4s 时长 = 3.8 秒才完全出现，太慢。 */
     opacity: 0; animation: rise 1.8s cubic-bezier(.2,.8,.2,1) 0.9s forwards;
   }
-  .tagline {
+  .w-tagline {
     margin: 0;
     font-family: var(--font-sans);
     font-size: clamp(0.68rem, 1.15vw, 0.82rem);
@@ -117,7 +123,7 @@
     text-shadow: 0 1px 16px rgba(0, 0, 0, 1);
   }
 
-  .go {
+  .w-go {
     pointer-events: auto;
     display: inline-flex; align-items: center; gap: 0.9rem;
     padding: 0.95rem 2.1rem;
@@ -132,15 +138,15 @@
     transition: border-color .6s var(--ease-slow), background .6s var(--ease-slow),
                 color .6s var(--ease-slow), letter-spacing .6s var(--ease-slow);
   }
-  .go:hover, .go:focus-visible {
+  .w-go:hover, .w-go:focus-visible {
     border-color: rgba(192, 138, 62, 0.85);
     background: rgba(192, 138, 62, 0.14);
     color: #f2e4c4;
     letter-spacing: 0.4em;
     outline: none;
   }
-  .go__arrow { transition: transform .6s var(--ease-slow); }
-  .go:hover .go__arrow { transform: translateX(4px); }
+  .w-go__arrow { transition: transform .6s var(--ease-slow); }
+  .go:hover .w-go__arrow { transform: translateX(4px); }
 
   @keyframes rise {
     from { opacity: 0; transform: translateY(16px); }
@@ -148,25 +154,25 @@
   }
 
   /* 视频还没起来时的底：一道极暗的暖光，避免纯黑一片像坏了 */
-  .wait {
+  .w-wait {
     position: absolute; inset: 0; z-index: 0;
     background: radial-gradient(closest-side at 50% 52%,
       rgba(120, 70, 26, 0.14) 0%, rgba(0, 0, 0, 0) 70%), #050403;
   }
 
   @media (max-width: 720px) {
-    .brand__name { letter-spacing: 0.34em; text-indent: 0.34em; }
-    .tagline { letter-spacing: 0.22em; text-indent: 0.22em; }
+    .w-brand__name { letter-spacing: 0.34em; text-indent: 0.34em; }
+    .w-tagline { letter-spacing: 0.22em; text-indent: 0.22em; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .brand, .foot { animation-duration: .01s; animation-delay: 0s; opacity: 1; }
+    .w-brand, .w-foot { animation-duration: .01s; animation-delay: 0s; opacity: 1; }
   }
 </style>
 </head>
 <body>
 
 <div id="stage">
-  <div class="wait"></div>
+  <div class="w-wait"></div>
 
   <!-- 概念片：整屏循环，永不让位。
        src 由 js/pages/welcome.js 注入；手机上不启用（省流量、免卡顿）。 -->
@@ -176,23 +182,23 @@
     <video muted playsinline preload="none"></video>
   </div>
 
-  <div class="scrim"></div>
+  <div class="w-scrim"></div>
 
-  <div class="entry">
-    <div class="brand">
-      <i class="brand__glyph" aria-hidden="true"></i>
-      <span class="brand__name">弦脉</span>
-      <span class="brand__latin">Stringline Heritage</span>
+  <div class="w-wrap">
+    <div class="w-brand">
+      <i class="w-brand__glyph" aria-hidden="true"></i>
+      <span class="w-brand__name">弦脉</span>
+      <span class="w-brand__latin">Stringline Heritage</span>
     </div>
 
-    <div class="foot">
-      <p class="tagline">
+    <div class="w-foot">
+      <p class="w-tagline">
         丝路口传音乐的数字档案<br>
         一套要二十小时才能听完的音乐，由三段构成
       </p>
-      <a class="go" href="../index.html">
+      <a class="w-go" href="../index.html">
         进入
-        <span class="go__arrow" aria-hidden="true">→</span>
+        <span class="w-go__arrow" aria-hidden="true">→</span>
       </a>
     </div>
   </div>
