@@ -199,42 +199,49 @@
     opacity: 0;
   }
 
-  /* ---- 入口：右上角一个很轻的链接 ----
-     为什么在右上：用户找"进入/跳过"就是看右上角（跟导航一个习惯）。
-     早先放在右下角，用户直接说"右上角没有点击跳跃的"。
-     平时很淡、不跟画面抢；片尾黑场那两秒亮起来（js 加 is-lit）。
-     另外它**从第 7 秒起才浮现** —— 开头几秒是画面最有冲击力的时候，
-     不摆任何控件。 */
+  /* ---- 入口：右上角，**一直显示** ----
+     原来只在第 7 秒后才浮现，循环回开头又消失 ——
+     用户说"再次循环播放就又没了，得等再放一遍才有，这样太奇怪了"。
+     现在常驻，用毛玻璃（backdrop-filter）降低存在感，
+     不挡画面，但随时能点。
+
+     毛玻璃要"透"：底色透明度压到 0.10，模糊 6px，
+     描边也很淡。这样它像贴在画面外的一层玻璃，不像一个按钮压在视频上。 */
   .w-go {
-    position: absolute; z-index: 6;
+    position: absolute; z-index: 8;
     right: clamp(1.2rem, 3.5vw, 2.6rem);
     top: clamp(1.2rem, 3.5vh, 2.2rem);
     display: inline-flex; align-items: center; gap: 0.7rem;
-    padding: 0.6rem 1.3rem;
-    opacity: 0;
+    padding: 0.62rem 1.35rem;
+    opacity: 0.94;
     font-family: var(--font-sans);
-    font-size: clamp(0.7rem, 1.1vw, 0.82rem);
+    font-size: clamp(0.72rem, 1.1vw, 0.84rem);
     letter-spacing: 0.34em; text-indent: 0.34em;
-    color: rgba(222, 214, 200, 0.42);
+    color: rgba(242, 234, 218, 0.9);
     text-decoration: none;
-    border: 1px solid rgba(222, 214, 200, 0.16);
-    background: rgba(8, 7, 6, 0.30);
-    backdrop-filter: blur(3px);
-    transition: opacity 1.4s var(--ease-slow), color .9s var(--ease-slow),
-                border-color .9s var(--ease-slow), background .9s var(--ease-slow);
+    /* 毛玻璃：半透明底 + 背景模糊 + 一层很淡的高光边 */
+    background: rgba(10, 9, 8, 0.10);
+    backdrop-filter: blur(6px) saturate(115%);
+    -webkit-backdrop-filter: blur(6px) saturate(115%);
+    border: 1px solid rgba(242, 234, 218, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: background .6s var(--ease-slow), border-color .6s var(--ease-slow),
+                color .6s var(--ease-slow), opacity .6s var(--ease-slow),
+                letter-spacing .6s var(--ease-slow);
   }
-  .w-go.is-here { opacity: 1; }
+  .w-go.is-here { opacity: 0.94; }   /* 兼容旧的切换，保持常显 */
   .w-go:hover, .w-go:focus-visible {
-    color: #f2e4c4;
-    border-color: rgba(192, 138, 62, 0.85);
-    background: rgba(192, 138, 62, 0.14);
+    background: rgba(192, 138, 62, 0.16);
+    border-color: rgba(242, 234, 218, 0.5);
+    color: #fff6e2;
+    letter-spacing: 0.4em;
     outline: none;
   }
-  /* 片尾那两秒亮起来，提示"该进去了" */
+  /* 片尾黑场那两秒亮一点，提示"该进去了"，但不改变常驻这件事 */
   .w-go.is-lit {
-    color: rgba(242, 228, 196, 0.95);
-    border-color: rgba(192, 138, 62, 0.6);
-    background: rgba(192, 138, 62, 0.10);
+    background: rgba(192, 138, 62, 0.20);
+    border-color: rgba(217, 178, 104, 0.6);
+    color: #fff6e2;
   }
   .w-go__arrow { transition: transform .6s var(--ease-slow); }
   .w-go:hover .w-go__arrow { transform: translateX(4px); }

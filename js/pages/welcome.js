@@ -119,12 +119,11 @@ function paint(t) {
        末尾的英文站名保留。 */
     if (lat) lat.style.opacity = clamp01((t - T.lat) / 1.4).toFixed(3);
   }
-  /* 片尾黑场那两秒：入口亮起来，提示该进去了。
-     另外第 7 秒起让它浮现 —— 开头几秒画面最有冲击力，那时不摆控件。 */
-  if (go) {
-    go.classList.toggle('is-here', t >= T.goIn);
-    go.classList.toggle('is-lit', t >= T.litGo);
-  }
+  /* 入口现在**常驻**。
+     原来第 7 秒才浮现、循环回开头又消失 ——
+     用户说"再次循环播放就又没了，得等再放一遍才有，这样太奇怪了"。
+     所以只保留"片尾亮一档"这个提示，不再控制出现与消失。 */
+  if (go) go.classList.toggle('is-lit', t >= T.litGo);
   /* 浮尘：黑场起来之后才看得见 */
   if (dustOn) dustOn(clamp01((t - T.bloom) / 4) * 0.8);
 }
@@ -138,7 +137,8 @@ function reset() {
   if (bloom) bloom.style.opacity = '0';
   if (rule) { rule.style.width = '0'; rule.style.opacity = '0'; }
   if (lat) lat.style.opacity = '0';
-  if (go) { go.classList.remove('is-lit'); go.classList.remove('is-here'); }
+  /* 入口不再需要重置 —— 它常驻，只在片尾亮一档 */
+  if (go) go.classList.remove('is-lit');
   if (dustOn) dustOn(0);
 }
 

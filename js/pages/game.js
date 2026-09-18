@@ -13,19 +13,20 @@
    （用户一直是这么看的），query 在 file:// 下也能正常读。
    ========================================================================== */
 import { bootChapter } from '../lib/chapter.js';
-import { buildInheritGame, sceneForLevel } from '../lib/inherit-game.js';
+import { buildInheritGame } from '../lib/inherit-game.js';
+import { levelByKey, playableLevels } from '../lib/levels-data.js';
 
 /* 这一页是游戏，不要页脚章节导航；声音也交给游戏自己（视频自带音轨）。 */
 const ctx = bootChapter({ active: 'fulu', sound: false });
 
 const params = new URLSearchParams(location.search);
-const level = params.get('level') || 'muqam';
-const scene = sceneForLevel(level);
+const level = params.get('level') || playableLevels()[0].level;
+const L = levelByKey(level);
 
 const html = document.documentElement;
-if (scene) {
-  html.style.setProperty('--game-tone', level === 'gesar' ? '168' : '36');
-  document.title = scene.name + '｜传承之路 · 弦脉';
+if (L) {
+  html.style.setProperty('--game-tone', L.scene === 'steppe' ? '168' : '36');
+  document.title = L.name + '｜传承之路 · 弦脉';
 }
 
 const game = buildInheritGame({
