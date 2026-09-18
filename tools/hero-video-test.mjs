@@ -175,8 +175,10 @@ try {
   if (l3.mounted[2]) ok('第三段素材已按需挂载');
   else bad('第三段没挂载');
 
-  const l4 = await seek(16.2);
-  console.log('       拨到 16.2s ' + JSON.stringify(l4.on) + ' t=' + l4.t);
+  /* 拨过整圈长度（17.6 秒）才算"绕回来了"。
+     拨 16.2 会得出"没接回第一段"的假失败 —— 那还在圈内。 */
+  const l4 = await seek(18.4);
+  console.log('       拨到 18.4s ' + JSON.stringify(l4.on) + ' t=' + l4.t);
   if (l4.on[0]) ok('过了一圈 → 自动接回第一段（这就是"循环"）');
   else bad('没有接回第一段：' + JSON.stringify(l4.on));
   if (l4.t < 2) ok('时钟已重置（t=' + l4.t + '）');

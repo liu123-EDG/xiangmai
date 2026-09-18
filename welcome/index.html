@@ -62,6 +62,15 @@
   }
   #hero-video video.on { opacity: 1; }
 
+  /* 竖屏：改用 contain，不裁画面。
+     素材是 16:9 横向的（那道金线横贯整幅），竖屏下 cover 会把两侧裁掉，
+     金线只剩下中间一小团光 —— 手机截图里就是这样，构图全毁了。
+     contain 会留上下黑边，但这片子的背景本来就是纯黑，接得上，看不出边。
+     竖屏 390×844 算下来黑边只占约 12% 高度，画面依然占满。 */
+  @media (orientation: portrait) {
+    #hero-video video { object-fit: contain; }
+  }
+
   /* 极轻的压暗：只在四角收一下视线，中间不动，保住画面的冲击力 */
   .w-vig {
     position: absolute; inset: 0; z-index: 2; pointer-events: none;

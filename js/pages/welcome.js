@@ -12,7 +12,7 @@
 
    手机上不放视频：三段全屏视频对手机太重，退化成"暖光底 + 入口"。
    ========================================================================== */
-import { buildHeroVideo, isDesktop } from '../lib/hero-video.js';
+import { buildHeroVideo, shouldSkipVideo } from '../lib/hero-video.js';
 
 /* ---- 时间轴（与 tools/film.html 一致，改这里要两边一起改） ---- */
 const CLIP = 5.09;
@@ -162,7 +162,7 @@ function startClock(film) {
 }
 
 /* ---------------------------------------------------------------- 启动 */
-if (host && isDesktop() && !reduced) {
+if (host && !shouldSkipVideo() && !reduced) {
   dustOn = initDust();
   reset();
 
@@ -185,7 +185,8 @@ if (host && isDesktop() && !reduced) {
   window.__XM_FILM__ = film;
   window.__XM_PAINT__ = paint;           // 自检用：可以拨到任意时刻看状态
 } else {
-  /* 手机 / 减弱动效：去掉视频和文字，只留暖光底和入口 */
+  /* 低端设备 / 省流 / 用户要求减弱动效：
+     去掉视频和文字，只留暖光底和入口。这一页仍然成立。 */
   if (host) host.remove();
   if (title) title.remove();
   if (dustCv) dustCv.remove();

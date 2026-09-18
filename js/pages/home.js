@@ -14,7 +14,7 @@ import { Renderer, SEG_BOUNDS, BREATH } from '../lib/renderer.js';
 import { DapSequencer } from '../lib/sequencer.js';
 import { BandScroller } from '../lib/scroll.js';
 import { mountShell } from '../lib/site.js';
-import { buildHeroVideo, isDesktop } from '../lib/hero-video.js';
+import { buildHeroVideo, shouldSkipVideo } from '../lib/hero-video.js';
 import { initNetwork } from './network.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -327,7 +327,9 @@ async function boot() {
      只在桌面端开：三段全屏视频 + WebGL 会拖垮手机。
      "视频阶段 → 结构柱阶段" 靠卷动进度切换，不用额外做一套时序。 */
   const hvHost = $('#hero-video');
-  if (hvHost && isDesktop() && !REDUCED) {
+  /* 现在手机也放（素材压到 640×360、三段共 1.2MB），
+     只有低端设备或省流模式才跳过。 */
+  if (hvHost && !shouldSkipVideo() && !REDUCED) {
     heroVideo = buildHeroVideo({
       host: hvHost,
       /* 视频霸屏：前面 4~5 屏全是它，结构柱很晚才出现。

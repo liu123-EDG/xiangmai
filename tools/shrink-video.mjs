@@ -44,8 +44,14 @@ const chrome = spawn(chromePath, ['--headless=new', '--remote-debugging-port=987
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* 目标：960×540, 2.2 Mbps。
-   背景片不需要 720p 高码率；在 1600px 宽的全屏下依然清楚。 */
-const TARGET = { width: 960, height: 540, bps: 2_200_000 };
+   背景片不需要 720p 高码率；在 1600px 宽的全屏下依然清楚。
+
+   带 --mobile 时出一套 640×360 / 1.1 Mbps 的小版：
+   手机屏幕就那么宽，540p 是浪费；小版能省一半流量、解码也轻。 */
+const MOBILE = process.argv.includes('--mobile');
+const TARGET = MOBILE
+  ? { width: 640, height: 360, bps: 1_100_000, suffix: '-slim-m' }
+  : { width: 960, height: 540, bps: 2_200_000, suffix: '-slim' };
 
 const files = ['01-mural.mp4', '02-drain.mp4', '03-black.mp4'];
 
@@ -84,7 +90,8 @@ try {
 
   console.log('\n════════ 视频瘦身（浏览器封装）════════');
   console.log('  目标 ' + TARGET.width + '×' + TARGET.height + '  ' +
-    (TARGET.bps / 1e6).toFixed(1) + ' Mbps  webm/vp9\n');
+    (TARGET.bps / 1e6).toFixed(1) + ' Mbps  webm/vp9' +
+    (MOBILE ? '   （手机版）' : '') + '\n');
 
   for (const name of files) {
     const rel = 'assets/video/reveal/' + name;
@@ -156,7 +163,7 @@ try {
     const r = JSON.parse(raw);
     if (r.err) { console.log(' 失败：' + r.err); continue; }
 
-    const out = join(root, '.tmp', name.replace(/\.mp4$/, '') + '-slim.webm');
+    const out = join(root, '.tmp', name.replace(/\.mp4$/, '') + TARGET.suffix + '.webm');
     writeFileSync(out, Buffer.from(r.b64, 'base64'));
     const after = statSync(out).size;
 

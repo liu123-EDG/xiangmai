@@ -10,15 +10,15 @@ import { spawn } from 'node:child_process';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const chromePath = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => existsSync(p));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.mp4': 'video/mp4', '.png': 'image/png', '.css': 'text/css; charset=utf-8' };
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.css': 'text/css; charset=utf-8' };
 
 /* 把 .tmp 里的成品放到能被服务器访问的位置 */
 await mkdir(join(root, '.tmp/serve'), { recursive: true });
 const names = ['01-mural', '02-drain', '03-black'];
 const origDir = join(root, 'assets/video/reveal');
 for (const n of names) {
-  const slim = join(root, '.tmp', n + '-slim.mp4');
-  if (existsSync(slim)) await copyFile(slim, join(root, '.tmp/serve', n + '-slim.mp4'));
+  const slim = join(root, '.tmp', n + '-slim.webm');
+  if (existsSync(slim)) await copyFile(slim, join(root, '.tmp/serve', n + '-slim.webm'));
 }
 
 const server = createServer(async (req, res) => {
@@ -81,7 +81,7 @@ try {
   console.log('\n════════ 瘦身版可播性验证 ════════\n');
 
   for (const n of names) {
-    const slim = '.tmp/serve/' + n + '-slim.mp4';
+    const slim = '.tmp/serve/' + n + '-slim.webm';
     if (!existsSync(join(root, slim))) { console.log('  ' + n + '：没有瘦身版，跳过'); continue; }
     console.log('  ' + n);
 
@@ -99,8 +99,20 @@ try {
       });
       if (out.err) return JSON.stringify(out);
       out.w = v.videoWidth; out.h = v.videoHeight;
-      out.dur = +v.duration.toFixed(3);
+      out.dur = isFinite(v.duration) ? +v.duration.toFixed(3) : null;
       out.ready = v.readyState;
+
+      /* 播到头会触发 ended 吗 —— webm 没有时长元数据（duration 是 NaN），
+         所以"能不能播完"才是真正要紧的事，比 duration 更能说明文件完整。 */
+      out.ended = await new Promise((res) => {
+        let done = false;
+        const fin = (x) => { if (!done) { done = true; res(x); } };
+        v.onended = () => fin(true);
+        v.currentTime = 0;
+        v.play().catch(() => fin(false));
+        setTimeout(() => fin(v.ended === true), 9000);
+      });
+      v.pause();
 
       /* 抽三帧看画面是不是真的（不是全黑） */
       const cv = document.createElement('canvas');
@@ -131,8 +143,11 @@ try {
     ok('能解码：' + r.w + '×' + r.h + '  ' + r.dur + ' 秒  readyState=' + r.ready);
     if (r.w === 960 && r.h === 540) ok('尺寸正确 960×540');
     else bad('尺寸是 ' + r.w + '×' + r.h);
-    if (Math.abs(r.dur - 5.09) < 0.15) ok('时长正确 ' + r.dur + ' 秒');
-    else bad('时长不对：' + r.dur);
+    /* webm 由 MediaRecorder 生成，**不写时长元数据**（duration 是 NaN）。
+       所以不验 duration，改验真正要紧的：能不能播到头。 */
+    if (r.ended) ok('能一直播到结尾（触发 ended）—— 文件完整');
+    else bad('没播到结尾 —— 文件可能是截断的');
+    console.log('       时长元数据 ' + (r.dur === null ? '（无，webm 正常现象）' : r.dur + ' 秒'));
     for (const f of r.frames) {
       if (f.lum > 0.004) ok(f.t + 's 有画面（平均亮度 ' + f.lum + '，' + (f.lit * 100).toFixed(0) + '% 非黑）');
       else bad(f.t + 's 是全黑 —— 那一帧没编进去');

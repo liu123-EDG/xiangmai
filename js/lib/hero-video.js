@@ -24,13 +24,29 @@ const T2 = CLIP;                // 5.09
 const T3 = CLIP * 2;            // 10.18
 const LOOP_LEN = 17.60;         // 整圈长度（三段放完 + 片尾定格与淡出）
 
-/** 桌面端？手机/平板不开这个 */
+/** 桌面端？—— 用来选素材尺寸（960p 还是 640p），不再用来决定"放不放"。 */
 export function isDesktop() {
   if (typeof window.matchMedia !== 'function') return true;
   const wide = window.matchMedia('(min-width: 900px)').matches;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const cores = navigator.hardwareConcurrency || 4;
   return wide && fine && cores >= 4;
+}
+
+/** 该不该**放弃**放视频（低端设备 / 省流模式）。
+    注意这跟 isDesktop 是两件事：
+      · 早先我拿 isDesktop 当"放不放"的开关，结果手机上一片黑 ——
+        用户直接问"手机端看不到第一页的视频"。
+        素材压小之后手机完全放得动（640×360 三段共 1.2MB），
+        所以现在**手机也放**，只有确实带不动或用户开了省流才降级。 */
+export function shouldSkipVideo() {
+  if (typeof window.matchMedia === 'function') {
+    // 省流模式：用户明确表示不想吃流量，尊重它
+    if (window.matchMedia('(prefers-reduced-data: reduce)').matches) return true;
+  }
+  const cores = navigator.hardwareConcurrency || 4;
+  const mem = navigator.deviceMemory || 4;      // 只有 Chromium 有，缺省当 4G
+  return cores < 4 || mem < 2;
 }
 
 /**
@@ -45,7 +61,15 @@ export function buildHeroVideo(opts) {
   if (!host) return null;
 
   const base = opts.base === undefined ? '' : opts.base;
-  const files = ['01-mural.mp4', '02-drain.mp4', '03-black.mp4'];
+  /* 两套素材：
+       桌面  960×540 / 2.2Mbps   三段共 2.3MB
+       手机  640×360 / 1.1Mbps   三段共 1.2MB
+     手机屏幕就那么宽，540p 是浪费；小版省一半流量、解码也轻。
+     都是 webm/vp9 —— 它是 MediaRecorder 出的，容器一定合法
+     （我手写 mp4 那次浏览器直接不认，错误码 4）。 */
+  const slim = window.matchMedia('(min-width: 900px)').matches;
+  const suffix = slim ? '-slim.webm' : '-slim-m.webm';
+  const files = ['01-mural' + suffix, '02-drain' + suffix, '03-black' + suffix];
   const vids = [...host.querySelectorAll('video')];
   if (vids.length < 3) return null;
 
@@ -63,7 +87,7 @@ export function buildHeroVideo(opts) {
       三段**一次全挂**，不做按需加载 —— 早先想省带宽，只挂第一段、
       别的等切到了再挂，结果 showClip 在未挂载时静默失败
       （表现为"该换第二段了却什么都没发生"）。
-      这三个文件本来就会被浏览器缓存，全挂上启动只多几 MB，稳得多。 */
+      现在一套总共 1.2–2.3MB，全挂上启动只多一两 MB，稳得多。 */
   function mountAll() {
     vids.forEach((v, i) => {
       if (v.dataset.mounted) return;
@@ -143,9 +167,13 @@ export function buildHeroVideo(opts) {
       /* 第三段本身只有 5.09 秒，但整圈是 17.6 秒 ——
          后面那几秒留给文字浮现和停留。
          所以第三段播完就**停在最后一帧**，让黑场继续，
-         别让视频回到第一帧（那样文字就没画面托着了）。 */
+         别让视频回到第一帧（那样文字就没画面托着了）。
+
+         判据用 ended，不用 duration —— MediaRecorder 出来的 webm
+         **不写时长元数据**，v.duration 是 NaN，用它这条判断永远不成立。
+         ended 是浏览器播到头时给的，跟容器有没有元数据无关。 */
       const v = vids[2];
-      if (v.duration && !v.paused && v.currentTime >= v.duration - 0.06) {
+      if (!v.paused && (v.ended || (v.duration && v.currentTime >= v.duration - 0.06))) {
         try { v.pause(); } catch {}
       }
     }

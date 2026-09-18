@@ -5,7 +5,7 @@
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/scroll.js  → BandScroller, onScrollThrottled
      js/lib/site.js  → NAV, mountShell, mountChapterNav, revealOnScroll, mountSlots
-     js/lib/hero-video.js  → isDesktop, buildHeroVideo
+     js/lib/hero-video.js  → isDesktop, shouldSkipVideo, buildHeroVideo
      js/pages/network.js  → initNetwork, LINEAGE
      js/pages/home.js
 */
@@ -2099,13 +2099,29 @@ const T2 = CLIP;                // 5.09
 const T3 = CLIP * 2;            // 10.18
 const LOOP_LEN = 17.60;         // 整圈长度（三段放完 + 片尾定格与淡出）
 
-/** 桌面端？手机/平板不开这个 */
+/** 桌面端？—— 用来选素材尺寸（960p 还是 640p），不再用来决定"放不放"。 */
 function isDesktop() {
   if (typeof window.matchMedia !== 'function') return true;
   const wide = window.matchMedia('(min-width: 900px)').matches;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const cores = navigator.hardwareConcurrency || 4;
   return wide && fine && cores >= 4;
+}
+
+/** 该不该**放弃**放视频（低端设备 / 省流模式）。
+    注意这跟 isDesktop 是两件事：
+      · 早先我拿 isDesktop 当"放不放"的开关，结果手机上一片黑 ——
+        用户直接问"手机端看不到第一页的视频"。
+        素材压小之后手机完全放得动（640×360 三段共 1.2MB），
+        所以现在**手机也放**，只有确实带不动或用户开了省流才降级。 */
+function shouldSkipVideo() {
+  if (typeof window.matchMedia === 'function') {
+    // 省流模式：用户明确表示不想吃流量，尊重它
+    if (window.matchMedia('(prefers-reduced-data: reduce)').matches) return true;
+  }
+  const cores = navigator.hardwareConcurrency || 4;
+  const mem = navigator.deviceMemory || 4;      // 只有 Chromium 有，缺省当 4G
+  return cores < 4 || mem < 2;
 }
 
 /**
@@ -2120,7 +2136,15 @@ function buildHeroVideo(opts) {
   if (!host) return null;
 
   const base = opts.base === undefined ? '' : opts.base;
-  const files = ['01-mural.mp4', '02-drain.mp4', '03-black.mp4'];
+  /* 两套素材：
+       桌面  960×540 / 2.2Mbps   三段共 2.3MB
+       手机  640×360 / 1.1Mbps   三段共 1.2MB
+     手机屏幕就那么宽，540p 是浪费；小版省一半流量、解码也轻。
+     都是 webm/vp9 —— 它是 MediaRecorder 出的，容器一定合法
+     （我手写 mp4 那次浏览器直接不认，错误码 4）。 */
+  const slim = window.matchMedia('(min-width: 900px)').matches;
+  const suffix = slim ? '-slim.webm' : '-slim-m.webm';
+  const files = ['01-mural' + suffix, '02-drain' + suffix, '03-black' + suffix];
   const vids = [...host.querySelectorAll('video')];
   if (vids.length < 3) return null;
 
@@ -2138,7 +2162,7 @@ function buildHeroVideo(opts) {
       三段**一次全挂**，不做按需加载 —— 早先想省带宽，只挂第一段、
       别的等切到了再挂，结果 showClip 在未挂载时静默失败
       （表现为"该换第二段了却什么都没发生"）。
-      这三个文件本来就会被浏览器缓存，全挂上启动只多几 MB，稳得多。 */
+      现在一套总共 1.2–2.3MB，全挂上启动只多一两 MB，稳得多。 */
   function mountAll() {
     vids.forEach((v, i) => {
       if (v.dataset.mounted) return;
@@ -2218,9 +2242,13 @@ function buildHeroVideo(opts) {
       /* 第三段本身只有 5.09 秒，但整圈是 17.6 秒 ——
          后面那几秒留给文字浮现和停留。
          所以第三段播完就**停在最后一帧**，让黑场继续，
-         别让视频回到第一帧（那样文字就没画面托着了）。 */
+         别让视频回到第一帧（那样文字就没画面托着了）。
+
+         判据用 ended，不用 duration —— MediaRecorder 出来的 webm
+         **不写时长元数据**，v.duration 是 NaN，用它这条判断永远不成立。
+         ended 是浏览器播到头时给的，跟容器有没有元数据无关。 */
       const v = vids[2];
-      if (v.duration && !v.paused && v.currentTime >= v.duration - 0.06) {
+      if (!v.paused && (v.ended || (v.duration && v.currentTime >= v.duration - 0.06))) {
         try { v.pause(); } catch {}
       }
     }
@@ -2331,6 +2359,7 @@ function buildHeroVideo(opts) {
 
 __ns = __XM[5];
 __ns.mount_isDesktop = function () { return isDesktop; };
+__ns.mount_shouldSkipVideo = function () { return shouldSkipVideo; };
 __ns.mount_buildHeroVideo = function () { return buildHeroVideo; };
 }
 
@@ -2744,7 +2773,7 @@ var DapSequencer = __XM[2]["DapSequencer"];
 var BandScroller = __XM[3]["BandScroller"];
 var mountShell = __XM[4]["mountShell"];
 var buildHeroVideo = __XM[5]["buildHeroVideo"];
-var isDesktop = __XM[5]["isDesktop"];
+var shouldSkipVideo = __XM[5]["shouldSkipVideo"];
 var initNetwork = __XM[6]["initNetwork"];
 
 /* ==========================================================================
@@ -3076,7 +3105,9 @@ async function boot() {
      只在桌面端开：三段全屏视频 + WebGL 会拖垮手机。
      "视频阶段 → 结构柱阶段" 靠卷动进度切换，不用额外做一套时序。 */
   const hvHost = $('#hero-video');
-  if (hvHost && isDesktop() && !REDUCED) {
+  /* 现在手机也放（素材压到 640×360、三段共 1.2MB），
+     只有低端设备或省流模式才跳过。 */
+  if (hvHost && !shouldSkipVideo() && !REDUCED) {
     heroVideo = buildHeroVideo({
       host: hvHost,
       /* 视频霸屏：前面 4~5 屏全是它，结构柱很晚才出现。
