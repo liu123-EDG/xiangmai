@@ -55,6 +55,12 @@
     <p class="wheel-readout" id="wheel-readout" aria-live="polite">
       鼠标移到点上，或点一下，这里显示对应说明。
     </p>
+
+    <!-- 木卡姆那一关不是"十二套之一"，是这一整套文化的处境，
+         所以单开一个入口，不跟那十二个混在一起。 -->
+    <p class="wheel-enter reveal" data-delay="4">
+      <a href="../game/index.html?level=muqam">走进这一关 · 如果你是传承人 →</a>
+    </p>
   </section>
 
   <!-- ===================== 八个民族 ===================== -->
@@ -76,35 +82,16 @@
     <p class="melody-readout" id="melody-readout" aria-live="polite">
       鼠标移到音符上，或点一下，这里显示对应说明。
     </p>
+
+    <!-- 音符点击：已做关卡的直接进那一关（藏族→格萨尔），
+         其余六族在读数区说明"还在制作中"。 -->
+    <p class="melody-enter reveal" data-delay="4">
+      已经能玩的是 <a href="../game/index.html?level=gesar">藏族 · 格萨尔</a> 那一关。
+    </p>
   </section>
 
   <!-- 未解锁时的提示条（解锁后由 js 移除） -->
   <p class="gate-note" id="gate-note" aria-live="polite"></p>
-
-  <!-- ===================== 传承之路（角色扮演） =====================
-       接在附录最后：你是一名非遗传承人，两个场景各做一次选择。
-       选错 → 看到这条文化失传的样子 → 闪回，逼你重选。
-       选对 → 看到它还活着的证据 → 一个真实的传承案例。
-       素材是视频，还没做；没有视频时退化成纯色底，机制照常能走。 -->
-  <section class="act inherit-act" id="inherit-act" data-act="3">
-    <div class="inherit" id="inherit">
-      <div class="g-stage">
-        <div class="g-bg" id="g-bg" aria-hidden="true"></div>
-        <div class="g-scrim" aria-hidden="true"></div>
-
-        <div class="g-box">
-          <p class="g-kicker" id="g-kicker">传承之路</p>
-          <h2 class="g-title" id="g-title">你是一名非遗传承人</h2>
-          <p class="g-text" id="g-text"></p>
-          <div class="g-choices" id="g-choices" role="group" aria-label="选择"></div>
-          <p class="g-case" id="g-case" hidden></p>
-          <button class="g-next" id="g-next" type="button" hidden></button>
-        </div>
-
-        <p class="g-progress" id="g-progress" aria-live="polite"></p>
-      </div>
-    </div>
-  </section>
 
   <nav class="chapter-nav" aria-label="章节导航"></nav>
 

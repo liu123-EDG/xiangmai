@@ -1701,3 +1701,45 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
 .g-choices[hidden],
 .g-case[hidden],
 .g-next[hidden] { display: none !important; }
+
+/* --------------------------------------------------------------------------
+   传承之路 · 入口链接（附录页上）
+   -------------------------------------------------------------------------- */
+.wheel-enter, .melody-enter {
+  margin: clamp(1.6rem, 4vh, 2.6rem) auto 0;
+  text-align: center;
+}
+.wheel-enter a, .melody-enter a {
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.25vw, 0.92rem);
+  letter-spacing: 0.24em;
+  color: var(--amber);
+  text-decoration: none;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgba(192, 138, 62, 0.4);
+  transition: color .5s var(--ease-slow), border-color .5s var(--ease-slow);
+}
+.wheel-enter a:hover, .melody-enter a:hover,
+.wheel-enter a:focus-visible, .melody-enter a:focus-visible {
+  color: #f2e4c4;
+  border-color: rgba(192, 138, 62, 0.95);
+  outline: none;
+}
+
+/* 游戏页上的返回链接：固定在左上，别跟内容抢 */
+.g-back {
+  position: fixed;
+  left: clamp(1rem, 3vw, 2rem);
+  bottom: clamp(1rem, 3vh, 1.8rem);
+  z-index: 8;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.24em;
+  color: rgba(222, 214, 200, 0.5);
+  text-decoration: none;
+  transition: color .5s var(--ease-slow);
+}
+.g-back:hover, .g-back:focus-visible { color: var(--bone); outline: none; }
+
+/* 游戏页不要页脚章节导航（那一页只有一关） */
+.game-page .chapter-nav { display: none; }

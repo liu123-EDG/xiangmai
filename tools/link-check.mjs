@@ -13,14 +13,19 @@ import { dirname, join, resolve, dirname as dn } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** 全站页面。加了新页记得加到这里。 */
+/** 全站页面。加了新页记得加到这里 ——
+    注意：漏加就等于这一页**从没被检查过**，
+    而输出仍然显示"无死链"，很容易误以为都验过了（踩过：
+    welcome 和 game 两页一直不在列表里）。 */
 const PAGES = [
+  'welcome/index.html',
   'index.html',
   'qiongnaieman/index.html',
   'dastan/index.html',
   'mashrap/index.html',
   'lishi/index.html',
   'fulu/index.html',
+  'game/index.html',
 ];
 
 let fails = 0;

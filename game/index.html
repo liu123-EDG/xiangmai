@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>传承之路｜弦脉</title>
+<meta name="description" content="你是一名非遗传承人。面对一种口传音乐，你只有一次机会——你会怎么选？">
+<meta name="theme-color" content="#0a0908">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Crect x='12' y='4' width='8' height='8' fill='%233a2b28'/%3E%3Crect x='12' y='12' width='8' height='8' fill='%23c08a3e'/%3E%3Crect x='12' y='20' width='8' height='8' fill='%23a33b28'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../styles/chapter.css">
+</head>
+<body class="chapter game-page" data-render="pending">
+
+<header class="topbar"></header>
+
+<!-- 传承之路 · 一页一关。
+     哪一关由 URL 参数决定：?level=muqam（维吾尔族·十二木卡姆）
+     或 ?level=gesar（藏族·格萨尔）。点八音旋律上的音符进这里。
+
+     整屏一段：背景是场景（戈壁 / 草原），中间一块文字与选项。
+     选错 → 播「失传」→ 闪回，只能重选。
+     选对 → 播「活着」→ 播「成功案例」→ 收束。 -->
+<main>
+  <section class="act inherit-act" id="inherit-act">
+    <div class="inherit" id="inherit">
+      <div class="g-stage">
+        <div class="g-bg" id="g-bg" aria-hidden="true"></div>
+        <div class="g-scrim" aria-hidden="true"></div>
+
+        <div class="g-box">
+          <p class="g-kicker" id="g-kicker">传承之路</p>
+          <h2 class="g-title" id="g-title">你是一名非遗传承人</h2>
+          <p class="g-text" id="g-text"></p>
+          <div class="g-choices" id="g-choices" role="group" aria-label="选择"></div>
+          <p class="g-case" id="g-case" hidden></p>
+          <button class="g-next" id="g-next" type="button" hidden></button>
+        </div>
+
+        <p class="g-progress" id="g-progress" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<a class="g-back" href="../fulu/index.html">← 回到旋律图</a>
+
+<script src="../js/dist/game.js" defer></script>
+</body>
+</html>

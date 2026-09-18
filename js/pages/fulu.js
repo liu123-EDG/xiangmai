@@ -5,7 +5,6 @@ import { buildMelody, bindMelodyScroll } from '../lib/melody.js';
 import { MUQAM } from '../lib/muqam-data.js';
 import { HERITAGE } from '../lib/heritage-data.js';
 import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
-import { buildInheritGame } from '../lib/inherit-game.js';
 
 /* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
    所以 sound:false —— 免得鼓点和主题曲抢。 */
@@ -75,7 +74,24 @@ if (wHost) {
   bindWheelScroll($('#wheel-act'), wheel, REDUCED);
 }
 
-/* ---- 八个民族的旋律入口 ---- */
+/* ---- 八个民族的旋律入口 ----
+   点音符的两种去处：
+     · 已经做了关卡的 → 进 game/ 玩那一关（选对给"活着"、选错给"失传"）
+     · 还没做的       → 不出关卡，明说"还在制作中"，不假装有内容
+
+   维吾尔族不在八音之列（那八个是壮/蒙/侗/满/苗/彝/傣/藏），
+   它的十二木卡姆是这一站的正题，所以关卡挂在藏族那个音符上：
+   点藏族进的是格萨尔，点附录里的木卡姆入口进的是另一关。
+
+   实际上：藏族音符 → ?level=gesar。木卡姆那一关从第五章/附录的
+   木卡姆入口进（见下面 wheel 那段）。 */
+const LEVEL_BY_HERITAGE = {
+  'tibetan-gesar': 'gesar',
+};
+/* 还没做关卡的，点进去给一句实话，别跳 404 */
+const PENDING_NOTE = '这一个民族的关卡还在制作中。' +
+  '已经能玩的是藏族（格萨尔）那一关。';
+
 const mHost = $('#melody-host');
 const mReadout = $('#melody-readout');
 if (mHost) {
@@ -86,10 +102,12 @@ if (mHost) {
 
   const melody = buildMelody(mHost, {
     onPick: (id) => {
+      const level = LEVEL_BY_HERITAGE[id];
+      if (level) { location.href = '../game/index.html?level=' + level; return; }
       const m = HERITAGE.find((x) => x.id === id);
       if (m && mReadout) {
         mReadout.innerHTML = line(m) +
-          '<br><span style="color:var(--bone-faint)">这一个分页面还在制作中。</span>';
+          '<br><span style="color:var(--bone-faint)">' + PENDING_NOTE + '</span>';
       }
     },
     onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
@@ -121,15 +139,4 @@ if (!unlock.done) {
 } else if (gateNote) {
   gateNote.remove();
 }
-
-/* ---- 传承之路（角色扮演） ----
-   放在附录最后一屏：你是一名非遗传承人，两处地方各做一次选择。
-   跟"上锁"无关 —— 它是这一页的正片结尾，不是入口，所以不参与 gate。
-
-   素材是 8 段视频（戈壁/草原 × 环境/活着/失传/案例），
-   桌面 960×540、手机 640×360，共 8.3 / 4.6 MB。
-   素材若缺，游戏会退化成 CSS 底色，机制照常能走完。 */
-const inherit = buildInheritGame({ reduced: REDUCED });
-// 自检用
-window.__XM_GAME__ = inherit;
 

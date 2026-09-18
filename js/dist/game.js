@@ -5,12 +5,8 @@
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
-     js/lib/muqam-data.js  → MUQAM, ringPos, ORIGIN, AMANNISA, STRUCTURE, NUMBERS, RESCUE, TODAY, PRACTICE, HEADLINE_STATS
-     js/lib/wheel.js  → buildWheel, bindWheelScroll
-     js/lib/heritage-data.js  → HERITAGE, heritageHref
-     js/lib/melody.js  → buildMelody, bindMelodyScroll
-     js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
-     js/pages/fulu.js
+     js/lib/inherit-game.js  → SCENES, buildInheritGame, sceneForLevel
+     js/pages/game.js
 */
 (function () {
 "use strict";
@@ -24,10 +20,6 @@ __XM[3] = {};
 __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
-__XM[7] = {};
-__XM[8] = {};
-__XM[9] = {};
-__XM[10] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -2233,1277 +2225,392 @@ __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
-/* ── js/lib/muqam-data.js ── */
+/* ── js/lib/inherit-game.js ── */
 function __M5__() {
 /* ==========================================================================
-   弦脉 · 十二木卡姆
+   弦脉 · 传承之路
    --------------------------------------------------------------------------
-   十二套木卡姆，每套都是一个完整的套曲循环。这里的字段按"能不能被验证"
-   分层：
+   角色扮演：你是一名非遗传承人。两个场景，每个场景做一次选择。
 
-     name / ug   名称与维吾尔语拉丁转写 —— 公开资料
-     region      流传地域 —— 公开资料
-     char        音乐性格，用于视觉与交互上区分彼此
-     note        一句话说明，保守叙述，不编造具体史实
+   规则（用户定的）：
+     · 两个选项要**很分明**，一眼看得出哪个对哪个错
+     · 选错 → 播「失传」的视频 + 一句"这条路会失去什么" → 闪回，只能重选
+     · 选对 → 播「活着」的视频 + 一个真实的传承案例 → 下一场景
+     · 两个场景走完 → 结尾（结尾页稍后再做，这里先留位）
 
-   需要补充更详细内容（曲目、传承人、音频）时，往对应条目里加字段即可，
-   页面会自动带上。**不确定的内容不要写进来** —— 这个项目里宁缺勿造。
+   视频还没做。没有视频时不报错、不空白，退化成场景自带的底色 ——
+   机制照常能走完，素材到位后把 VIDEOS 里的路径填上就行。
+
+   **案例人物我不编。** 名字、年份、做了什么，必须由用户核实后填。
+   编一个错的放上去，是把错的东西教给别人 —— 比不做更糟。
    ========================================================================== */
 
-const MUQAM = [
-  { id: 'rak',     name: '拉克',     ug: 'Rak',        region: '喀什 · 莎车',   char: '庄重', hue: 12,  note: '十二套之首，气质最庄重，常被视作整套木卡姆的门面。' },
-  { id: 'chebiyat', name: '且比亚特', ug: 'Chebiyat',  region: '喀什 · 莎车',   char: '明朗', hue: 28,  note: '情绪明朗开阔，穹乃额曼部分旋律线条舒展。' },
-  { id: 'muxawrak', name: '木夏吾莱克', ug: 'Muxawrak', region: '喀什 · 和田',  char: '热烈', hue: 42,  note: '节奏推进感强，达斯坦段落叙事性突出。' },
-  { id: 'chahargah', name: '恰尔尕',   ug: 'Chahargah', region: '喀什 · 莎车',  char: '苍劲', hue: 8,   note: '音域跨度大，散板序唱部分尤为苍劲。' },
-  { id: 'panjigah', name: '潘吉尕',    ug: 'Panjigah',  region: '喀什 · 莎车',  char: '深邃', hue: 200, note: '调式色彩偏暗，听感深邃，考验演唱者的气息控制。' },
-  { id: 'uzhal',   name: '乌孜哈勒',   ug: 'Uzhal',     region: '喀什 · 莎车',  char: '婉转', hue: 168, note: '旋律婉转，腔弯细腻，是口传细节最吃功夫的一套。' },
-  { id: 'aqam',    name: '艾介姆',     ug: 'Ajam',      region: '喀什 · 莎车',  char: '舒展', hue: 36,  note: '气息舒展，麦西热甫段落歌舞性强烈。' },
-  { id: 'osechak', name: '乌夏克',     ug: 'Oshaq',     region: '喀什 · 莎车',  char: '明亮', hue: 48,  note: '明亮上扬，常被选作舞台演出的段落。' },
-  { id: 'bayat',   name: '巴雅特',     ug: 'Bayat',     region: '喀什 · 莎车',  char: '沉郁', hue: 218, note: '沉郁内敛，古典诗歌唱词占比高。' },
-  { id: 'nawa',    name: '纳瓦',       ug: 'Nawa',      region: '喀什 · 莎车',  char: '柔美', hue: 152, note: '柔美流畅，器乐间奏部分常被单独演奏。' },
-  { id: 'sigar',   name: '斯尕',       ug: 'Sigar',     region: '喀什 · 莎车',  char: '紧凑', hue: 20,  note: '结构紧凑，节拍转换频繁。' },
-  { id: 'iraq',    name: '伊拉克',     ug: 'Iraq',      region: '喀什 · 莎车',  char: '高亢', hue: 320, note: '高亢激越，常作为整套木卡姆的收束。' },
+const $ = (s, r) => (r || document).querySelector(s);
+
+/* ------------------------------------------------------------------ 素材 */
+/* 视频在 assets/video/inherit/ 下。
+   桌面用 960×540（*-slim.webm），手机用 640×360（*-slim-m.webm）——
+   和概念片同一套做法。素材没到位就退化成 CSS 底色，机制照常能走。 */
+const VIDEO_DIR = '../assets/video/inherit/';
+const MOBILE = !window.matchMedia('(min-width: 900px)').matches;
+const SUF = MOBILE ? '-slim-m.webm' : '-slim.webm';
+const V = {
+  gobi:     'gobi' + SUF,        // 场景一 环境
+  qonLive:  'qon-live' + SUF,    // 场景一 选对：文化活着
+  qonLost:  'qon-lost' + SUF,    // 场景一 选错：文化失传
+  qonCase:  'qon-case' + SUF,    // 场景一 成功案例
+  steppe:   'steppe' + SUF,      // 场景二 环境
+  tibLive:  'tib-live' + SUF,    // 场景二 选对
+  tibLost:  'tib-lost' + SUF,    // 场景二 选错
+  tibCase:  'tib-case' + SUF,    // 场景二 成功案例
+};
+
+/* ------------------------------------------------------------------ 剧本 */
+/* 每幕一个场景。level 决定用哪一幕 ——
+   点哪个音符就进哪个 level，不是把代码复制两份。 */
+const SCENES = [
+  {
+    id: 'gobi',
+    level: 'muqam',
+    name: '维吾尔族 · 十二木卡姆',
+    kicker: '戈壁',
+    bg: 'gobi',
+    intro: {
+      title: '你来到了新疆的戈壁滩',
+      text: '风把沙子推过地面。你面前是一整套十二木卡姆——' +
+            '它要二十多个小时才能唱完，靠口传，一个师父带一拨徒弟。' +
+            '你手上有一次机会，只能做一件事。你做什么？',
+    },
+    choices: [
+      {
+        ok: false,
+        label: '把木卡姆的旋律录下来，带回城市，放进音乐厅里保存。',
+        say: '你带走了旋律，但没有人再唱它。',
+        tail: '十二木卡姆终究没能走出戈壁。',
+        video: 'qonLost',
+      },
+      {
+        ok: true,
+        label: '留在戈壁，找到还在唱的人，跟着他学，把它唱给下一个愿意听的人。',
+        say: '你留了下来。',
+        tail: '只要还有人在唱，它就没有断。',
+        video: 'qonLive',
+        caseRef: 'qon',
+      },
+    ],
+  },
+  {
+    id: 'steppe',
+    level: 'gesar',
+    name: '藏族 · 格萨尔',
+    kicker: '草原',
+    bg: 'steppe',
+    intro: {
+      title: '你来到了无垠的草原',
+      text: '高原上的风一直没停。这里有一种说唱，艺人要连着讲好几天，' +
+            '学的人得跟着师父一句一句背。' +
+            '你还是只有一次机会。你做什么？',
+    },
+    choices: [
+      {
+        ok: false,
+        label: '把格萨尔史诗翻译成文字，印成书，放进图书馆。',
+        say: '你记下了故事，但没有人再讲它。',
+        tail: '藏族文化终究没能走出草原。',
+        video: 'tibLost',
+      },
+      {
+        ok: true,
+        label: '坐在草原上，听他说，跟着他学，让下一个孩子也能听见。',
+        say: '你坐了下来。',
+        tail: '风还在吹，故事还在往下讲。',
+        video: 'tibLive',
+        caseRef: 'tib',
+      },
+    ],
+  },
 ];
 
-/** 环上第 i 个节点的位置（从正上方起顺时针） */
-function ringPos(i, cx, cy, r) {
-  const a = (i / MUQAM.length) * Math.PI * 2 - Math.PI / 2;
-  return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
+/* 成功案例。**人名与事实由用户提供，不是我编的。** */
+const CASES = {
+  qon: {
+    name: '玉苏普·托合提',
+    year: '莎车县木卡姆文化传承中心 · 传承人',
+    fact: '带出 20 多名徒弟，年龄最小的仅 20 岁。',
+  },
+  tib: {
+    name: '桑珠',
+    year: '西藏那曲 · 格萨尔说唱艺人 · 2009 年入选国家级非遗代表性传承人',
+    fact: '能唱 60 多部《格萨尔》。',
+  },
+};
+
+/* ------------------------------------------------------------------ 状态 */
+const state = { scene: 0, phase: 'intro', tried: 0 };
+
+/* ------------------------------------------------------------------ 构建 */
+function buildInheritGame(opts = {}) {
+  const host = $('#inherit');
+  if (!host) return null;
+
+  const bg = $('#g-bg', host);
+  const kicker = $('#g-kicker', host);
+  const title = $('#g-title', host);
+  const text = $('#g-text', host);
+  const choices = $('#g-choices', host);
+  const caseEl = $('#g-case', host);
+  const nextBtn = $('#g-next', host);
+  const progress = $('#g-progress', host);
+
+  const reduced = !!opts.reduced;
+
+  /* 一页一关：opts.level 指定玩哪一幕（点音符进来时由 URL 参数给）。
+     不给就默认第一幕。 */
+  if (opts.level) {
+    const i = SCENES.findIndex((s) => s.level === opts.level);
+    if (i >= 0) state.scene = i;
+  }
+
+  /* 视频：一段一个元素，按需挂 src。
+     取不到就什么都不显示，露出底色 —— 不报错、不留空白框。 */
+  let videoEl = null;
+  function makeVideo() {
+    if (videoEl) return videoEl;
+    videoEl = document.createElement('video');
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.preload = 'none';
+    videoEl.setAttribute('aria-hidden', 'true');
+    videoEl.className = 'g-video';
+    bg.appendChild(videoEl);
+    return videoEl;
+  }
+
+  /** 播一段视频；没有素材就静默退化成底色 */
+  function playVideo(key, onDone) {
+    const file = V[key];
+    if (!file || reduced) { onDone(); return; }
+    const v = makeVideo();
+    let settled = false;
+    const finish = () => { if (!settled) { settled = true; onDone(); } };
+    v.onerror = finish;                       // 文件不在 → 直接往下走
+    v.onended = finish;
+    v.src = VIDEO_DIR + file;
+    v.classList.add('is-on');
+    v.play().then(() => {
+      /* 播起来之后再挂一个兜底：万一 ended 不触发（webm 有时没时长元数据），
+         也不至于卡在这一步。 */
+      setTimeout(finish, 12000);
+    }).catch(finish);
+  }
+
+  function clearVideo() {
+    if (!videoEl) return;
+    try { videoEl.pause(); } catch {}
+    videoEl.classList.remove('is-on');
+    videoEl.removeAttribute('src');
+  }
+
+  function setBg(kind) {
+    host.dataset.bg = kind || '';
+  }
+
+  /* ---------------------------------------------------------- 渲染各阶段 */
+  function renderIntro() {
+    const s = SCENES[state.scene];
+    state.phase = 'intro';
+    clearVideo();
+    setBg(s.bg);
+    kicker.textContent = s.kicker;
+    title.textContent = s.intro.title;
+    text.textContent = s.intro.text;
+    caseEl.hidden = true;
+    nextBtn.hidden = true;
+    progress.textContent = s.name || '';
+
+    choices.hidden = false;
+    choices.innerHTML = '';
+    s.choices.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'g-choice';
+      b.dataset.ok = c.ok ? '1' : '0';
+      b.innerHTML = '<span class="g-choice__key">' + (i === 0 ? 'A' : 'B') + '</span>' +
+                    '<span class="g-choice__label">' + c.label + '</span>';
+      b.addEventListener('click', () => choose(i));
+      choices.appendChild(b);
+    });
+  }
+
+  function choose(i) {
+    const s = SCENES[state.scene];
+    const c = s.choices[i];
+    choices.hidden = true;
+    hideOthers();
+    if (c.ok) {
+      state.phase = 'right';
+      title.textContent = c.say;
+      text.textContent = c.tail;
+      setBg(s.bg);
+      playVideo(c.video, () => {
+        // 活着那段播完，接着给成功案例
+        showCase(c.caseRef);
+      });
+    } else {
+      state.phase = 'wrong';
+      state.tried++;
+      title.textContent = c.say;
+      text.textContent = c.tail;
+      setBg(s.bg + '-lost');
+      /* **闪回按钮立刻出现**，不等视频播完。
+         这里踩过一次：原来把 showRetry 挂在视频的 ended 回调里，
+         结果视频一发 ended（或者没时长元数据不触发），
+         玩家就卡在失败画面**没有出口** —— 而"选错必须能重选"
+         是这个游戏的核心规则，不能依赖视频播放是否顺利。 */
+      showRetry();
+      playVideo(c.video, () => {});
+    }
+  }
+
+  function hideOthers() {
+    caseEl.hidden = true;
+    nextBtn.hidden = true;
+  }
+
+  function showRetry() {
+    nextBtn.hidden = false;
+    nextBtn.textContent = '回到选择';
+    nextBtn.onclick = () => renderIntro();
+  }
+
+  function showCase(ref) {
+    const c = CASES[ref];
+    state.phase = 'case';
+    setBg(SCENES[state.scene].bg);
+    playVideo(SCENES[state.scene].choices.find((x) => x.ok).video === 'qonLive'
+      ? 'qonCase' : 'tibCase', () => {});
+    if (c) {
+      caseEl.hidden = false;
+      caseEl.innerHTML =
+        '<span class="g-case__name">' + c.name + '</span>' +
+        '<span class="g-case__year">' + c.year + '</span>' +
+        '<span class="g-case__fact">' + c.fact + '</span>';
+    }
+    nextBtn.hidden = false;
+    nextBtn.textContent = '这一关走完了';
+    nextBtn.onclick = () => showEnding();
+  }
+
+  /* 单关的收束。
+     原来这里是"第二幕走完 → 终章"，现在一页只玩一关，
+     所以收束成一句 + 出口（由页面通过 opts.onDone 提供去处）。 */
+  function showEnding() {
+    state.phase = 'end';
+    clearVideo();
+    setBg('end');
+    kicker.textContent = '这一关';
+    title.textContent = '你把它带出来了';
+    text.textContent = state.tried
+      ? '你走过一次弯路——那条路上没有人。现在它还在。'
+      : '你一次就走对了。现在它还在。';
+    hideOthers();
+    /* 把选项**内容也清掉**，不只是隐藏。
+       光靠 hidden 不够稳：.g-choices 上有 display: grid，
+       它会盖掉 hidden 属性自带的 display:none，
+       结果"隐藏"了的按钮照样显示（踩过，截图里和结尾叠在一起）。
+       CSS 那边已经补了 [hidden] 规则，这里再把内容清空，双保险。 */
+    choices.hidden = true;
+    choices.innerHTML = '';
+    progress.textContent = opts.doneNote || '';
+
+    /* 出口：页面决定去哪（回旋律图 / 下一关 / 结尾页）。
+       组件不认识站点路由，所以由外面传进来。 */
+    if (typeof opts.onDone === 'function') {
+      nextBtn.hidden = false;
+      nextBtn.textContent = opts.doneLabel || '回到旋律图';
+      nextBtn.onclick = () => opts.onDone();
+    } else {
+      nextBtn.hidden = true;
+    }
+  }
+
+  renderIntro();
+
+  /* 自检用：可以问当前状态，也可以直接跳到某一幕 */
+  return {
+    state: () => JSON.parse(JSON.stringify(state)),
+    scenes: () => SCENES.map((s) => s.id),
+    scene: () => SCENES[state.scene],
+    goScene: (i) => { state.scene = Math.max(0, Math.min(SCENES.length - 1, i)); renderIntro(); },
+    choose,
+  };
 }
 
-/* ==========================================================================
-   第二章「穹乃额曼」的内容
-   --------------------------------------------------------------------------
-   全部来自项目方提供的历史与当代资料。呈现在页面上时保持原意，
-   只做断句与排版上的压缩。
-   ========================================================================== */
-
-const ORIGIN = [
-  {
-    era: '汉唐',
-    title: '西域大曲',
-    lines: [
-      '源头可追溯至汉唐时期流传于西域的《龟兹乐》《疏勒乐》《高昌乐》。',
-      '有观点认为，张骞通西域时带回中原的「摩诃兜勒」是木卡姆的原始形态——其曲式已包含歌曲、解曲、舞曲，与木卡姆的套曲结构一脉相承。',
-    ],
-    tag: '龟兹乐被视为木卡姆形成发展的第一个中心地',
-  },
-  {
-    era: '10世纪',
-    title: '博亚万',
-    lines: [
-      '木卡姆的雏形萌发于维吾尔族先民的「博亚万」——旷野之歌。',
-      '此后经过几个世纪的演变，逐渐从民间散曲走向成套。',
-    ],
-    tag: '旷野之歌',
-  },
-  {
-    era: '16世纪',
-    title: '叶尔羌汗国',
-    lines: [
-      '木卡姆迎来决定性转折。宫廷乐师将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成规范化的古典套曲体系。',
-      '最初整理为 16 部，后精简为 12 套——「十二木卡姆」由此得名。',
-    ],
-    tag: '从 16 部到 12 套',
-    emphasis: true,
-  },
-];
-
-const AMANNISA = {
-  name: '阿曼尼莎汗',
-  role: '叶尔羌河畔樵夫的女儿',
-  lines: [
-    '她本是叶尔羌河畔樵夫的女儿，因超凡的音乐与诗歌才华被国王拉失德娶入宫廷。',
-    '在她的倡导下，宫廷乐师喀迪尔汗（柯迪尔）将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成了规范化的古典套曲体系。',
-    '最初整理为 16 部，后精简为 12 套。',
-  ],
-  kicker: '这次转折与一位传奇女性密不可分',
-};
-
-const STRUCTURE = [
-  {
-    idx: '一',
-    name: '穹乃额曼',
-    sub: '大曲',
-    body: '是开篇，由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
-    role: '开篇',
-    mood: '舒缓 → 明朗',
-  },
-  {
-    idx: '二',
-    name: '达斯坦',
-    sub: '叙事诗',
-    body: '承接大曲，带有鲜明的叙事特征。歌词与民间故事、爱情传说、人生感怀相联系，演唱段落之间穿插器乐曲。',
-    role: '承接',
-    mood: '叙事 · 铺陈',
-  },
-  {
-    idx: '三',
-    name: '麦西热甫',
-    sub: '歌舞曲',
-    body: '是终章，节奏鲜明，气氛逐步高涨，展现群体欢聚时的生命活力。',
-    role: '终章',
-    mood: '高涨 · 欢腾',
-  },
-];
-
-const NUMBERS = [
-  { v: '170', unit: '多首', label: '歌曲' },
-  { v: '70',  unit: '多首', label: '器乐曲' },
-  { v: '20',  unit: '多小时', label: '完整演唱一遍' },
-];
-
-const RESCUE = {
-  kicker: '从濒危到重生',
-  intro: '到 20 世纪 40 年代，能完整演唱十二木卡姆的艺人已屈指可数。当时全新疆只有老艺人吐尔迪·阿洪一人能凭记忆完整演唱全套，且年事已高。他不识字，所有曲目全靠口传心授。',
-  /** 两个人的对照：语言不通、背景迥异，合作充满波折 */
-  friction: [
-    {
-      a: '万桐书记谱需要「听一句记一句」',
-      b: '吐尔迪·阿洪唱歌习惯一气呵成',
-    },
-    {
-      a: '万桐书用钢丝录音机录音',
-      b: '吐尔迪·阿洪不相信「铁疙瘩能把歌声装进去」',
-    },
-    {
-      a: '万桐书追求记谱的准确性',
-      b: '吐尔迪·阿洪每次都即兴发挥，唱得不完全一样',
-    },
-  ],
-  outcome: '经过近六年的艰辛工作，1960 年，记录了 340 余首古典叙诵歌曲、民间叙事组歌、舞曲、即兴乐曲的《十二木卡姆》正式出版。',
-  verdict: '这次抢救，让十二木卡姆从消亡边缘被拉了回来。',
-  years: '近六年 · 1950—1960',
-};
-
-const TODAY = {
-  kicker: '当代传承形态',
-  lead: '今天的十二木卡姆传承呈现出清晰的「双轨」特征。',
-  tracks: [
-    {
-      tag: '轨道一',
-      name: '扎根乡土的活态传承',
-      lines: [
-        '在莎车县木卡姆文化传承中心，像玉苏普·托合提这样的非遗代表性传承人有近 50 人，年龄最大的 70 多岁，最小的仅 20 岁。',
-        '当地通过每月发放生活补贴、每日举办文艺演出等举措，让传承人能够以此为业。',
-      ],
-      stats: [
-        { v: '近50', label: '代表性传承人' },
-        { v: '70→20', label: '年龄跨度（岁）' },
-      ],
-    },
-    {
-      tag: '轨道二',
-      name: '进入教育体系的专业化培养',
-      lines: [
-        '新疆艺术学院自 1996 年起设立木卡姆专业学历教育，已培养出 250 余名专业人才分赴各院团工作，部分已成为一级演员。',
-        '各地每年举办传承人培训班，二十年来累计培训超过 2000 人次。',
-      ],
-      stats: [
-        { v: '1996', label: '设立专业学历教育' },
-        { v: '250+', label: '专业人才' },
-        { v: '2000+', label: '累计培训人次' },
-      ],
-    },
-  ],
-};
-
-const PRACTICE = {
-  kicker: '当代运用实例',
-  lead: '十二木卡姆不再仅仅是被「保护」的对象，它正在被主动地「使用」——作为舞台艺术的核心内容、作为流行音乐的创作素材、作为连接不同代际观众的情感媒介。',
-  cases: [
-    {
-      org: '艾热',
-      title: '把木卡姆「说」进说唱',
-      body: '新疆喀什说唱歌手艾热在创作中持续融入木卡姆元素。他选用维吾尔族代表性弦乐器艾捷克作为说唱编曲底色，用较为激昂高亢的演唱方式诠释十二木卡姆艺术，与说唱音乐无缝嫁接。《千里万里》被网友评价为「可以上春晚的水准」，并被世界杯官方账号选用作为推广视频 BGM。',
-      tags: ['说唱', '艾捷克', '跨语种传播'],
-    },
-    {
-      org: '刀郎',
-      title: '用流行乐「翻译」木卡姆的结构',
-      body: '刀郎为电影《万桐书》创作的主题曲《命运的赛勒克》提供了反向思路：以木卡姆音乐特征为基础，在流行律动中加入复合节拍，融合热瓦普、弹布尔等传统乐器，通过实录民族乐器保留木卡姆的「四分中立音」律制听感，并运用木卡姆式吟唱与 rap 呼应。这首歌的创作目的是向万桐书等抢救木卡姆的学者致敬。',
-      tags: ['电影主题曲', '复合节拍', '四分中立音'],
-    },
-    {
-      org: '2024 央视春晚',
-      title: '大型舞台呈现',
-      body: '喀什分会场的歌舞乐综合表演《我的爱献给祖国母亲》，选用十二木卡姆中《且比亚特木卡姆》乐曲重新填词编曲，动用 500 多人团队（300 多位舞蹈演员、90 多位乐手、80 多位演唱者）在喀什古城完成户外大型实景表演。乐手中既有白发苍苍的民间传承人，也有稚气纯真的小学生。',
-      tags: ['实景演出', '500+ 人', '代际同台'],
-      stats: [
-        { v: '300+', label: '舞蹈演员' },
-        { v: '90+', label: '乐手' },
-        { v: '80+', label: '演唱者' },
-      ],
-    },
-    {
-      org: '创新剧目',
-      title: '持续涌现',
-      body: '原创芭蕾舞剧《寻找木卡姆》以芭蕾语汇重新诠释木卡姆；融合 AI 数字人等技术的歌剧《木卡姆恋歌——万桐书》以现代审美演绎传承故事。木卡姆传统乐器还与古琴、箜篌进行跨界合奏，碰撞出跨越民族的艺术火花。',
-      tags: ['芭蕾', 'AI 数字人', '跨界合奏'],
-    },
-  ],
-  closing: '从「抢救」到「活用」的转变，是它传承至今最具生命力的形态。',
-};
-
-/** 页面顶部的关键数字，用于开场 */
-const HEADLINE_STATS = [
-  { v: '16', unit: '世纪', label: '叶尔羌汗国完成经典化' },
-  { v: '12', unit: '套', label: '每套三大部分' },
-  { v: '20', unit: '小时', label: '完整演唱一遍' },
-];
+/** 按 level 找对应的那一幕 —— 点音符进来时用 */
+function sceneForLevel(level) {
+  return SCENES.find((s) => s.level === level) || null;
+}
 
 __ns = __XM[5];
-__ns.mount_MUQAM = function () { return MUQAM; };
-__ns.mount_ringPos = function () { return ringPos; };
-__ns.mount_ORIGIN = function () { return ORIGIN; };
-__ns.mount_AMANNISA = function () { return AMANNISA; };
-__ns.mount_STRUCTURE = function () { return STRUCTURE; };
-__ns.mount_NUMBERS = function () { return NUMBERS; };
-__ns.mount_RESCUE = function () { return RESCUE; };
-__ns.mount_TODAY = function () { return TODAY; };
-__ns.mount_PRACTICE = function () { return PRACTICE; };
-__ns.mount_HEADLINE_STATS = function () { return HEADLINE_STATS; };
+__ns.mount_SCENES = function () { return SCENES; };
+__ns.mount_buildInheritGame = function () { return buildInheritGame; };
+__ns.mount_sceneForLevel = function () { return sceneForLevel; };
 }
 
-/* ── js/lib/wheel.js ── */
+/* ── js/pages/game.js ── */
 function __M6__() {
-var MUQAM = __XM[5]["MUQAM"];
-var ringPos = __XM[5]["ringPos"];
-
-/* ==========================================================================
-   弦脉 · 十二木卡姆轮盘
-   --------------------------------------------------------------------------
-   用十二点几何表示十二套木卡姆，而不是一个音符符号。
-
-   理由不是审美偏好：十二木卡姆本身就是"十二个套曲循环"这件事，
-   用十二等分的环形结构表示，是准确；而音符是外来记谱体系的符号，
-   放在一个口传心授的传统上是文化逻辑错位。
-
-   几何取自维吾尔木雕与花窗里常见的十二角星。十二个节点就是十二个入口。
-
-   可访问性：每个节点是真正的 <a>，能 Tab、能回车、有 aria-label。
-   ========================================================================== */
-
-
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-const VB = 720;            // viewBox 边长
-const CX = 360, CY = 360;
-const R_NODE = 232;        // 节点半径
-const R_RING = 196;        // 装饰环
-
-const el = (tag, attrs) => {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  return n;
-};
-
-/**
- * 在容器里生成十二木卡姆轮盘。
- * @param {HTMLElement} host
- * @param {object} [opts]
- * @param {string} [opts.hrefBase='../muqam/'] 各分页面的路径前缀
- * @param {(id:string)=>void} [opts.onPick]    点击回调（不传则直接跳转）
- */
-function buildWheel(host, opts = {}) {
-  if (!host) return null;
-  const hrefBase = opts.hrefBase || '../muqam/';
-
-  const svg = el('svg', {
-    class: 'wheel',
-    viewBox: `0 0 ${VB} ${VB}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'list',
-    'aria-label': '十二木卡姆，每一点对应一套，可进入对应页面',
-  });
-
-  /* ---- 底纹：三层同心环 + 十二角星 ---- */
-  const deco = el('g', { class: 'wheel__deco', 'aria-hidden': 'true' });
-
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: R_RING, class: 'wheel__ring' }));
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: R_RING - 13, class: 'wheel__ring wheel__ring--thin' }));
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: 58, class: 'wheel__ring wheel__ring--thin' }));
-
-  // 十二角星：两组六角，交错叠成
-  for (const rot of [0, 30]) {
-    const pts = [];
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 - Math.PI / 2 + (rot * Math.PI) / 180;
-      pts.push((CX + Math.cos(a) * R_RING).toFixed(1) + ',' + (CY + Math.sin(a) * R_RING).toFixed(1));
-    }
-    deco.appendChild(el('polygon', { points: pts.join(' '), class: 'wheel__star' }));
-  }
-
-  // 十二根辐条
-  for (let i = 0; i < MUQAM.length; i++) {
-    const p1 = ringPos(i, CX, CY, 58);
-    const p2 = ringPos(i, CX, CY, R_RING - 13);
-    deco.appendChild(el('line', {
-      x1: p1.x.toFixed(1), y1: p1.y.toFixed(1),
-      x2: p2.x.toFixed(1), y2: p2.y.toFixed(1),
-      class: 'wheel__spoke',
-    }));
-  }
-
-  const rotating = el('g', { class: 'wheel__rotor' });
-  rotating.appendChild(deco);
-  svg.appendChild(rotating);
-
-  /* ---- 中心：标题 ---- */
-  const core = el('g', { class: 'wheel__core' });
-  const t1 = el('text', { x: CX, y: CY - 6, class: 'wheel__core-num' });
-  t1.textContent = '12';
-  const t2 = el('text', { x: CX, y: CY + 24, class: 'wheel__core-label' });
-  t2.textContent = '套木卡姆';
-  core.appendChild(t1);
-  core.appendChild(t2);
-  svg.appendChild(core);
-
-  /* ---- 十二个节点 ---- */
-  const nodes = el('g', { class: 'wheel__nodes' });
-  const items = [];
-
-  MUQAM.forEach((m, i) => {
-    const p = ringPos(i, CX, CY, R_NODE);
-    const g = el('a', {
-      class: 'wnode',
-      href: hrefBase + m.id + '/index.html',
-      role: 'listitem',
-      'data-id': m.id,
-      'aria-label': '第' + (i + 1) + '套 · ' + m.name + '（' + m.ug + '）· ' + m.region + ' · ' + m.char,
-    });
-
-    // 每个节点用自己的色相，来自它所属的那一段性格
-    g.style.setProperty('--h', String(m.hue));
-
-    g.appendChild(el('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: 22, class: 'wnode__halo' }));
-    g.appendChild(el('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: 6, class: 'wnode__dot' }));
-
-    // 编号：贴在圆心一侧
-    const numA = ringPos(i, CX, CY, R_NODE - 34);
-    const tnum = el('text', {
-      x: numA.x.toFixed(1), y: numA.y.toFixed(1), class: 'wnode__num',
-    });
-    tnum.textContent = String(i + 1).padStart(2, '0');
-    g.appendChild(tnum);
-
-    // 名称：贴在圆外一侧，沿半径向外排
-    const outA = ringPos(i, CX, CY, R_NODE + 34);
-    const tname = el('text', {
-      x: outA.x.toFixed(1), y: outA.y.toFixed(1), class: 'wnode__name',
-      'text-anchor': Math.abs(outA.x - CX) < 30 ? 'middle' : (outA.x > CX ? 'start' : 'end'),
-    });
-    tname.textContent = m.name;
-    g.appendChild(tname);
-
-    const tug = el('text', {
-      x: outA.x.toFixed(1), y: (outA.y + 19).toFixed(1), class: 'wnode__ug',
-      'text-anchor': Math.abs(outA.x - CX) < 30 ? 'middle' : (outA.x > CX ? 'start' : 'end'),
-    });
-    tug.textContent = m.ug;
-    g.appendChild(tug);
-
-    g.addEventListener('click', (e) => {
-      if (!opts.onPick) return;      // 没给回调就让它正常跳转
-      e.preventDefault();
-      opts.onPick(m.id);
-    });
-    // 悬停/聚焦时把信息推给外部（右下角的读数）
-    const report = () => { if (opts.onHover) opts.onHover(m, i); };
-    g.addEventListener('mouseenter', report);
-    g.addEventListener('focus', report);
-
-    nodes.appendChild(g);
-    items.push({ data: m, el: g, x: p.x, y: p.y });
-  });
-
-  svg.appendChild(nodes);
-  host.appendChild(svg);
-
-  return { svg, items, rotating };
-}
-
-/* ==========================================================================
-   配合滚动的入场：轮盘随滚动进度慢慢转、慢慢亮
-   ========================================================================== */
-function bindWheelScroll(section, wheel, reduced) {
-  if (!wheel || reduced) return () => {};
-  let ticking = false;
-  const update = () => {
-    ticking = false;
-    const r = section.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // 0 = 刚进视口，1 = 完全离开上方
-    const p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
-
-    // 转动：整段滚动过程中转约 24 度，慢到"几乎察觉不到但在动"
-    wheel.rotating.style.transform = 'rotate(' + (p * 24 - 12).toFixed(2) + 'deg)';
-    wheel.rotating.style.transformOrigin = '50% 50%';
-
-    // 亮度：进入视口中央时最亮
-    const focus = 1 - Math.abs(p - 0.5) * 1.5;
-    wheel.svg.style.setProperty('--wheel-focus', Math.max(0.25, focus).toFixed(3));
-  };
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  update();
-  return () => {
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('resize', onScroll);
-  };
-}
-
-__ns = __XM[6];
-__ns.mount_buildWheel = function () { return buildWheel; };
-__ns.mount_bindWheelScroll = function () { return bindWheelScroll; };
-}
-
-/* ── js/lib/heritage-data.js ── */
-function __M7__() {
-/* ==========================================================================
-   弦脉 · 各民族音乐非遗
-   --------------------------------------------------------------------------
-   旋律图上的八个入口。每一条对应一个分页面：../heritage/<id>/index.html
-
-   字段说明：
-     id     路由名，决定分页面目录
-     name   中文名
-     ug     拉丁 / 罗马转写（便于检索）
-     group  民族
-     kind   形态类型
-     pitch  在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
-     hue    音符配色色相
-     note   一句话说明 —— **留空待补，不编**
-
-   你搜到资料后，把内容填进 note，或加任意新字段（region / level / 曲目 /
-   传承人 …），页面会自动带上。
-   ========================================================================== */
-
-const HERITAGE = [
-  { id: 'zhuang-tianqin',    name: '天琴艺术',   ug: 'Tianqin',       group: '壮族',   kind: '器乐 · 弹唱',  pitch: 3,  hue: 36,  note: '' },
-  { id: 'mongol-morinhuur',  name: '马头琴',     ug: 'Morin Khuur',   group: '蒙古族', kind: '器乐',        pitch: 5,  hue: 152, note: '' },
-  { id: 'dong-dage',         name: '侗族大歌',   ug: 'Kam Grand Choir', group: '侗族', kind: '多声部合唱',  pitch: 8,  hue: 200, note: '' },
-  { id: 'manchu-xinchengxi', name: '新城戏',     ug: 'Xincheng Opera', group: '满族',  kind: '戏曲',        pitch: 6,  hue: 320, note: '' },
-  { id: 'miao-guge',         name: '苗族古歌',   ug: 'Hxak Lul',      group: '苗族',   kind: '史诗 · 叙事歌', pitch: 11, hue: 12,  note: '' },
-  { id: 'yi-shan-ge',        name: '山歌小调',   ug: 'Yi Folk Songs', group: '彝族',   kind: '民歌',        pitch: 9,  hue: 42,  note: '' },
-  { id: 'dai-zhangha',       name: '章哈',       ug: 'Zhangha',       group: '傣族',   kind: '说唱',        pitch: 4,  hue: 168, note: '' },
-  { id: 'tibetan-gesar',     name: '格萨尔',     ug: 'Gesar',         group: '藏族',   kind: '史诗说唱',    pitch: 13, hue: 218, note: '' },
-];
-
-/** 分页面路径 */
-function heritageHref(id) {
-  return '../heritage/' + id + '/index.html';
-}
-
-__ns = __XM[7];
-__ns.mount_HERITAGE = function () { return HERITAGE; };
-__ns.mount_heritageHref = function () { return heritageHref; };
-}
-
-/* ── js/lib/melody.js ── */
-function __M8__() {
-var HERITAGE = __XM[7]["HERITAGE"];
-var heritageHref = __XM[7]["heritageHref"];
-
-/* ==========================================================================
-   弦脉 · 旋律入口图
-   --------------------------------------------------------------------------
-   一串旋律的形状，八个民族的音乐非遗各占一个音。
-
-   画法直接采用乐谱语言：五线谱、音符头、符干、高音谱号。
-   音符的位置就是它的音高 —— 所以这张图既是导航，也是一条真正读得出来的旋律线。
-
-   交互：
-     · 每个音符是一个 <a>，能点、能 Tab、能新标签打开
-     · 悬停/聚焦：音符亮起，下方读数显示那一项的说明
-     · 随滚动：旋律线被"吹奏"出来，一个游标沿曲线前进
-   ========================================================================== */
-
-
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-const VB = { w: 1160, h: 380 };
-
-/* 五线谱几何：线距 15，五条线 */
-const STAFF = { x0: 74, x1: 1110, gap: 15, top: 120 };
-STAFF.bottom = STAFF.top + STAFF.gap * 4;           // 下加一线位置（pitch = 1）
-
-/* 音符横向起点 */
-const NOTE_X0 = 232;
-const NOTE_DX = 118;
-const HEAD_RX = 11.5;
-const HEAD_RY = 8.4;
-
-const el = (tag, attrs) => {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  return n;
-};
-
-/** pitch → y。1 在下加一线，每加 1 上升半格（半个线距） */
-const pitchY = (pitch) => STAFF.bottom - (pitch - 1) * (STAFF.gap / 2);
-
-/**
- * Catmull-Rom → 三次贝塞尔，把节点连成平滑旋律线
- */
-function smoothPath(pts) {
-  if (pts.length < 2) return '';
-  let d = 'M ' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) +
-         ', ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) +
-         ', ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
-  }
-  return d;
-}
-
-/**
- * 生成旋律入口图。
- * @param {HTMLElement} host
- * @param {object} [opts]
- * @param {(m:object,i:number)=>void} [opts.onHover]
- * @param {(id:string)=>void} [opts.onPick]  不传则直接跳转
- */
-function buildMelody(host, opts = {}) {
-  if (!host) return null;
-
-  const svg = el('svg', {
-    class: 'melody',
-    viewBox: `0 0 ${VB.w} ${VB.h}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'list',
-    'aria-label': '旋律入口：八个民族的音乐类非物质文化遗产，每个音符是一个入口',
-  });
-
-  /* ---- defs：旋律线的渐变（从起点到终点，暗示"被吹奏"的方向） ---- */
-  const defs = el('defs');
-  const grad = el('linearGradient', { id: 'melodyGrad', x1: '0', y1: '0', x2: '1', y2: '0' });
-  [['0%', '#c08a3e'], ['38%', '#e0b070'], ['72%', '#8fb0a4'], ['100%', '#6f9c8d']].forEach(([off, col]) => {
-    grad.appendChild(el('stop', { offset: off, 'stop-color': col }));
-  });
-  defs.appendChild(grad);
-  svg.appendChild(defs);
-
-  /* ---- 五线谱 ---- */
-  const staff = el('g', { class: 'melody__staff', 'aria-hidden': 'true' });
-  for (let i = 0; i < 5; i++) {
-    const y = STAFF.top + i * STAFF.gap;
-    staff.appendChild(el('line', {
-      x1: STAFF.x0, y1: y, x2: STAFF.x1, y2: y, class: 'melody__line',
-    }));
-  }
-  svg.appendChild(staff);
-
-  /* ---- 高音谱号：手绘路径，避免依赖字体 ---- */
-  const clef = el('path', {
-    class: 'melody__clef',
-    'aria-hidden': 'true',
-    d: 'M 108 176 C 96 168 90 156 94 146 C 98 136 110 132 118 138 ' +
-       'C 128 145 128 158 120 168 C 110 180 96 192 88 206 ' +
-       'C 78 224 80 244 94 254 C 108 264 126 258 132 244 ' +
-       'C 138 230 130 216 116 214 C 104 212 96 220 96 230',
-  });
-  svg.appendChild(clef);
-
-  /* ---- 拍号 ---- */
-  const ts = el('g', { class: 'melody__timesig', 'aria-hidden': 'true' });
-  const t1 = el('text', { x: 152, y: STAFF.top + 21 });
-  t1.textContent = '4';
-  const t2 = el('text', { x: 152, y: STAFF.top + 51 });
-  t2.textContent = '4';
-  ts.appendChild(t1); ts.appendChild(t2);
-  svg.appendChild(ts);
-
-  /* ---- 节点坐标 ---- */
-  const pts = HERITAGE.map((m, i) => ({
-    x: NOTE_X0 + i * NOTE_DX,
-    y: pitchY(m.pitch),
-    m, i,
-  }));
-
-  /* ---- 旋律线 ---- */
-  const dPath = smoothPath(pts);
-  const pathSleeve = el('path', { class: 'melody__sleeve', d: dPath, 'aria-hidden': 'true' });
-  const pathLine = el('path', { class: 'melody__curve', d: dPath, 'aria-hidden': 'true' });
-  svg.appendChild(pathSleeve);
-  svg.appendChild(pathLine);
-
-  const totalLen = pathLine.getTotalLength ? pathLine.getTotalLength() : 1200;
-
-  /* ---- 游标：随滚动沿曲线前进 ---- */
-  const playhead = el('g', { class: 'melody__playhead', 'aria-hidden': 'true' });
-  playhead.appendChild(el('circle', { r: 13, class: 'melody__pulse' }));
-  playhead.appendChild(el('circle', { r: 4.2, class: 'melody__dot' }));
-  svg.appendChild(playhead);
-
-  /* ---- 八个音符 ---- */
-  const nodes = el('g', { class: 'melody__notes' });
-  const items = [];
-
-  pts.forEach((p) => {
-    const m = p.m;
-    const g = el('a', {
-      class: 'mnote',
-      href: heritageHref(m.id),
-      role: 'listitem',
-      'data-id': m.id,
-      'aria-label': m.name + '（' + m.group + ' · ' + m.kind + '）· ' + m.region + '，进入分页面',
-    });
-    g.style.setProperty('--h', String(m.hue));
-
-    // 命中区：比音符本身大，方便点
-    g.appendChild(el('rect', {
-      x: p.x - NOTE_DX / 2 + 8, y: STAFF.top - 46,
-      width: NOTE_DX - 16, height: STAFF.gap * 4 + 92,
-      class: 'mnote__hit',
-    }));
-
-    // 符干 + 符尾（做成八分音符，看起来才是"旋律"而不是一排豆子）
-    g.appendChild(el('line', {
-      x1: p.x + HEAD_RX - 1.5, y1: p.y - 2,
-      x2: p.x + HEAD_RX - 1.5, y2: p.y - 52,
-      class: 'mnote__stem',
-    }));
-    g.appendChild(el('path', {
-      d: 'M ' + (p.x + HEAD_RX - 1.5) + ' ' + (p.y - 52) +
-         ' c 13 5, 21 13, 20 25 c 3 -15, -6 -25, -20 -30 z',
-      class: 'mnote__flag',
-    }));
-
-    // 音符头：椭圆稍作旋转，像真的谱面
-    g.appendChild(el('ellipse', {
-      cx: p.x, cy: p.y, rx: HEAD_RX, ry: HEAD_RY,
-      transform: 'rotate(-20 ' + p.x + ' ' + p.y + ')',
-      class: 'mnote__head',
-    }));
-
-    // 内芯亮点：悬停时亮起，像被按下的音
-    g.appendChild(el('circle', { cx: p.x, cy: p.y, r: 2.4, class: 'mnote__core' }));
-
-    // 名称：谱表下方
-    const tx = p.x;
-    const nm = el('text', { x: tx, y: VB.h - 68, class: 'mnote__name' });
-    nm.textContent = m.name;
-    const gp = el('text', { x: tx, y: VB.h - 44, class: 'mnote__group' });
-    gp.textContent = m.group;
-    const kd = el('text', { x: tx, y: VB.h - 22, class: 'mnote__kind' });
-    kd.textContent = m.kind;
-    g.appendChild(nm); g.appendChild(gp); g.appendChild(kd);
-
-    g.addEventListener('click', (e) => {
-      if (!opts.onPick) return;
-      e.preventDefault();
-      opts.onPick(m.id);
-    });
-    const report = () => { if (opts.onHover) opts.onHover(m, p.i); };
-    g.addEventListener('mouseenter', report);
-    g.addEventListener('focus', report);
-
-    nodes.appendChild(g);
-    items.push({ data: m, el: g, x: p.x, y: p.y });
-  });
-
-  svg.appendChild(nodes);
-  host.appendChild(svg);
-
-  return { svg, items, pathLine, playhead, totalLen };
-}
-
-/**
- * 随滚动"吹奏"这条旋律：线被画出来，游标沿曲线前进。
- * @param {HTMLElement} section
- * @param {object} melody  buildMelody 的返回值
- * @param {boolean} reduced
- */
-function bindMelodyScroll(section, melody, reduced) {
-  if (!melody || reduced) {
-    // 减弱动效：直接给完整曲线，不做逐段显示
-    melody.pathLine.style.strokeDasharray = 'none';
-    melody.playhead.style.opacity = '0';
-    return () => {};
-  }
-
-  const { pathLine, playhead, totalLen } = melody;
-  playhead.style.opacity = '0';
-  let ticking = false;
-
-  const update = () => {
-    ticking = false;
-    const r = section.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // 0 = 刚进视口底部，1 = 完全离开上方
-    const raw = (vh - r.top) / (vh + r.height);
-    const p = Math.min(1, Math.max(0, raw));
-    // 在进入视口中央之前就把旋律吹完，别等滚出去
-    const play = Math.min(1, Math.max(0, (p - 0.12) / 0.56));
-
-    pathLine.style.strokeDasharray = totalLen + ' ' + totalLen;
-    pathLine.style.strokeDashoffset = (totalLen * (1 - play)).toFixed(1);
-
-    if (playhead.getTotalLength) {
-      const pt = pathLine.getPointAtLength(totalLen * play);
-      playhead.setAttribute('transform', 'translate(' + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ')');
-    }
-    playhead.style.opacity = play > 0.01 && play < 0.995 ? '1' : (play >= 0.995 ? '0.35' : '0');
-    melody.svg.style.setProperty('--melody-play', play.toFixed(3));
-  };
-
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  update();
-  return () => {
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('resize', onScroll);
-  };
-}
-
-__ns = __XM[8];
-__ns.mount_buildMelody = function () { return buildMelody; };
-__ns.mount_bindMelodyScroll = function () { return bindMelodyScroll; };
-}
-
-/* ── js/lib/theme.js ── */
-function __M9__() {
-/* ==========================================================================
-   弦脉 · 主题曲播放
-   --------------------------------------------------------------------------
-   用 Web Audio 播 mp3（不用 <audio> 标签），理由：
-     · 能和已有的手鼓总线上共用一条链路，音量、淡入淡出一致
-     · 能对着 context.currentTime 做精确的交叉淡入
-     · 能无缝循环（AudioBufferSourceNode.loop）
-
-   两个关键点（都踩过）：
-     1) decodeAudioData 是异步的。第一次调用只启动加载，加载完自动接上播 ——
-        不然"点完最后一下要立刻听到声音"会变成半秒空白。
-     2) 一定要**自己 new 一个 AudioContext**，不能借用手鼓那个。
-        两个独立的 context 在浏览器里会互相干扰（一个在跑，另一个不响）。
-   ========================================================================== */
-
-/** 一个简易主题曲播放器
- *  @param {string} url
- *  @param {object} [opts]
- *  @param {AudioContext} [opts.ctx] 复用已有的 AudioContext。
- *         不传就自己建一个 —— 但**同一个页面上最好只有一个**：
- *         两个独立的 context 会互相干扰（一个在跑、另一个不响），
- *         这是排查了很久才定位到的静音原因。 */
-function createTheme(url, opts = {}) {
-  let ctx = opts.ctx || null;
-  let buffer = null;
-  let curUrl = url;
-  const cache = new Map();     // url → AudioBuffer，换曲不用重新解码
-  let loading = null;
-  let src = null;              // 当前正在播的 source
-  let gain = null;             // 当前 source 的增益
-  let want = false;
-  let waiting = false;        // 想播但 AudioContext 还没被唤醒
-  let ctxWatched = false;     // 是否已经挂上 statechange 监听
-  let volume = 0.55;          // 主题曲比手鼓略高，它要站得住
-
-  /** 换用别的 AudioContext —— 页面上应该只有一个。 */
-  const useContext = (c) => {
-    if (!c || c === ctx) return;
-    ctx = c;
-    gain = null;              // 旧增益挂在上一个 context 上，作废
-  };
-
-  const ensureCtx = () => {
-    if (ctx) return ctx;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
-    return ctx;
-  };
-
-  /** 延迟建增益节点：必须挂在这个 context 上，且 context 变了要重建 */
-  const ensureGain = () => {
-    if (gain && gain.context === ctx) return gain;
-    gain = ctx.createGain();
-    gain.gain.value = 0;
-    gain.connect(ctx.destination);
-    return gain;
-  };
-
-  /** 取一段音频（带缓存）。任一 URL 只解码一次。 */
-  const loadUrl = (u) => {
-    if (cache.has(u)) return Promise.resolve(cache.get(u));
-    const c = ensureCtx();
-    if (!c) return Promise.resolve(null);
-    return fetch(u)
-      .then((r) => {
-        if (!r.ok) throw new Error('http ' + r.status);
-        return r.arrayBuffer();
-      })
-      .then((buf) => new Promise((res, rej) => {
-        // Safari 只认回调形式，所以两种都接
-        const p = c.decodeAudioData(buf, res, rej);
-        if (p && p.then) p.then(res, rej);
-      }))
-      .then((buf) => { cache.set(u, buf); return buf; })
-      .catch((e) => {
-        if (window.console) console.warn('[弦脉] 音频加载失败 ' + u + '：', e && e.message);
-        return null;
-      });
-  };
-
-  const load = () => {
-    if (buffer) return Promise.resolve(buffer);
-    if (loading) return loading;
-    loading = loadUrl(curUrl).then((buf) => { buffer = buf; return buf; });
-    return loading;
-  };
-
-  /** 唤醒 AudioContext。必须在**真实用户手势**的调用栈里调用，浏览器才认。
-      没有这个的话，在"没有手鼓"的页面上没人唤醒 context，
-      主题曲会一直卡在 suspended —— 表现是"手势做了也不出声"。 */
-  const resume = () => {
-    const c = ensureCtx();
-    if (!c) return Promise.resolve(false);
-    if (c.state === 'running') return Promise.resolve(true);
-    const p = c.resume();
-    if (p && p.then) return p.then(() => c.state === 'running').catch(() => false);
-    return Promise.resolve(c.state === 'running');
-  };
-
-  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
-      各曲各的增益，交叉淡入时互不干扰。 */
-  const playBuffer = (buf, fade, from) => {
-    const c = ensureCtx();
-    if (!c) return null;
-    const g = c.createGain();
-    g.gain.value = 0.0001;
-    g.connect(c.destination);
-    const s = c.createBufferSource();
-    s.buffer = buf;
-    s.loop = true;
-    s.connect(g);
-    const t = c.currentTime;
-    g.gain.cancelScheduledValues(t);
-    g.gain.setValueAtTime(from === undefined ? 0.0001 : Math.max(0.0001, from), t);
-    g.gain.linearRampToValueAtTime(volume, t + fade);
-    s.start(t);
-    return { s, g };
-  };
-
-  /** 开始播放（带淡入）。第一次调用会先解码，好了自动响。
-   *
-   *  AudioContext 可能是 suspended（页面还没有用户手势）。
-   *  这里**自己负责唤醒**：先 resume，等 state 变成 running 再起播。
-   *  早期版本直接 return 等调用方来唤醒 —— 结果在没有手鼓的页面
-   *  （附录）没人唤醒它，一直干等，表现就是"点了没声"。 */
-  const start = (fadeSec) => {
-    want = true;
-    const c = ensureCtx();
-    if (!c) return false;
-
-    const fade = fadeSec === undefined ? 2.2 : fadeSec;
-    const begin = () => {
-      if (!want || !buffer) return;
-      const cc = ensureCtx();
-      if (cc.state === 'suspended') {
-        waiting = true;
-        // 先试着唤醒；唤醒成功后 statechange 会再叫我们一次
-        const p = cc.resume();
-        if (p && p.then) p.then(() => { if (cc.state !== 'suspended') begin(); }).catch(() => {});
-        return;
-      }
-      waiting = false;
-      if (src) {                                   // 已经在放，只把音量拉回去
-        gain.gain.cancelScheduledValues(cc.currentTime);
-        gain.gain.setTargetAtTime(volume, cc.currentTime, fade / 3);
-        return;
-      }
-      const next = playBuffer(buffer, fade, 0.0001);
-      if (next) { src = next.s; gain = next.g; }
-    };
-
-    // 上下文醒了就自动接上（浏览器在用户第一次手势后会把 state 推到 running）
-    if (!ctxWatched) {
-      ctxWatched = true;
-      c.addEventListener('statechange', () => {
-        if (want && !src && c.state === 'running') begin();
-      });
-    }
-
-    if (buffer) { begin(); return true; }
-    load().then(begin);
-    return true;
-  };
-
-  /** 被 resume 之后调用：把之前因为 suspended 而没起得来的那次播出去 */
-  const wake = (fadeSec) => {
-    if (!want || !buffer) return false;
-    const c = ensureCtx();
-    if (!c || c.state === 'suspended') return false;
-    if (src) return true;
-    const next = playBuffer(buffer, fadeSec === undefined ? 2.2 : fadeSec, 0.0001);
-    if (next) { src = next.s; gain = next.g; }
-    waiting = false;
-    return true;
-  };
-
-  const stop = (fadeSec) => {
-    want = false;
-    if (!ctx || !src || !gain) return;
-    const fade = fadeSec === undefined ? 1.2 : fadeSec;
-    const t = ctx.currentTime;
-    gain.gain.cancelScheduledValues(t);
-    gain.gain.setTargetAtTime(0, t, fade / 3);
-    const s = src;
-    src = null;
-    try { s.stop(t + fade * 1.6); } catch { /* 已经停了 */ }
-  };
-
-  const setVolume = (v) => {
-    volume = Math.max(0, Math.min(1, v));
-    if (ctx && src && gain) gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.3);
-  };
-
-  /** 起一个循环播放的 source，带淡入。每次换曲都新建一个 gain ——
-      各曲各的增益，交叉淡入时互不干扰。 */
-  
-
-  /** 换一段音频并交叉淡入。正在播时换曲不会留空白。
-      滚动驱动的场景切换会频繁调用，所以：目标没变就直接返回。 */
-  const crossfadeTo = (newUrl, fadeSec) => {
-    if (!newUrl || newUrl === curUrl) return Promise.resolve(false);
-    const fade = fadeSec === undefined ? 1.6 : fadeSec;
-    return loadUrl(newUrl).then((buf) => {
-      if (!buf) return false;
-      curUrl = newUrl;
-      buffer = buf;
-      const old = src, oldGain = gain;
-      const c = ensureCtx();
-      if (c && c.state === 'suspended') { const p = c.resume(); if (p && p.then) p.catch(() => {}); }
-      const next = playBuffer(buf, fade, 0.0001);
-      if (next) { src = next.s; gain = next.g; }
-      if (old) {
-        try {
-          const t = c.currentTime;
-          oldGain.gain.cancelScheduledValues(t);
-          oldGain.gain.setValueAtTime(Math.max(0.0001, oldGain.gain.value), t);
-          oldGain.gain.linearRampToValueAtTime(0.0001, t + fade);
-          old.stop(t + fade + 0.1);
-        } catch { try { old.stop(); } catch { /* 已停 */ } }
-      }
-      return true;
-    });
-  };
-
-  /* 自检用：报告真实状态，而不是"我觉得应该响了" */
-  const state = () => ({
-    ready: !!buffer,
-    playing: !!src,
-    waiting,
-    url: curUrl,
-    cached: cache.size,
-    ctxState: ctx ? ctx.state : 'none',
-    gain: ctx && gain ? +gain.gain.value.toFixed(4) : -1,
-    volume,
-    duration: buffer ? +buffer.duration.toFixed(2) : 0,
-  });
-
-  return {
-    start, stop, setVolume, state, useContext, wake, crossfadeTo, loadUrl, resume,
-    preload: load,
-    get playing() { return !!src; },
-    get waiting() { return waiting; },
-    get ready() { return !!buffer; },
-    get url() { return curUrl; },
-    get duration() { return buffer ? buffer.duration : 0; },
-  };
-}
-
-/* ==========================================================================
-   自动播放：挂在第一次用户交互上
-   --------------------------------------------------------------------------
-   浏览器不允许"无交互自动播放"。所以做法是：**监听第一次手势**
-   （滚动、点按、按键），一有动作就把声音打开 —— 用户不需要去找按钮。
-
-   这一章的鼓点、萨帕依、主题曲都是内容的一部分，不该让人先找开关。
-   **默认开**：按钮一开始就显示"开"，第一次交互自动起。
-   声音按钮仍然保留：关掉之后就不再自动开。
-   ========================================================================== */
-function autoPlayOnGesture(opts) {
-  const { theme, seq, band } = opts;
-  let armed = true;
-  const btn = document.getElementById('sound-toggle');
-  const text = document.getElementById('sound-text');
-
-  const markOn = () => {
-    if (btn) btn.setAttribute('aria-pressed', 'true');
-    if (text) text.textContent = '声音 开';
-  };
-  const markOff = () => {
-    if (btn) btn.setAttribute('aria-pressed', 'false');
-    if (text) text.textContent = '声音 关';
-  };
-
-  /* 默认开：先把标签落成"开"，和下面第一次手势自动起保持一致。
-     只写标签不放声音是骗人，所以这个"开"必须配自动起。 */
-  markOn();
-
-  const on = () => {
-    if (!armed) return;
-    armed = false;
-    detach();
-    if (seq && !seq.enabled) seq.enable();
-    if (seq) {
-      if (band !== undefined) seq.setBand(band);
-      // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
-      if (theme && seq.ctx) theme.useContext(seq.ctx);
-    }
-    /* 关键：**在这里唤醒 context**。
-       有手鼓的页面由 seq.enable() 顺手唤醒；没有手鼓的页面
-       （比如第三章，它只有配乐）就必须自己唤醒，否则一直 suspended。
-       resume() 要在手势的调用栈里同步发起，浏览器才放行。 */
-    if (theme) {
-      const p = theme.resume();
-      if (p && p.then) p.then(() => { if (theme) theme.wake(opts.fade === undefined ? 2.6 : opts.fade); });
-    }
-    /* startTheme:false 的页面（第四章）主题曲由别处触发，
-       但这一次手势仍要让 context 就绪，否则到时候点了也没声。 */
-    if (theme && opts.startTheme !== false && !theme.playing) {
-      theme.start(opts.fade === undefined ? 2.6 : opts.fade);
-    }
-    markOn();
-  };
-
-  const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
-  const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
-  evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
-
-  /* 自动开之后，声音按钮**必须由这一页的音乐接管**。
-     之前只写了"关掉就不再自动开"，按钮仍挂在别处（比如手鼓）——
-     结果按"声音 开"打开的是鼓点，不是这一页的音乐（踩过）。
-     所以这里用捕获阶段接管：开/关都作用在 theme 上。 */
-  if (btn && opts.ownButton !== false) {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const isOn = btn.getAttribute('aria-pressed') === 'true';
-      armed = false;
-      detach();
-      if (isOn) {
-        if (theme) theme.stop(1.0);
-        if (seq) seq.disable();
-        markOff();
-        return;
-      }
-      if (seq && !seq.enabled) seq.enable();
-      if (seq && band !== undefined) seq.setBand(band);
-      if (theme && seq && seq.ctx) theme.useContext(seq.ctx);
-      if (theme) {
-        const p = theme.resume();
-        if (p && p.then) p.then(() => { if (theme) theme.start(1.4); });
-      }
-      markOn();
-    }, true);
-  }
-
-  return { trigger: on, get armed() { return armed; } };
-}
-
-/* ==========================================================================
-   解锁标记
-   --------------------------------------------------------------------------
-   互动完成后才允许进其他民族的页面。标记写在 localStorage，
-   所以刷新、换页都还在。
-
-   说明：这是**引导**，不是安全机制 —— 真想绕过的人清一下浏览器数据就行。
-   目的是让人按设计的顺序走一遍，不是防谁。
-   ========================================================================== */
-const KEY = 'xiangmai.unlocked.mashrap';
-
-const unlock = {
-  get done() {
-    try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
-  },
-  set() {
-    try { localStorage.setItem(KEY, '1'); } catch { /* 隐私模式写不了，忽略 */ }
-    window.dispatchEvent(new CustomEvent('xiangmai:unlocked'));
-  },
-  clear() {
-    try { localStorage.removeItem(KEY); } catch { /* 忽略 */ }
-  },
-};
-
-__ns = __XM[9];
-__ns.mount_createTheme = function () { return createTheme; };
-__ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
-__ns.mount_unlock = function () { return unlock; };
-}
-
-/* ── js/pages/fulu.js ── */
-function __M10__() {
 var bootChapter = __XM[4]["bootChapter"];
-var buildWheel = __XM[6]["buildWheel"];
-var bindWheelScroll = __XM[6]["bindWheelScroll"];
-var buildMelody = __XM[8]["buildMelody"];
-var bindMelodyScroll = __XM[8]["bindMelodyScroll"];
-var MUQAM = __XM[5]["MUQAM"];
-var HERITAGE = __XM[7]["HERITAGE"];
-var unlock = __XM[9]["unlock"];
-var createTheme = __XM[9]["createTheme"];
-var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
+var buildInheritGame = __XM[5]["buildInheritGame"];
+var sceneForLevel = __XM[5]["sceneForLevel"];
 
-/* 附录 · 形制比较 —— 十二套木卡姆轮盘 + 八个民族的旋律入口 */
+/* ==========================================================================
+   传承之路 · 页面入口
+   --------------------------------------------------------------------------
+   一页一关：玩哪一关由 URL 参数 ?level= 决定。
+     ?level=muqam  → 维吾尔族 · 十二木卡姆（戈壁）
+     ?level=gesar  → 藏族 · 格萨尔（草原）
+
+   为什么用参数而不是复制两份页面：
+     同一份裁决逻辑、同一套素材路径、同一份样式。
+     复制两份的话，以后改一处就要改两处，早晚会不一致。
+
+   **用 ?level= 而不是 #hash**：站点要能在 file:// 下双击打开
+   （用户一直是这么看的），query 在 file:// 下也能正常读。
+   ========================================================================== */
 
 
 
-
-
-
-
-/* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
-   所以 sound:false —— 免得鼓点和主题曲抢。 */
+/* 这一页是游戏，不要页脚章节导航；声音也交给游戏自己（视频自带音轨）。 */
 const ctx = bootChapter({ active: 'fulu', sound: false });
-const { REDUCED } = ctx;
-const $ = (s) => document.querySelector(s);
 
-const theme = createTheme('../assets/audio/mashrap/theme.mp3');
-theme.preload();
-autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+const params = new URLSearchParams(location.search);
+const level = params.get('level') || 'muqam';
+const scene = sceneForLevel(level);
 
-// 自检用
-window.__XM_THEME__ = theme;
-
-/* ------------------------------------------------------------------ 门
-   其他民族的页面要先把麦西热甫那场圆圈玩完才开。
-   没解锁时点任一入口，就把人送回第四章的互动，并说明原因。
-
-   这是引导，不是安全机制 —— 目的是让人按设计的顺序走一遍。 */
-const GATE = {
-  href: '../mashrap/index.html#mq-act',
-  msg: '先把第四章那场麦西热甫跳完（把圈子点满），这里才开。',
-};
-
-/** 给未解锁的元素加统一的"锁着"视觉 */
-function applyLock(root) {
-  if (!root) return;
-  root.classList.add('is-locked');
-  root.setAttribute('aria-disabled', 'true');
+const html = document.documentElement;
+if (scene) {
+  html.style.setProperty('--game-tone', level === 'gesar' ? '168' : '36');
+  document.title = scene.name + '｜传承之路 · 弦脉';
 }
 
-function gate(onBlocked) {
-  if (unlock.done) return;
-  // 进入页面时就把视觉改掉
-  document.querySelectorAll('.wnode, .mnote').forEach(applyLock);
-  // 点任何一个都被拦下
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest && e.target.closest('.wnode, .mnote');
-    if (!a) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (onBlocked) onBlocked();
-  }, true);
-}
+const game = buildInheritGame({
+  reduced: ctx.REDUCED,
+  level,
+  doneNote: '这一关走完了',
+  doneLabel: '← 回到旋律图',
+  onDone: () => { location.href = '../fulu/index.html#melody-act'; },
+});
 
-/* ---- 十二套木卡姆 ---- */
-const wHost = $('#wheel-host');
-const wReadout = $('#wheel-readout');
-if (wHost) {
-  const wheel = buildWheel(wHost, {
-    hrefBase: '../muqam/',
-    onPick: (id) => {
-      // 分页面还没做：给反馈而不是跳 404。建好后删掉这段即可正常跳转。
-      const m = MUQAM.find((x) => x.id === id);
-      if (m && wReadout) {
-        wReadout.innerHTML = '<b>' + m.name + ' · ' + m.ug + '</b>' +
-          m.region + '　<em>' + m.char + '</em><br>' + m.note +
-          '<br><span style="color:var(--bone-faint)">这一套的分页面还在制作中。</span>';
-      }
-    },
-    onHover: (m) => {
-      if (!wReadout) return;
-      wReadout.innerHTML = '<b>' + m.name + ' · ' + m.ug + '</b>' +
-        m.region + '　<em>' + m.char + '</em><br>' + m.note;
-    },
-  });
-  bindWheelScroll($('#wheel-act'), wheel, REDUCED);
-}
+/* 自检用 */
+window.__XM_GAME__ = game;
+window.__XM_LEVEL__ = level;
 
-/* ---- 八个民族的旋律入口 ----
-   点音符的两种去处：
-     · 已经做了关卡的 → 进 game/ 玩那一关（选对给"活着"、选错给"失传"）
-     · 还没做的       → 不出关卡，明说"还在制作中"，不假装有内容
-
-   维吾尔族不在八音之列（那八个是壮/蒙/侗/满/苗/彝/傣/藏），
-   它的十二木卡姆是这一站的正题，所以关卡挂在藏族那个音符上：
-   点藏族进的是格萨尔，点附录里的木卡姆入口进的是另一关。
-
-   实际上：藏族音符 → ?level=gesar。木卡姆那一关从第五章/附录的
-   木卡姆入口进（见下面 wheel 那段）。 */
-const LEVEL_BY_HERITAGE = {
-  'tibetan-gesar': 'gesar',
-};
-/* 还没做关卡的，点进去给一句实话，别跳 404 */
-const PENDING_NOTE = '这一个民族的关卡还在制作中。' +
-  '已经能玩的是藏族（格萨尔）那一关。';
-
-const mHost = $('#melody-host');
-const mReadout = $('#melody-readout');
-if (mHost) {
-  // 字段缺了就跳过，不显示空行 —— note 留空待补时不至于出现空白
-  const line = (m) => '<b>' + m.name + (m.ug ? ' · ' + m.ug : '') + '</b>' +
-    (m.group || '') + (m.kind ? '　<em>' + m.kind + '</em>' : '') +
-    (m.note ? '<br>' + m.note : '');
-
-  const melody = buildMelody(mHost, {
-    onPick: (id) => {
-      const level = LEVEL_BY_HERITAGE[id];
-      if (level) { location.href = '../game/index.html?level=' + level; return; }
-      const m = HERITAGE.find((x) => x.id === id);
-      if (m && mReadout) {
-        mReadout.innerHTML = line(m) +
-          '<br><span style="color:var(--bone-faint)">' + PENDING_NOTE + '</span>';
-      }
-    },
-    onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
-  });
-  bindMelodyScroll($('#melody-act'), melody, REDUCED);
-}
-
-/* ---- 上锁与解锁提示 ----
-   未解锁：给所有入口加"锁着"的视觉，点任何一处都把人送回第四章的互动。
-   已解锁：不动，正常走。 */
-const gateNote = document.getElementById('gate-note');
-if (!unlock.done) {
-  gate(() => {
-    if (gateNote) {
-      gateNote.innerHTML = '<b>还没开门</b>' + GATE.msg +
-        '<br><a href="' + GATE.href + '">去第四章 · 麦西热甫 →</a>';
-      gateNote.classList.add('is-on');
-      gateNote.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
-    } else {
-      location.href = GATE.href;
-    }
-  });
-  // 提示条里的链接要能点（gate 是捕获阶段拦的，得让它放行）
-  if (gateNote) {
-    gateNote.addEventListener('click', (e) => {
-      if (e.target.tagName === 'A') e.stopPropagation();
-    }, true);
-  }
-} else if (gateNote) {
-  gateNote.remove();
+/* 参数给错（比如手改地址）时别留一屏空白，直接回旋律图 */
+if (!scene) {
+  const t = document.getElementById('g-title');
+  const x = document.getElementById('g-text');
+  if (t) t.textContent = '没有这一关';
+  if (x) x.textContent = '这个民族的关卡还没做。回到旋律图挑一个吧。';
 }
 }
 
@@ -3552,57 +2659,21 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/muqam-data.js */
+/* js/lib/inherit-game.js */
 try {
   __ns = __XM[5];
   __M5__();
   for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/muqam-data.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/inherit-game.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/wheel.js */
+/* js/pages/game.js */
 try {
   __ns = __XM[6];
   __M6__();
   for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/wheel.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/heritage-data.js */
-try {
-  __ns = __XM[7];
-  __M7__();
-  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-data.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/melody.js */
-try {
-  __ns = __XM[8];
-  __M8__();
-  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/melody.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/theme.js */
-try {
-  __ns = __XM[9];
-  __M9__();
-  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/pages/fulu.js */
-try {
-  __ns = __XM[10];
-  __M10__();
-  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/fulu.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/game.js" + " :: " + (e && e.stack || e));
 }
 })();

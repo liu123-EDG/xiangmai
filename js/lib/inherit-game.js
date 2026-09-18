@@ -37,10 +37,14 @@ const V = {
 };
 
 /* ------------------------------------------------------------------ 剧本 */
-const SCENES = [
+/* 每幕一个场景。level 决定用哪一幕 ——
+   点哪个音符就进哪个 level，不是把代码复制两份。 */
+export const SCENES = [
   {
     id: 'gobi',
-    kicker: '第一幕 · 戈壁',
+    level: 'muqam',
+    name: '维吾尔族 · 十二木卡姆',
+    kicker: '戈壁',
     bg: 'gobi',
     intro: {
       title: '你来到了新疆的戈壁滩',
@@ -68,7 +72,9 @@ const SCENES = [
   },
   {
     id: 'steppe',
-    kicker: '第二幕 · 草原',
+    level: 'gesar',
+    name: '藏族 · 格萨尔',
+    kicker: '草原',
     bg: 'steppe',
     intro: {
       title: '你来到了无垠的草原',
@@ -129,6 +135,13 @@ export function buildInheritGame(opts = {}) {
 
   const reduced = !!opts.reduced;
 
+  /* 一页一关：opts.level 指定玩哪一幕（点音符进来时由 URL 参数给）。
+     不给就默认第一幕。 */
+  if (opts.level) {
+    const i = SCENES.findIndex((s) => s.level === opts.level);
+    if (i >= 0) state.scene = i;
+  }
+
   /* 视频：一段一个元素，按需挂 src。
      取不到就什么都不显示，露出底色 —— 不报错、不留空白框。 */
   let videoEl = null;
@@ -184,7 +197,7 @@ export function buildInheritGame(opts = {}) {
     text.textContent = s.intro.text;
     caseEl.hidden = true;
     nextBtn.hidden = true;
-    progress.textContent = '第 ' + (state.scene + 1) + ' / ' + SCENES.length + ' 幕';
+    progress.textContent = s.name || '';
 
     choices.hidden = false;
     choices.innerHTML = '';
@@ -255,32 +268,41 @@ export function buildInheritGame(opts = {}) {
         '<span class="g-case__fact">' + c.fact + '</span>';
     }
     nextBtn.hidden = false;
-    const last = state.scene >= SCENES.length - 1;
-    nextBtn.textContent = last ? '继续' : '前往下一幕';
-    nextBtn.onclick = () => {
-      if (last) showEnding();
-      else { state.scene++; renderIntro(); }
-    };
+    nextBtn.textContent = '这一关走完了';
+    nextBtn.onclick = () => showEnding();
   }
 
-  /* 结尾页稍后再做 —— 这里先停住，写清楚下一步是什么 */
+  /* 单关的收束。
+     原来这里是"第二幕走完 → 终章"，现在一页只玩一关，
+     所以收束成一句 + 出口（由页面通过 opts.onDone 提供去处）。 */
   function showEnding() {
     state.phase = 'end';
     clearVideo();
     setBg('end');
-    kicker.textContent = '终章';
+    kicker.textContent = '这一关';
     title.textContent = '你把它带出来了';
-    text.textContent = '两处地方，两次选择，两样文化都还在。' +
-      (state.tried ? '你走过一次弯路——那条路上没有人。' : '');
+    text.textContent = state.tried
+      ? '你走过一次弯路——那条路上没有人。现在它还在。'
+      : '你一次就走对了。现在它还在。';
     hideOthers();
     /* 把选项**内容也清掉**，不只是隐藏。
        光靠 hidden 不够稳：.g-choices 上有 display: grid，
        它会盖掉 hidden 属性自带的 display:none，
-       结果"隐藏"了的按钮照样显示（踩过，截图里和结尾页叠在一起）。
+       结果"隐藏"了的按钮照样显示（踩过，截图里和结尾叠在一起）。
        CSS 那边已经补了 [hidden] 规则，这里再把内容清空，双保险。 */
     choices.hidden = true;
     choices.innerHTML = '';
-    progress.textContent = '（结尾页待做）';
+    progress.textContent = opts.doneNote || '';
+
+    /* 出口：页面决定去哪（回旋律图 / 下一关 / 结尾页）。
+       组件不认识站点路由，所以由外面传进来。 */
+    if (typeof opts.onDone === 'function') {
+      nextBtn.hidden = false;
+      nextBtn.textContent = opts.doneLabel || '回到旋律图';
+      nextBtn.onclick = () => opts.onDone();
+    } else {
+      nextBtn.hidden = true;
+    }
   }
 
   renderIntro();
@@ -289,7 +311,13 @@ export function buildInheritGame(opts = {}) {
   return {
     state: () => JSON.parse(JSON.stringify(state)),
     scenes: () => SCENES.map((s) => s.id),
+    scene: () => SCENES[state.scene],
     goScene: (i) => { state.scene = Math.max(0, Math.min(SCENES.length - 1, i)); renderIntro(); },
     choose,
   };
+}
+
+/** 按 level 找对应的那一幕 —— 点音符进来时用 */
+export function sceneForLevel(level) {
+  return SCENES.find((s) => s.level === level) || null;
 }
