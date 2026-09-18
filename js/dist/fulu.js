@@ -3270,18 +3270,29 @@ function autoPlayOnGesture(opts) {
       // 主题曲复用手鼓的 context —— 一个页面只留一个 AudioContext
       if (theme && seq.ctx) theme.useContext(seq.ctx);
     }
-    /* 关键：**在这里唤醒 context**。
+    /* 关键：**在这里唤醒 context 并起播**。
        有手鼓的页面由 seq.enable() 顺手唤醒；没有手鼓的页面
-       （比如第三章，它只有配乐）就必须自己唤醒，否则一直 suspended。
-       resume() 要在手势的调用栈里同步发起，浏览器才放行。 */
+       （比如第三章，它只有配乐）必须自己来，否则一直 suspended。
+       resume() 要在手势的调用栈里同步发起，浏览器才放行。
+
+       **这里原来是 theme.wake()，那是错的。**
+       wake() 只对"已经在播、被暂停"的 theme 有效；第一次进来
+       theme 从没 start 过，wake 什么也不做 ——
+       表现就是"这一页明明只有配乐，却一点声都没有"（用户报的第三章）。
+       现在改成 resume 之后 start()，跟下面 startTheme 那条路一致。 */
     if (theme) {
+      const fade = opts.fade === undefined ? 2.6 : opts.fade;
       const p = theme.resume();
-      if (p && p.then) p.then(() => { if (theme) theme.wake(opts.fade === undefined ? 2.6 : opts.fade); });
-    }
-    /* startTheme:false 的页面（第四章）主题曲由别处触发，
-       但这一次手势仍要让 context 就绪，否则到时候点了也没声。 */
-    if (theme && opts.startTheme !== false && !theme.playing) {
-      theme.start(opts.fade === undefined ? 2.6 : opts.fade);
+      if (p && p.then) {
+        p.then(() => {
+          if (!theme) return;
+          /* startTheme:false 的页面（第四章）**不能**在这里起播 ——
+             它的主题曲要等圆圈点满才响。但 context 必须借这次手势
+             跑起来，否则等点满时没手势可用，照样没声。 */
+          if (opts.startTheme === false) theme.wake(fade);
+          else if (!theme.playing) theme.start(fade);
+        });
+      }
     }
     markOn();
   };
