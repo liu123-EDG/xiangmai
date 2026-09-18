@@ -205,43 +205,49 @@
      现在常驻，用毛玻璃（backdrop-filter）降低存在感，
      不挡画面，但随时能点。
 
-     毛玻璃要"透"：底色透明度压到 0.10，模糊 6px，
-     描边也很淡。这样它像贴在画面外的一层玻璃，不像一个按钮压在视频上。 */
+     **圆润**：用户嫌长方形"太俗"。
+     所以做成胶囊形（border-radius: 999px），描边和底色都压到很淡 ——
+     它应该像贴在画面外的一层玻璃，不像一个按钮压在视频上。 */
   .w-go {
     position: absolute; z-index: 8;
     right: clamp(1.2rem, 3.5vw, 2.6rem);
     top: clamp(1.2rem, 3.5vh, 2.2rem);
     display: inline-flex; align-items: center; gap: 0.7rem;
-    padding: 0.62rem 1.35rem;
+    padding: 0.68rem 1.6rem;
+    border-radius: 999px;          /* 胶囊：圆润，不是方块 */
     opacity: 0.94;
     font-family: var(--font-sans);
     font-size: clamp(0.72rem, 1.1vw, 0.84rem);
-    letter-spacing: 0.34em; text-indent: 0.34em;
+    letter-spacing: 0.3em; text-indent: 0.3em;
     color: rgba(242, 234, 218, 0.9);
     text-decoration: none;
     /* 毛玻璃：半透明底 + 背景模糊 + 一层很淡的高光边 */
     background: rgba(10, 9, 8, 0.10);
     backdrop-filter: blur(6px) saturate(115%);
     -webkit-backdrop-filter: blur(6px) saturate(115%);
-    border: 1px solid rgba(242, 234, 218, 0.22);
+    border: 1px solid rgba(242, 234, 218, 0.20);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
     transition: background .6s var(--ease-slow), border-color .6s var(--ease-slow),
                 color .6s var(--ease-slow), opacity .6s var(--ease-slow),
-                letter-spacing .6s var(--ease-slow);
+                letter-spacing .6s var(--ease-slow), box-shadow .6s var(--ease-slow);
   }
   .w-go.is-here { opacity: 0.94; }   /* 兼容旧的切换，保持常显 */
   .w-go:hover, .w-go:focus-visible {
     background: rgba(192, 138, 62, 0.16);
-    border-color: rgba(242, 234, 218, 0.5);
+    border-color: rgba(242, 234, 218, 0.46);
     color: #fff6e2;
-    letter-spacing: 0.4em;
+    letter-spacing: 0.36em;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10),
+                0 0 22px -4px rgba(192, 138, 62, 0.45);
     outline: none;
   }
   /* 片尾黑场那两秒亮一点，提示"该进去了"，但不改变常驻这件事 */
   .w-go.is-lit {
     background: rgba(192, 138, 62, 0.20);
-    border-color: rgba(217, 178, 104, 0.6);
+    border-color: rgba(217, 178, 104, 0.55);
     color: #fff6e2;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 0 26px -6px rgba(192, 138, 62, 0.55);
   }
   .w-go__arrow { transition: transform .6s var(--ease-slow); }
   .w-go:hover .w-go__arrow { transform: translateX(4px); }

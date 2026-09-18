@@ -93,6 +93,26 @@ try {
   }
   if (best < 0) console.log('  没等到文字最清楚的时刻（可能时间轴没走）');
 
+  /* 单独拍一张入口按钮，放大三倍看圆润程度 */
+  const gb = JSON.parse(await evalJs(`(() => {
+    const g = document.querySelector('.w-go');
+    const r = g.getBoundingClientRect();
+    const cs = getComputedStyle(g);
+    return JSON.stringify({
+      w: Math.round(r.width), h: Math.round(r.height),
+      radius: cs.borderRadius, blur: cs.backdropFilter,
+      bg: cs.backgroundColor, border: cs.borderColor,
+    });
+  })()`));
+  console.log('  入口按钮 ' + JSON.stringify(gb));
+  const clip = {
+    x: Math.max(0, Math.round(1600 - gb.w - 90)), y: 8,
+    width: gb.w + 78, height: gb.h + 46, scale: 3,
+  };
+  const gs = await send('Page.captureScreenshot', { format: 'png', clip });
+  await writeFile(join(root, 'shots', 'welcome-go.png'), Buffer.from(gs.result.data, 'base64'));
+  console.log('  shots/welcome-go.png（放大三倍）');
+
   ws.close();
 } catch (e) { console.error('错误：' + e.message); }
 finally { chrome.kill(); server.close(); await sleep(200); }
