@@ -97,12 +97,21 @@ try {
     return JSON.stringify({
       noteCount: notes.length,
       hrefs: notes.map((a) => ({ id: a.dataset.id, href: a.getAttribute('href') })),
-      wheelEnter: (() => { const a = document.querySelector('.wheel-enter a');
+      /* 入口是小字链接还是卡片，都按 .g-invite 找 ——
+         一开始是小字链接，用户说"不太明显"，改成卡片后类名统一到这个。
+         选择器写死旧名字的话，改版就会报假失败（刚踩过）。 */
+      wheelEnter: (() => { const a = document.querySelector('.g-invite');
         return a ? a.getAttribute('href') : null; })(),
-      melodyEnter: (() => { const a = document.querySelector('.melody-enter a');
+      melodyEnter: (() => { const a = document.querySelector('.g-invite--slim');
         return a ? a.getAttribute('href') : null; })(),
+      inviteTexts: [...document.querySelectorAll('.g-invite')].map((a) => ({
+        tag: a.querySelector('.g-invite__tag') ? a.querySelector('.g-invite__tag').textContent.trim() : null,
+        title: a.querySelector('.g-invite__title') ? a.querySelector('.g-invite__title').textContent.trim() : null,
+        w: Math.round(a.getBoundingClientRect().width),
+      })),
     });
   })()`));
+  console.log('       ' + JSON.stringify(links.inviteTexts));
   console.log('       ' + JSON.stringify({ noteCount: links.noteCount, wheelEnter: links.wheelEnter,
     melodyEnter: links.melodyEnter }));
   if (links.noteCount === 8) ok('八个音符就位'); else bad('音符数 = ' + links.noteCount);
