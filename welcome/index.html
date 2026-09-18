@@ -50,6 +50,52 @@
   }
   #hero-video video.on { opacity: 1; }
 
+  /* ---- 文字浮现层 ----
+     放在第三段（黑场那道金线）上：维吾尔文从模糊里凝出来，
+     金线正好成了它和中文之间的分隔。循环回第一段之前淡掉。
+     这段本来是有的，做"可循环"版本时被我删掉了 —— 现在接回来。 */
+  .w-title {
+    position: absolute; inset: 0; z-index: 4;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.6vmin;
+    text-align: center;
+    pointer-events: none;
+  }
+  .w-title__ug {
+    direction: rtl;                 /* 维吾尔文从右往左，必须声明才会连写正确 */
+    unicode-bidi: isolate;
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Amiri",
+                 "Segoe UI", Tahoma, serif;
+    font-size: clamp(28px, 6.4vmin, 104px);
+    line-height: 1.5;
+    white-space: nowrap;
+    color: #f2e4c4;
+    text-shadow: 0 0 26px rgba(217, 178, 104, 0.34), 0 0 74px rgba(217, 178, 104, 0.16);
+    /* 透明度与模糊由 js 按帧写 */
+    opacity: 0;
+    filter: blur(20px) brightness(0.4);
+  }
+  .w-title__rule {
+    width: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(217, 178, 104, 0.6), transparent);
+    opacity: 0;
+  }
+  .w-title__cn {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+    font-size: clamp(11px, 1.9vmin, 30px);
+    letter-spacing: 0.62em; text-indent: 0.62em;
+    color: #d8cfb8;
+    opacity: 0;
+  }
+  .w-title__lat {
+    font-family: var(--font-sans);
+    font-size: clamp(7px, 1.05vmin, 16px);
+    letter-spacing: 0.66em; text-indent: 0.66em;
+    color: rgba(216, 207, 184, 0.55);
+    opacity: 0;
+  }
+
   /* ---- 压暗：让字压得住，但不压掉画面的冲击力 ---- */
   .w-scrim {
     position: absolute; inset: 0; z-index: 2; pointer-events: none;
@@ -183,6 +229,15 @@
   </div>
 
   <div class="w-scrim"></div>
+
+  <!-- 文字浮现：第三段（黑场那道金线）上浮出「十二木卡姆」。
+       维吾尔文按 rtl 排，金线正好成了它和中文之间的分隔。 -->
+  <div class="w-title" id="w-title" aria-hidden="true">
+    <div class="w-title__ug">ئون ئىككى مۇقام</div>
+    <div class="w-title__rule"></div>
+    <div class="w-title__cn">十 二 木 卡 姆</div>
+    <div class="w-title__lat">STRINGLINE HERITAGE</div>
+  </div>
 
   <div class="w-wrap">
     <div class="w-brand">
