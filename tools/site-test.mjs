@@ -9,7 +9,7 @@
    ========================================================================== */
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -43,6 +43,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 页面 → 它必须有的部件 */
 const PAGES = [
+  /* 入口页是**故意做极简**的：整屏就一条概念片加一个入口，
+     不挂 topbar、不挂分幕导航。所以 shell: false —— 跳过外壳检查，
+     只验它自己该有的东西。 */
+  { path: 'welcome/index.html', nav: '概念片', shell: false,
+    need: { '整屏视频': '#hero-video', '入口': '.w-go', '文字层': '#w-title' } },
   { path: 'index.html', nav: '序', need: { '三段结构柱': '.pillar', '分幕导航': '#act-next', '师承网络': '#network' } },
   { path: 'qiongnaieman/index.html', nav: '穹乃额曼', need: { '开场': '.chapter-hero', '概念图': '.plate img', '正文节': '.act' } },
   { path: 'dastan/index.html', nav: '达斯坦', need: { '开场': '.chapter-hero', '正文节': '.act' } },
@@ -50,6 +55,15 @@ const PAGES = [
   { path: 'lishi/index.html', nav: '历史与传承', need: { '时间轴': '.timeline', '对照表': '.duo', '案例': '.case' } },
   { path: 'fulu/index.html', nav: '形制比较', need: { '轮盘': '.wheel', '旋律': '.melody' } },
 ];
+
+/* 导航格数从 site.js 现算，不写死 ——
+   写死的话每加一个页面就要改测试，还会报"导航格数 = 7"这种
+   看着像坏了、其实只是断言过时的假失败（刚踩过）。 */
+const NAV_COUNT = (() => {
+  const src = readFileSync(new URL('../js/lib/site.js', import.meta.url), 'utf8');
+  const block = src.slice(src.indexOf('export const NAV'), src.indexOf('];', src.indexOf('export const NAV')));
+  return (block.match(/id:\s*'/g) || []).length;
+})();
 
 let fails = 0;
 const ok = (m) => console.log('  ok   ' + m);
@@ -111,12 +125,22 @@ try {
     if (state.bootErr) bad('启动错误：' + JSON.stringify(state.bootErr).slice(0, 160));
     else ok('启动无错');
 
+    /* shell: false 的页面（入口页）不检查外壳 —— 它故意没有 topbar、
+       没有分幕导航、也不需要 is-ready。只验它自己的部件。 */
+    if (P.shell === false) {
+      console.log('       （这一页不做外壳检查：故意极简）');
+      continue;
+    }
+
     if (!state.ready) bad('未进入 is-ready');
     if (state.render === 'pending') bad('渲染后端仍是 pending，脚本没跑完');
     else ok('渲染后端 = ' + state.render);
 
-    if (state.navCount === 6) ok('导航 6 格');
-    else bad('导航格数 = ' + state.navCount);
+    /* 格数从 site.js 的 NAV 现算，不写死 ——
+       写死的话每加一个页面就要改测试，而且会报"导航格数 = 7"这种
+       看着像坏了、其实只是过时的假失败（踩过）。 */
+    if (state.navCount === NAV_COUNT) ok('导航 ' + NAV_COUNT + ' 格');
+    else bad('导航格数 = ' + state.navCount + '，应为 ' + NAV_COUNT);
 
     if (state.navActive.indexOf(P.nav) >= 0) ok('当前页高亮：' + state.navActive);
     else bad('高亮错误：期望含「' + P.nav + '」，实际「' + state.navActive + '」');
@@ -160,12 +184,12 @@ try {
       });
       return JSON.stringify({ visible: vis.length, clickable });
     })()`));
-    const good = s.visible === 6;
+    const good = s.visible === NAV_COUNT;
     if (!good) navFails++;
     console.log('  ' + (good ? 'ok  ' : 'FAIL') + ' ' + String(w).padStart(4) + 'px  可见 ' +
-      s.visible + '/6  可点 ' + s.clickable);
+      s.visible + '/' + NAV_COUNT + '  可点 ' + s.clickable);
   }
-  if (navFails === 0) ok('各宽度下导航六格均在，且可点');
+  if (navFails === 0) ok('各宽度下导航 ' + NAV_COUNT + ' 格均在，且可点');
   else bad(navFails + ' 个宽度下导航不完整 —— 小屏用户会串不起页面');
 
   ws.close();
