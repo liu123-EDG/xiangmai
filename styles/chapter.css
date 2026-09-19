@@ -1832,3 +1832,206 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   .g-invite { animation: none; }
   .g-invite, .g-invite__go { transition: none; }
 }
+
+/* --------------------------------------------------------------------------
+   参考来源（附录最后一节）
+   --------------------------------------------------------------------------
+   两块：已核实的来源 / 尚未核实的部分。
+   后者不是缺陷展示，是这一节的重点 —— 故意做得和前者一样正式，
+   不写成"待办事项"那种语气。
+
+   类名一律带 src__ 前缀：chapter.css 里已有 .act / .kicker / .body
+   这些通用名，撞过一次就够受的。
+   -------------------------------------------------------------------------- */
+.src-act { min-height: auto; padding-bottom: clamp(4rem, 10vh, 7rem); }
+
+.src-host {
+  width: min(940px, 92vw);
+  margin: clamp(2rem, 5vh, 3.4rem) auto 0;
+}
+
+.src__lead {
+  margin: 0 0 1.6rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.92rem, 1.5vw, 1.06rem);
+  line-height: 2.15;
+  color: rgba(222, 214, 200, 0.78);
+}
+.src__lead b { color: var(--bone); font-weight: 500; }
+
+.src__stat {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 2.4rem;
+  margin: 0 0 clamp(2.2rem, 5vh, 3rem);
+  padding: 1rem 0;
+  border-top: 1px solid rgba(222, 214, 200, 0.10);
+  border-bottom: 1px solid rgba(222, 214, 200, 0.10);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  color: rgba(222, 214, 200, 0.55);
+}
+.src__stat b {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--amber);
+  margin-right: 0.35em;
+  vertical-align: -0.12em;
+}
+
+/* ---- 分组 ---- */
+.src__group { margin: 0 0 clamp(2.4rem, 6vh, 3.6rem); }
+.src__gtitle {
+  margin: 0 0 1.3rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(192, 138, 62, 0.28);
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 1.8vw, 1.22rem);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--bone);
+}
+
+.src__list { margin: 0; padding: 0; list-style: none; counter-reset: src; }
+.src__item {
+  position: relative;
+  padding: 0.9rem 0 1.1rem 2.6rem;
+  border-bottom: 1px solid rgba(222, 214, 200, 0.06);
+  counter-increment: src;
+}
+.src__item::before {
+  content: '[' counter(src) ']';
+  position: absolute;
+  left: 0; top: 0.95rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  color: rgba(192, 138, 62, 0.7);
+}
+
+.src__t {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: clamp(0.9rem, 1.4vw, 1rem);
+  line-height: 1.7;
+  color: var(--bone);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(192, 138, 62, 0.35);
+  transition: color .4s var(--ease-slow), border-color .4s var(--ease-slow);
+}
+.src__t:hover, .src__t:focus-visible {
+  color: #f2e4c4;
+  border-color: rgba(192, 138, 62, 0.9);
+  outline: none;
+}
+.src__out {
+  margin-left: 0.4em;
+  font-size: 0.8em;
+  color: var(--amber);
+  opacity: 0.7;
+}
+.src__note {
+  margin: 0.5rem 0 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.66);
+}
+.src__note b { color: rgba(242, 228, 196, 0.92); font-weight: 500; }
+.src__org {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  opacity: 0.8;
+}
+.src__url {
+  margin: 0.3rem 0 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: rgba(222, 214, 200, 0.28);
+  word-break: break-all;
+}
+
+/* ---- 尚未核实 ---- */
+.src__group--pending .src__gtitle {
+  border-bottom-color: rgba(160, 168, 176, 0.30);
+  color: rgba(226, 220, 208, 0.9);
+}
+.src__pendlead {
+  margin: 0 0 1.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 2.1;
+  color: rgba(222, 214, 200, 0.7);
+}
+.src__pendlead b { color: #f2e4c4; font-weight: 500; }
+
+.src__tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.src__table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  line-height: 1.9;
+}
+.src__table th, .src__table td {
+  padding: 0.85rem 1rem 0.85rem 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(222, 214, 200, 0.07);
+}
+.src__table thead th {
+  font-weight: 400;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: rgba(222, 214, 200, 0.45);
+  border-bottom-color: rgba(222, 214, 200, 0.14);
+}
+.src__table tbody th {
+  font-weight: 400;
+  color: rgba(242, 228, 196, 0.9);
+  width: 30%;
+}
+.src__table td { color: rgba(222, 214, 200, 0.68); }
+.src__table td b { color: #f2e4c4; font-weight: 500; }
+.src__where {
+  width: 20%;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--amber) !important;
+  opacity: 0.85;
+}
+
+/* ---- 编制说明 ---- */
+.src__method {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+}
+.src__m { display: grid; grid-template-columns: 8.5em 1fr; gap: 1.2rem; }
+.src__m dt {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  color: var(--amber);
+  padding-top: 0.28em;
+}
+.src__m dd {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 2.05;
+  color: rgba(222, 214, 200, 0.72);
+}
+.src__m dd b { color: rgba(242, 228, 196, 0.92); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .src__m { grid-template-columns: 1fr; gap: 0.3rem; }
+  .src__item { padding-left: 2.1rem; }
+}

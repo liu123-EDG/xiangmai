@@ -5,6 +5,7 @@ import { buildMelody, bindMelodyScroll } from '../lib/melody.js';
 import { MUQAM } from '../lib/muqam-data.js';
 import { HERITAGE } from '../lib/heritage-data.js';
 import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
+import { buildSources } from '../lib/sources.js';
 
 /* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
    所以 sound:false —— 免得鼓点和主题曲抢。 */
@@ -139,4 +140,12 @@ if (!unlock.done) {
 } else if (gateNote) {
   gateNote.remove();
 }
+
+/* ---- 参考来源 ----
+   放在这一页最后。分"已核实"与"尚未核实"两块。
+   所有外链都经 tools/check-sources.mjs 逐条访问确认过 ——
+   政府网站改版频繁，死链比不写来源更糟。
+   外链页面**不属于 gate 管**，所以不参与上锁。 */
+const sources = buildSources();
+window.__XM_SOURCES__ = sources;
 
