@@ -117,15 +117,12 @@
             </svg>
           </div>
 
-          <!-- 三段式结构柱：硬切堆叠，宽度按各段体量递减。
-               WebGL 可用时这一段是 shader 的量测基准；不可用时它自己就是画面，
-               纹理走 assets/filters.svg 的三套滤镜。 -->
-          <div class="pillar" id="pillar" role="img"
-               aria-label="三段式结构柱：穹乃额曼（苍劲）、达斯坦（叙事）、麦西热甫（欢腾）">
-            <div class="seg seg--qon"     data-seg="0" style="--h:1.18"><span class="seg__breath"></span></div>
-            <div class="seg seg--dastan"  data-seg="1" style="--h:0.86"><span class="seg__breath"></span></div>
-            <div class="seg seg--mashrap" data-seg="2" style="--h:0.96"><span class="seg__breath"></span></div>
-          </div>
+          <!-- 手鼓：一只鼓，三种打法 —— 敲击速度跟着当前段变。
+               原来是三块硬切的彩色矩形（560×218 / 560×161 / 560×179），
+               用户说"三个大格子视觉上很难看，弄个鼓自己在那里敲也行"。
+               段号从 body[data-stage] 读，BPM 与音序器同一份数据。
+               减弱动效时只画一只静止的鼓，不敲。 -->
+          <div class="drum-host" id="drum-host"></div>
         </div>
 
         <!-- 情绪关键词：不解释，只标注 -->

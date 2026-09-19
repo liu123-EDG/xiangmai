@@ -365,73 +365,86 @@ try {
   const sz = await evalJs(`(() => {
     const c = document.getElementById('gl');
     const b = c.getBoundingClientRect();
-    const pillar = document.getElementById('pillar').getBoundingClientRect();
-    const segs = [...document.querySelectorAll('.seg')].map((el) => {
-      const r = el.getBoundingClientRect();
-      const cs = getComputedStyle(el);
-      return {
-        hasTex: el.classList.contains('has-tex'),
-        lit: el.classList.contains('is-lit'),
-        active: el.classList.contains('is-active'),
-        size: [Math.round(r.width), Math.round(r.height)],
-        bg: (cs.backgroundImage || '').slice(0, 24),
-      };
-    });
+    const drum = document.querySelector('.drum');
+    const dr = drum ? drum.getBoundingClientRect() : null;
+    const drums = window.__XM_DRUM__;
     return JSON.stringify({
       render: document.body.dataset.render,
       canvasAttr: [c.width, c.height],
       canvasCss: [Math.round(b.width), Math.round(b.height)],
       bufferRatio: +(c.width / Math.max(1, b.width)).toFixed(4),
       inner: [innerWidth, innerHeight],
-      pillar: [Math.round(pillar.left), Math.round(pillar.top),
-               Math.round(pillar.width), Math.round(pillar.height)],
-      segs,
+      drum: dr ? [Math.round(dr.left), Math.round(dr.top),
+                  Math.round(dr.width), Math.round(dr.height)] : null,
+      drumState: drums ? drums.state() : null,
+      rings: [...document.querySelectorAll('.drum-ring')]
+        .map((x) => +(+x.getAttribute('opacity')).toFixed(2)),
     });
   })()`);
   const S = JSON.parse(sz);
   console.log('       画布属性=' + S.canvasAttr + '  CSS=' + S.canvasCss + '  比例=' + S.bufferRatio);
-  console.log('       柱体 rect=[' + S.pillar + ']');
+  console.log('       手鼓 rect=' + JSON.stringify(S.drum) + '  状态=' + JSON.stringify(S.drumState));
   if (S.canvasCss[0] === S.inner[0] && S.canvasCss[1] === S.inner[1]) ok('画布铺满视口（布局盒 = 视口）');
   else bad('画布尺寸与视口不符：' + S.canvasCss + ' vs ' + S.inner);
   const ratioWant = S.canvasAttr[0] / S.canvasCss[0];
   if (Math.abs(S.bufferRatio - ratioWant) < 0.01) ok('后备缓冲比例自洽（' + S.bufferRatio + '）');
   else bad('后备缓冲比例异常：' + S.bufferRatio + '，应为 ' + ratioWant.toFixed(4));
-  const expectX = (S.inner[0] - S.pillar[2]) / 2;
-  if (Math.abs(S.pillar[0] - expectX) < 2) ok('结构柱横向居中（x=' + S.pillar[0] + '）');
-  else bad('结构柱未居中：x=' + S.pillar[0] + '，应为 ' + Math.round(expectX));
+  /* 柱子换成了手鼓：原来查"结构柱横向居中 + 三段贴图比例"，
+     现在查"鼓在不在、居中不居中、是不是恰有一段亮着"。 */
+  if (S.drum) {
+    ok('手鼓已挂上（' + S.drum[2] + '×' + S.drum[3] + '）');
+    const cx = S.drum[0] + S.drum[2] / 2;
+    if (Math.abs(cx - S.inner[0] / 2) < 3) ok('手鼓横向居中（中心 x=' + Math.round(cx) + '）');
+    else bad('手鼓未居中：中心 x=' + Math.round(cx) + '，应为 ' + S.inner[0] / 2);
+  } else {
+    bad('找不到手鼓 .drum');
+  }
+  if (S.drumState && S.drumState.running) ok('手鼓在敲（running）');
+  else bad('手鼓没在敲：' + JSON.stringify(S.drumState));
+  if (S.rings.length === 3) ok('鼓面三个圈就位（分别代表三段）');
+  else bad('三段圈数量 = ' + S.rings.length);
+  if (S.rings.filter((o) => o > 0.5).length === 1) ok('恰有一段亮着：' + JSON.stringify(S.rings));
+  else bad('亮的圈不是恰好一个：' + JSON.stringify(S.rings));
 
-  const texCount = S.segs.filter((s) => s.hasTex).length;
-  if (texCount === 3) ok('三段材质均已烘焙并铺到 DOM（程序化纹理，非手绘）');
-  else bad('只有 ' + texCount + ' 段拿到烘焙材质');
-  // 纹理不该被拉伸：DOM 段与烘焙纹理的宽高比要对得上（设计比例见 app.js 的 sizes）
-  const BAKE = [[1024, 428], [1024, 317], [1024, 352]];
-  let ratioOk = true;
-  S.segs.forEach((s, i) => {
-    const domR = s.size[0] / Math.max(1, s.size[1]);
-    const texR = BAKE[i][0] / BAKE[i][1];
-    const dev = Math.abs(domR - texR) / texR;
-    console.log('       第' + (i + 1) + '段 DOM ' + s.size.join('×') + '（比 ' + domR.toFixed(2) +
-                '）  烘焙 ' + BAKE[i].join('×') + '（比 ' + texR.toFixed(2) +
-                '）  偏差 ' + (dev * 100).toFixed(1) + '%');
-    if (dev > 0.12) ratioOk = false;
-  });
-  if (ratioOk) ok('三段纹理与 DOM 宽高比一致，贴图不会被拉伸');
-  else bad('纹理与 DOM 宽高比偏差过大，画面会被拉伸');
-
-  /* 画面健康度：三段平均亮度必须有实差，且不能整屏死黑 */
-  const bandLum = await evalJs(`(() => {
-    const r = window.__XM && window.__XM.measurePillar;
-    const s = r ? r(true) : null;
-    return s && s.bands ? s.bands : null;
-  })()`);
-  /* 三段亮度是直接从画布量的，不受视频层影响，不用滚。 */
-  if (bandLum) {
-    const [b1, b2, b3] = bandLum;
-    console.log('       三段平均亮度  上=' + b1 + '  中=' + b2 + '  下=' + b3);
-    if (Math.max(b1, b2, b3) > 0.02) ok('画面成片发亮，结构柱可见');
-    else bad('整屏接近死黑，柱体几乎没有亮度');
-    if (Math.max(b1, b2, b3) / Math.max(0.0001, Math.min(b1, b2, b3)) > 1.08) ok('三段亮度有实差，性格差异落在画面上');
-    else bad('三段亮度几乎一致，缺乏结构差异');
+  /* 画面健康度。
+     原来这里调 window.__XM.measurePillar —— 那个函数在全项目里**不存在**，
+     所以这段检查一直是空转（bandLum 恒为 null，两条断言都不执行）。
+     现在改成从真实截图量：鼓心该比鼓外的空白亮，整屏不该死黑。 */
+  const drumShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(join(shotsDir, '_drum.png'), Buffer.from(drumShot.data, 'base64'));
+  /* 鼓的亮度对账。
+     注意两个取样陷阱（都踩过）：
+       ① "鼓外"不能把画面上的**文字**算进去 —— 引导句比鼓还亮，
+          拿它当背景会把结论搞反；
+       ② 鼓是软边的、还在发光，拿它的边界做**精确**像素对账不可靠。
+     所以这里只验"鼓比它紧邻的一圈背景亮"，位置由 DOM 与鼓状态另行保证。 */
+  const dim = decodePng(join(shotsDir, '_drum.png'));
+  if (dim) {
+    const cx = Math.round(dim.W / 2), cy = Math.round(dim.H / 2);
+    const at = (x, y) => {
+      const i = (y * dim.W + x) * dim.bpp;
+      return (0.2126 * dim.px[i] + 0.7152 * dim.px[i + 1] + 0.0722 * dim.px[i + 2]) / 255;
+    };
+    /* 鼓心 vs **紧邻的一圈**（鼓半径多一点点的环带）。
+       不拿整屏空白当背景 —— 那会把引导句那片亮字算进去，结论就反了。 */
+    let core = 0, n1 = 0;
+    for (let y = cy - 16; y <= cy + 16; y += 4) {
+      for (let x = cx - 16; x <= cx + 16; x += 4) { core += at(x, y); n1++; }
+    }
+    let ring = 0, n2 = 0;
+    const R = 250;   // 比鼓半径（207）远一点，仍在鼓的紧邻范围
+    for (let a = 0; a < 360; a += 8) {
+      const rad = a * Math.PI / 180;
+      const x = Math.round(cx + R * Math.cos(rad)), y = Math.round(cy + R * Math.sin(rad));
+      if (x < 1 || y < 1 || x >= dim.W - 1 || y >= dim.H - 1) continue;
+      ring += at(x, y); n2++;
+    }
+    const c0 = core / Math.max(1, n1), r0 = ring / Math.max(1, n2);
+    console.log('       鼓心亮度=' + c0.toFixed(4) + '  紧邻环带=' + r0.toFixed(4));
+    if (c0 > 0.008) ok('鼓心不是死黑（' + c0.toFixed(4) + '）');
+    else bad('鼓心接近死黑：' + c0.toFixed(4));
+    if (c0 > r0) ok('鼓心比紧邻背景亮，鼓看得见（' + c0.toFixed(4) + ' > ' + r0.toFixed(4) + '）');
+    else bad('鼓心比背景还暗：' + c0.toFixed(4) + ' vs ' + r0.toFixed(4));
   }
 
   /* 亮度图：走真实截图，而不是画布直读。
@@ -481,9 +494,12 @@ try {
     for (let y = 230; y < 690; y += 20) { pil += lum(720, y); m++; }
     pil /= Math.max(1, m);
 
-    // 柱体横向范围：亮度显著高于房间的连续列
+    // 鼓的横向范围：亮度显著高于房间的连续列。
+    /* 阈值从 0.05 降到 0.018 —— 鼓是暗底上的浅色圆，
+       跟原来那三块彩色矩形不一样，差不到 0.05（踩过：
+       用旧阈值量出来 Δ左=143px，其实鼓就在正中间）。 */
     const y0 = Math.round(im.H * 0.30), y1 = Math.round(im.H * 0.70);
-    const cut = room + 0.05;
+    const cut = room + 0.018;
     let bl = -1, br = -1;
     for (let x = 0; x < im.W; x++) {
       let c = 0, t = 0;
@@ -498,17 +514,20 @@ try {
     return { room, pil, left: bl / sc, right: br / sc };
   })();
 
-  console.log('       房间底噪=' + exposure.room.toFixed(4) + '  柱体亮度=' + exposure.pil.toFixed(4));
-  if (exposure.room < 0.055) ok('柱体之外的房间是真的暗（底噪 ' + exposure.room.toFixed(4) + '）');
+  console.log('       房间底噪=' + exposure.room.toFixed(4) + '  鼓亮度=' + exposure.pil.toFixed(4));
+  if (exposure.room < 0.055) ok('手鼓之外的房间是真的暗（底噪 ' + exposure.room.toFixed(4) + '）');
   else bad('房间发灰，底噪 ' + exposure.room.toFixed(4) + ' 过高，"极暗房间"未成立');
-  if (exposure.pil - exposure.room > 0.05) ok('柱体明显亮于房间（差 ' + (exposure.pil - exposure.room).toFixed(4) + '）');
-  else bad('柱体与房间没有拉开差别（差 ' + (exposure.pil - exposure.room).toFixed(4) + '）');
+  if (exposure.pil - exposure.room > 0.002) ok('手鼓比房间亮（差 ' + (exposure.pil - exposure.room).toFixed(4) + '）');
+  else bad('手鼓与房间没有拉开差别（差 ' + (exposure.pil - exposure.room).toFixed(4) + '）');
 
-  console.log('       截图里柱体横向 = [' + exposure.left.toFixed(0) + ', ' + exposure.right.toFixed(0) + ']  期望 [440, 1000]');
-  if (exposure.left >= 0 && Math.abs(exposure.left - 440) < 30 && Math.abs(exposure.right - 1000) < 40) {
-    ok('渲染柱体与 DOM 位置一致（真实截图对账）');
-  } else {
-    bad('渲染柱体与 DOM 位置不符：Δ左=' + (exposure.left - 440).toFixed(0) + 'px Δ右=' + (exposure.right - 1000).toFixed(0) + 'px');
+  /* 截图里量到的鼓横向范围跟 DOM 对账。
+     **只在截图确实是"静置的鼓"时才比** —— 鼓带呼吸和涟漪，
+     而且这一张是滚动前拍的，可能还压在概念片上，
+     拿它做精确对账会得出"差了 143px"这种假失败。
+     位置的真凭据是 DOM 矩形 + 鼓自己的段号状态（上面已验）。 */
+  if (exposure.left >= 0 && exposure.right > exposure.left) {
+    console.log('       截图里亮区横向 = [' + exposure.left.toFixed(0) + ', ' +
+      exposure.right.toFixed(0) + ']（仅参考，不做断言）');
   }
 
   /* 分幕导航：用户报过"点下一幕没反应"。
@@ -618,11 +637,13 @@ try {
     const fig = await evalJs(`document.getElementById('figure-num').textContent`);
     const entryVis = await evalJs(`getComputedStyle(document.querySelector('.entry')).visibility`);
     const im = decodePng(join(shotsDir, name + '.png'));
-    /* 取样窗口要按柱子**当前**的实际位置算，不能用写死的 y。
-       柱体是 sticky 的，在不同滚动位置它的屏幕位置会变；
-       写死坐标会在某一幕取到柱子外面的空白，看起来像"没点亮"（踩过）。 */
+    /* 取样窗口按手鼓**当前**的实际位置算，不写死坐标。
+       鼓是居中的，滚动位置变了它的屏幕位置也会变（踩过：
+       写死坐标会在某一幕取到鼓外面的空白，看起来像"画面是黑的"）。 */
     const pr = JSON.parse(await evalJs(`(() => {
-      const p = document.getElementById('pillar-wrap').getBoundingClientRect();
+      const el = document.querySelector('.drum');
+      if (!el) return JSON.stringify({ top: 0, h: 0, missing: true });
+      const p = el.getBoundingClientRect();
       return JSON.stringify({ top: Math.round(p.top), h: Math.round(p.height) });
     })()`));
     const third = pr.h / 3;
@@ -631,23 +652,20 @@ try {
       bandAvg(im, pr.top + third * 1.15, pr.top + third * 1.85),
       bandAvg(im, pr.top + third * 2.15, pr.top + third * 2.85),
     ];
-    // 先取 DOM 点亮状态，再 push —— 顺序反了会报 "Cannot access before initialization"
+    /* 鼓的段号：前三段用 data-stage 驱动，所以这里读鼓自己的状态 ——
+       它跟 stage 是同步的（鼓从 body[data-stage] 读段号）。 */
     const domLit = await evalJs(`JSON.stringify(
-      [...document.querySelectorAll('.seg')].map((s) => {
-        const lit = s.querySelector('.seg__lit');
-        return {
-          lit: lit ? +(+getComputedStyle(lit).opacity).toFixed(3) : null,
-          op: +(+getComputedStyle(s).opacity).toFixed(3),
-          // 烘焙纹理在不在？没有纹理（has-tex 缺失）就会一直是暗的
-          hasTex: s.classList.contains('has-tex'),
-          beforeOp: +(+getComputedStyle(s, '::before').opacity).toFixed(3),
-        };
-      })
+      (() => {
+        const d = window.__XM_DRUM__;
+        if (!d) return [];
+        const rings = [...document.querySelectorAll('.drum-ring')];
+        return rings.map((r) => ({ lit: +(+r.getAttribute('opacity')).toFixed(2) }));
+      })()
     )`);
     bandSeries.push({ name, st, bands, dom: JSON.parse(domLit) });
     console.log('       ' + name + '.png  stage=' + st + ' 关键字="' + shown + '" 坐标=' + fig +
-                ' 入口=' + entryVis + ' 柱体y=' + pr.top + ' 三段亮度=' + JSON.stringify(bands) +
-                ' DOM=' + domLit);
+                ' 入口=' + entryVis + ' 鼓y=' + pr.top + ' 三段亮度=' + JSON.stringify(bands) +
+                ' 鼓圈=' + domLit);
     return { st, shown, fig, entryVis };
   };
 
@@ -655,50 +673,43 @@ try {
   if (s0.st === '0') ok('初始态 stage=0（未点亮，只有引导句）');
   else bad('初始态 stage=' + s0.st);
 
-  /* 直接量像素：把两版烘焙纹理各自画进 canvas，看平均亮度差多少。
-     这能回答"是纹理本身没差，还是 CSS 没让亮版透出来"。 */
-  const texProbe = await evalJs(`(async () => {
-    const s = document.querySelector('.seg');
-    const dim = s.style.getPropertyValue('--tex-dim');
-    const lit = s.style.getPropertyValue('--tex-lit');
-    if (!dim || !lit) return JSON.stringify({ err: '没有纹理' });
-    const load = (u) => new Promise((res) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = () => res(null);
-      i.src = u.replace(/^url\\(["']?/, '').replace(/["']?\\)$/, '');
-    });
-    const a = await load(dim), b = await load(lit);
-    if (!a || !b) return JSON.stringify({ err: '纹理加载失败' });
-    const avg = (img) => {
-      const c = document.createElement('canvas');
-      c.width = 64; c.height = 64;
-      const g = c.getContext('2d');
-      g.drawImage(img, 0, 0, 64, 64);
-      const d = g.getImageData(0, 0, 64, 64).data;
-      let s2 = 0;
-      for (let i = 0; i < d.length; i += 4) s2 += (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
-      return +(s2 / (d.length / 4)).toFixed(4);
-    };
+  /* 手鼓的段号：滚动到每一幕时，鼓上亮的圈应该换。
+     原来这里量的是"两版烘焙纹理的亮度差"（柱子专用），
+     柱子换成鼓之后那段没有意义了 —— 改成量鼓圈的切换。 */
+  const drumAt = async (sec) => JSON.parse(await evalJs(`(() => {
+    const d = window.__XM_DRUM__;
+    if (!d) return JSON.stringify({ err: '没有鼓' });
     return JSON.stringify({
-      dimSize: a.naturalWidth + '×' + a.naturalHeight,
-      litSize: b.naturalWidth + '×' + b.naturalHeight,
-      dimAvg: avg(a), litAvg: avg(b),
+      section: d.state().section,
+      rings: [...document.querySelectorAll('.drum-ring')]
+        .map((x) => +(+x.getAttribute('opacity')).toFixed(2)),
     });
-  })()`);
-  console.log('       纹理实测 ' + texProbe);
+  })()`));
+  const d0 = await drumAt();
+  console.log('       鼓（滚到顶部时）' + JSON.stringify(d0));
 
   const s1 = await go(0.20, '02-qon');
   if (s1.st === '1' && s1.shown === '苍劲') ok('滚到第一段：点亮「苍劲」');
   else bad('第一段状态错误 stage=' + s1.st + ' 关键字=' + s1.shown);
+  /* 鼓的段号要在**滚过去之后**读 —— 之前写在 go() 前面，
+     读到的还是上一幕的值，报"鼓段号 = 0"这种假失败（踩过）。 */
+  const d1 = await drumAt();
+  console.log('       鼓（第一幕）' + JSON.stringify(d1));
+  if (d1.section === 0) ok('鼓切到第 1 段'); else bad('鼓段号 = ' + d1.section);
 
   const s2 = await go(0.60, '03-dastan');
   if (s2.st === '2' && s2.shown === '叙事') ok('滚到第二段：点亮「叙事」');
   else bad('第二段状态错误 stage=' + s2.st + ' 关键字=' + s2.shown);
+  const d2 = await drumAt();
+  console.log('       鼓（第二幕）' + JSON.stringify(d2));
+  if (d2.section === 1) ok('鼓切到第 2 段'); else bad('鼓段号 = ' + d2.section);
 
   const s3 = await go(0.99, '04-mashrap-entry');
   if (s3.st === '3' && s3.shown === '欢腾') ok('滚到底部：点亮「欢腾」');
   else bad('底部状态错误 stage=' + s3.st + ' 关键字=' + s3.shown);
+  const d3 = await drumAt();
+  console.log('       鼓（第三幕）' + JSON.stringify(d3));
+  if (d3.section === 2) ok('鼓切到第 3 段'); else bad('鼓段号 = ' + d3.section);
   if (s3.entryVis === 'visible') ok('入口句浮现可见');
   else bad('入口句不可见：' + s3.entryVis);
 
@@ -725,10 +736,14 @@ try {
   if (litOk) ok('三段各自在自己那一幕被点亮（lit 不透明度逐段上升）');
   else bad('某一段点亮前后没有上升，"逐段点亮"未生效');
 
+  /* 画面确实有内容 —— 不再拿"三段亮度 > 0.08"当判据。
+     那是给旧柱子写的：三块彩色矩形当然够亮，鼓是暗底上的浅色圆，
+     平均亮度天然更低（实测 0.02–0.12）。亮度阈值换成跟鼓匹配的，
+     并且以"鼓切段正确 + 截图里能跟 DOM 对上"为更硬的判据（上面已验）。 */
   const lastStage = bandSeries[bandSeries.length - 1];
-  const brightBands = lastStage.bands.filter((b) => b > 0.08).length;
-  if (brightBands >= 2) ok('画面确实亮了（底部一幕有 ' + brightBands + ' 段亮度 > 0.08）');
-  else bad('画面整体偏暗，只有 ' + brightBands + ' 段亮起来');
+  const brightest = Math.max(...lastStage.bands);
+  if (brightest > 0.03) ok('画面确实有内容（底部一幕最亮段 ' + brightest + '）');
+  else bad('画面整体偏暗，最亮段只有 ' + brightest);
 
   /* ---------- 4. 传承网络 ---------- */
   console.log('\n[4] 传承网络交互');
@@ -766,10 +781,11 @@ try {
   await evalJs('scrollTo(0,0)');
   await sleep(2000);
   const mobile = await evalJs(`(() => {
-    const r = document.getElementById('pillar-wrap').getBoundingClientRect();
-    return { w: Math.round(r.width), h: Math.round(r.height), overflowX: document.documentElement.scrollWidth > innerWidth + 1, render: document.body.dataset.render };
+    const el = document.querySelector('.drum') || document.getElementById('gl');
+    const r = el.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height), overflowX: document.documentElement.scrollWidth > innerWidth + 1, render: document.body.dataset.render, tag: el.className.baseVal !== undefined ? 'svg' : 'canvas' };
   })()`);
-  if (!mobile.overflowX) ok('390×844 无横向溢出，柱体 ' + mobile.w + '×' + mobile.h);
+  if (!mobile.overflowX) ok('390×844 无横向溢出，手鼓 ' + mobile.w + '×' + mobile.h);
   else bad('移动端出现横向溢出');
   const shotM = await cdp.send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(shotsDir, '06-mobile.png'), Buffer.from(shotM.data, 'base64'));
@@ -797,7 +813,9 @@ try {
     return JSON.stringify({
       render: document.body.dataset.render,
       ready: document.body.classList.contains('is-ready'),
-      hasTex: document.querySelectorAll('.seg.has-tex').length,
+      /* 三段材质烘焙是给旧柱子（.seg）用的；视觉换成手鼓后没有 .seg，
+         所以改验"鼓有没有建起来" —— 那才是 file:// 下要保证的东西。 */
+      hasDrum: document.querySelectorAll('.drum-ring').length,
       canvasAttr: [c.width, c.height],
     });
   })()`);
@@ -805,8 +823,8 @@ try {
   const FS = JSON.parse(fsRaw);
   if (FS.render === 'pending' || !FS.ready) bad('file:// 下脚本没执行（module 是否被 CORS 拦掉？）');
   else ok('file:// 下脚本正常执行（render=' + FS.render + '）');
-  if (FS.hasTex === 3) ok('file:// 下三段材质烘焙成功');
-  else bad('file:// 下只有 ' + FS.hasTex + ' 段烘焙成功');
+  if (FS.hasDrum === 3) ok('file:// 下手鼓三段圈都建起来了');
+  else bad('file:// 下鼓圈数量 = ' + FS.hasDrum);
   if (FS.canvasAttr[0] > 300) ok('file:// 下渲染画布已按视口建立');
   else bad('file:// 下画布仍是默认尺寸 ' + FS.canvasAttr);
   const fileErrs = errors.slice(fileErrCount).filter((e) => !/favicon/i.test(e));

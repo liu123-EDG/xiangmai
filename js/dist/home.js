@@ -6,6 +6,7 @@
      js/lib/scroll.js  → BandScroller, onScrollThrottled
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/hero-video.js  → isDesktop, shouldSkipVideo, buildHeroVideo
+     js/lib/drum.js  → buildDrum
      js/pages/network.js  → initNetwork, LINEAGE
      js/pages/home.js
 */
@@ -22,6 +23,7 @@ __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
+__XM[8] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -2456,8 +2458,267 @@ __ns.mount_shouldSkipVideo = function () { return shouldSkipVideo; };
 __ns.mount_buildHeroVideo = function () { return buildHeroVideo; };
 }
 
-/* ── js/pages/network.js ── */
+/* ── js/lib/drum.js ── */
 function __M6__() {
+/* ==========================================================================
+   弦脉 · 手鼓
+   --------------------------------------------------------------------------
+   序章那三段结构柱原来就是三块硬切的彩色矩形（560×218 / 560×161 / 560×179），
+   用户说"三个大格子视觉上很难看，弄个鼓自己在那里敲也行"。
+   所以换成一只俯视的手鼓，自己在敲。
+
+   **一只鼓，三种打法** —— 这正是"三段构成"那个意思，
+   不用三块色卡去说：
+     穹乃额曼  108 bpm  慢而沉，主打低音
+     达斯坦    122 bpm  有叙述感，节奏走起来
+     麦西热甫  152 bpm  密而快
+
+   敲击速度跟着当前段变，鼓心的颜色也跟着换。
+
+   同步说明：**鼓用的是自己的时钟**，速度取自音序器真实的 BPM。
+   没有去挂音序器内部的音节回调 —— 那要动音频代码，风险大。
+   速度和节奏型都对得上，相位可能差几十毫秒，作为背景层看不出来。
+   ========================================================================== */
+
+const NS = 'http://www.w3.org/2000/svg';
+
+const el = (tag, attrs) => {
+  const n = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+};
+
+/* 三段的打法。bpm / div 取自 sequencer.js 的 PATTERNS —— 不另编。 */
+const SECTIONS = [
+  { bpm: 108, div: 2, voice: 0.40, tone: '#7d97a6', label: '苍劲' },  // 穹乃额曼
+  { bpm: 122, div: 2, voice: 0.30, tone: '#c08a3e', label: '叙事' },  // 达斯坦
+  { bpm: 152, div: 2, voice: 0.34, tone: '#4a8071', label: '欢腾' },  // 麦西热甫
+];
+
+/**
+ * @param {object} opts
+ * @param {HTMLElement} opts.host    放鼓的容器
+ * @param {number} [opts.size]       直径（px），默认按容器算
+ * @param {boolean} [opts.reduced]   减弱动效
+ */
+function buildDrum(opts = {}) {
+  const host = opts.host;
+  if (!host) return null;
+
+  const reduced = !!opts.reduced;
+  const size = opts.size || 440;
+  const C = size / 2;
+  const R_RIM = C - 10;          // 鼓沿
+  const R_SKIN = R_RIM - 16;     // 鼓面
+  const R_C = 52;                // 中心敲击区（太大就吃掉整个鼓面，踩过）
+
+  const svg = el('svg', {
+    class: 'drum',
+    viewBox: '0 0 ' + size + ' ' + size,
+    role: 'img',
+    'aria-label': '手鼓：三段各自的节奏',
+  });
+  svg.style.width = size + 'px';
+  svg.style.height = size + 'px';
+
+  /* ---- 鼓面 ----
+     三层同心圈 **分别代表三段**，而不是装饰性的同心圆：
+       外圈 穹乃额曼 · 中圈 达斯坦 · 内圈 麦西热甫
+     当前那一段亮起来，另外两圈按到最暗 —— 一眼看出"现在在打哪一段"。
+     这是这只鼓存在的理由：一只鼓，三种打法。 */
+  const defs = el('defs');
+  const grad = el('radialGradient', { id: 'drumSkin', cx: '50%', cy: '44%', r: '64%' });
+  grad.appendChild(el('stop', { offset: '0%', 'stop-color': 'rgba(86,68,46,0.55)' }));
+  grad.appendChild(el('stop', { offset: '62%', 'stop-color': 'rgba(38,30,22,0.72)' }));
+  grad.appendChild(el('stop', { offset: '100%', 'stop-color': 'rgba(14,12,9,0.92)' }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  // 鼓面（羊皮）
+  svg.appendChild(el('circle', {
+    cx: C, cy: C, r: R_SKIN, fill: 'url(#drumSkin)',
+    stroke: 'rgba(222,214,200,0.12)', 'stroke-width': 1,
+  }));
+
+  /* 内阴影：鼓面不是平的，靠中心亮、靠边压暗才有弧度。
+     用一圈从透明到黑的径向渐变叠上去。 */
+  const inner = el('circle', {
+    cx: C, cy: C, r: R_SKIN,
+    fill: 'none',
+    stroke: 'rgba(0,0,0,0.55)',
+    'stroke-width': 34,
+    opacity: 0.5,
+    filter: 'blur(9px)',
+  });
+  svg.appendChild(inner);
+
+  /* 鼓绳：一圈斜纹，让它一眼是"鼓"而不是靶子。
+     用 dashed stroke 做斜纹，比真画几十条线便宜。 */
+  const lash = el('circle', {
+    cx: C, cy: C, r: R_RIM - 5, fill: 'none',
+    stroke: 'rgba(196,172,132,0.30)', 'stroke-width': 2.4,
+    'stroke-dasharray': '3 9', 'stroke-linecap': 'round',
+  });
+  svg.appendChild(lash);
+
+  // 鼓沿
+  svg.appendChild(el('circle', {
+    cx: C, cy: C, r: R_RIM, fill: 'none',
+    stroke: 'rgba(222,214,200,0.26)', 'stroke-width': 1,
+  }));
+
+  /* ---- 三段圈：当前那段亮 ----
+     半径要**拉开**（不能只差二十几），否则三圈挤在鼓面中间，
+     看着糊成一团、分不出哪圈是哪段。 */
+  const RINGS = [R_RIM - 38, R_RIM - 74, R_RIM - 110];
+  const rings = RINGS.map((r, i) => {
+    const c = el('circle', {
+      cx: C, cy: C, r,
+      fill: 'none',
+      stroke: SECTIONS[i].tone,
+      'stroke-width': 1.4,
+      opacity: i === 0 ? 0.9 : 0.16,
+      /* 加类名：自检要按名字找这三圈。
+         只按 stroke-width 找会把涟漪和脉冲圈一起算进来（踩过：
+         探针报"三段圈数量 = 5"）。 */
+      class: 'drum-ring',
+    });
+    svg.appendChild(c);
+    return c;
+  });
+
+  /* ---- 涟漪：敲一下从中心荡一圈，很快散掉 ---- */
+  const ripples = [];
+  for (let i = 0; i < 2; i++) {
+    const c = el('circle', {
+      cx: C, cy: C, r: R_C, fill: 'none',
+      stroke: SECTIONS[0].tone, 'stroke-width': 1.4, opacity: 0,
+    });
+    ripples.push({ node: c, t: -1 });
+    svg.appendChild(c);
+  }
+
+  /* ---- 中心敲击区 ---- */
+  const pulseRing = el('circle', {
+    cx: C, cy: C, r: R_C + 16, fill: 'none',
+    stroke: SECTIONS[0].tone, 'stroke-width': 1.2, opacity: 0.45,
+  });
+  const core = el('circle', {
+    cx: C, cy: C, r: R_C, fill: SECTIONS[0].tone, opacity: 0.9,
+  });
+  svg.appendChild(pulseRing);
+  svg.appendChild(core);
+
+  /* ---- 鼓钉：一圈小点，给"这是一面手鼓"的暗示 ---- */
+  for (let i = 0; i < 24; i++) {
+    const a = i * 15 * Math.PI / 180;
+    const r = R_RIM - 12;
+    svg.appendChild(el('circle', {
+      cx: C + r * Math.cos(a), cy: C + r * Math.sin(a), r: 1.6,
+      fill: 'rgba(222,214,200,0.16)',
+    }));
+  }
+
+  host.appendChild(svg);
+
+  /* ------------------------------------------------------------ 状态与时钟 */
+  let section = 0;
+  let nextBeat = 0;          // 下一次敲击的时刻（performance.now() 基准）
+  let lastNow = 0;
+  let rippleSeed = 0;
+  let running = false;
+  let raf = 0;
+
+  function setSection(i) {
+    const n = Math.max(0, Math.min(2, i | 0));
+    if (n === section) return;
+    section = n;
+    const s = SECTIONS[n];
+    core.setAttribute('fill', s.tone);
+    pulseRing.setAttribute('stroke', s.tone);
+    rings.forEach((r, k) => r.setAttribute('opacity', k === n ? 0.9 : 0.14));
+  }
+  // 初始就把第 0 段的圈点亮
+  rings.forEach((r, k) => r.setAttribute('opacity', k === 0 ? 0.9 : 0.14));
+
+  /** 敲一下：鼓心弹一下 + 荡出一圈涟漪 */
+  function strike(now) {
+    const s = SECTIONS[section];
+    // 中心：缩一下再回去（用 CSS 类触发动画比重画 SVG 便宜）
+    core.classList.remove('is-hit');
+    void core.getBoundingClientRect();
+    core.classList.add('is-hit');
+
+    const r = ripples[rippleSeed % ripples.length];
+    rippleSeed++;
+    r.t = now;
+    r.node.setAttribute('stroke', s.tone);
+  }
+
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - lastNow) / 1000 || 0);
+    lastNow = now;
+
+    if (running && now >= nextBeat) {
+      strike(now);
+      const s = SECTIONS[section];
+      nextBeat = now + (60000 / s.bpm / s.div);   // 与音序器同一算法
+    }
+
+    // 推涟漪
+    /* 寿命要**短于敲击间隔**，否则几条同时挂在屏幕上，
+       叠成一圈圈同心圆 —— 看着像靶子，不像在敲（踩过）。
+       152 bpm 时间隔约 0.39 秒，所以寿命取 0.85 秒 + 两条轮流，
+       最多同时一条多一点，能看清"一圈荡出去、下一圈才开始"。 */
+    for (const r of ripples) {
+      if (r.t < 0) continue;
+      const age = (now - r.t) / 1000;
+      const dur = 0.85;
+      if (age > dur) { r.node.setAttribute('opacity', 0); r.t = -1; continue; }
+      const p = age / dur;
+      r.node.setAttribute('r', String(R_C + p * (R_SKIN - R_C - 20)));
+      r.node.setAttribute('opacity', String(Math.sin(p * Math.PI) * 0.28));
+    }
+  }
+
+  /* 段号从 body.dataset.stage 读 —— 那是 home.js 已经算好的权威状态，
+     不另开一套判断，免得两边不一致。stage 0=未点亮，1/2/3 对应三段。 */
+  function syncFromStage() {
+    const st = parseInt(document.body.dataset.stage || '0', 10);
+    if (!isNaN(st) && st >= 1) setSection(st - 1);
+  }
+  const stageObserver = new MutationObserver(syncFromStage);
+  stageObserver.observe(document.body, { attributes: true, attributeFilter: ['data-stage'] });
+  syncFromStage();
+
+  if (reduced) {
+    // 减弱动效：画一个静止的鼓，不敲
+    running = false;
+  } else {
+    running = true;
+    lastNow = performance.now();
+    nextBeat = lastNow + 300;
+    raf = requestAnimationFrame(frame);
+  }
+
+  return {
+    section: () => section,
+    setSection,
+    start: () => { running = true; nextBeat = performance.now() + 100; },
+    stop: () => { running = false; },
+    /* 自检用 */
+    state: () => ({ section, running, ripples: ripples.filter((r) => r.t >= 0).length }),
+    el: svg,
+  };
+}
+
+__ns = __XM[6];
+__ns.mount_buildDrum = function () { return buildDrum; };
+}
+
+/* ── js/pages/network.js ── */
+function __M7__() {
 /* ==========================================================================
    弦脉 · 师承网络
    --------------------------------------------------------------------------
@@ -2852,13 +3113,13 @@ function initNetwork() {
   window.addEventListener('xiangmai:network-open', open);
 }
 
-__ns = __XM[6];
+__ns = __XM[7];
 __ns.mount_initNetwork = function () { return initNetwork; };
 __ns.mount_LINEAGE = function () { return LINEAGE; };
 }
 
 /* ── js/pages/home.js ── */
-function __M7__() {
+function __M8__() {
 var Renderer = __XM[1]["Renderer"];
 var SEG_BOUNDS = __XM[1]["SEG_BOUNDS"];
 var BREATH = __XM[1]["BREATH"];
@@ -2868,7 +3129,8 @@ var mountShell = __XM[4]["mountShell"];
 var mountSoundButton = __XM[4]["mountSoundButton"];
 var buildHeroVideo = __XM[5]["buildHeroVideo"];
 var shouldSkipVideo = __XM[5]["shouldSkipVideo"];
-var initNetwork = __XM[6]["initNetwork"];
+var buildDrum = __XM[6]["buildDrum"];
+var initNetwork = __XM[7]["initNetwork"];
 
 /* ==========================================================================
    弦脉 · 序（首屏）
@@ -2889,6 +3151,7 @@ var initNetwork = __XM[6]["initNetwork"];
 
 
 
+
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -2900,15 +3163,19 @@ const FIGURES = [
   { num: '2005', cap: '列入联合国教科文组织人类口头和非物质遗产代表作' },
 ];
 
-/* 各段材质的烘焙尺寸：必须与该段在页面上的真实宽高比一致，否则贴图会被拉伸。
-   设计比例见 styles.css 的 .pillar-wrap 与 .seg 的 --h。 */
+/* 三段的材质烘焙尺寸 —— 原来是给 .pillar 的三块矩形用的。
+   现在视觉换成了手鼓（js/lib/drum.js），DOM 里没有 .seg 了，
+   所以这段烘焙**只在还找得到 .seg 时才跑**（见下面 boot）。
+   留着不删是因为 WebGL 房间本身仍然按三段出图，
+   哪天想把矩形换回来，这里不用重写。 */
 const BAKE_SIZES = [[1024, 428], [1024, 317], [1024, 352]];
 
 const heroEl = $('#hero');
 const canvas = $('#gl');
 const railMarks = $$('.rail__mark');
 const words = $$('.word');
-const segs = $$('.seg');
+const segs = $$('.seg');          // 换成手鼓之后是空数组
+const drumHost = $('#drum-host');
 const figureNum = $('#figure-num');
 const figureCap = $('#figure-cap');
 const networkEl = $('#network');
@@ -2922,6 +3189,7 @@ mountShell({ base: '', active: 'prologue' });
 let renderer = null;
 let scroller = null;
 let heroVideo = null;
+let drum = null;
 let audio = null;
 let dataIndex = -1;
 let cssW = 0, cssH = 0, dpr = 0;
@@ -3165,8 +3433,12 @@ async function boot() {
       muralGain: 1.25,
     });
 
-    // 每段烘两张：暗版作底、亮版作高光层。滚动点亮时只改高光层透明度，
-    // 明暗过渡交给 CSS —— 这样既省算力，画质也不受过渡影响。
+    /* 每段烘两张：暗版作底、亮版作高光层。滚动点亮时只改高光层透明度，
+       明暗过渡交给 CSS —— 这样既省算力，画质也不受过渡影响。
+
+       **只在 .seg 还在时才跑**：视觉换成手鼓之后 DOM 里没有 .seg 了，
+       这段循环会空转（segs 是空数组），baked 永远是 0 ——
+       原来靠 baked === 3 判断渲染后端，那样会误判成 webgl。 */
     segs.forEach((el, i) => {
       try {
         const dimUrl = renderer.bake(i, BAKE_SIZES[i][0], BAKE_SIZES[i][1], 0.46);
@@ -3185,7 +3457,8 @@ async function boot() {
     });
 
     syncSize();
-    document.body.dataset.render = baked === 3 ? 'textured' : 'webgl';
+    document.body.dataset.render =
+      (segs.length === 0 || baked === 3) ? 'textured' : 'webgl';
     window.__XM_RENDERER__ = renderer;   // 自检用：查 uniform 位置、量画布
   } catch (err) {
     // 没有 WebGL：退回 DOM + SVG 滤镜，视觉语法保持一致
@@ -3195,6 +3468,19 @@ async function boot() {
 
   bindInteractions();
   initNetwork();   // 挂上师承网络：入口句点击时由 CustomEvent 唤起
+
+  /* ---- 手鼓 ----
+     替掉原来的三块矩形。段号它自己从 body[data-stage] 读，
+     所以这里不用管同步 —— home.js 推进 stage，鼓跟着变。
+     尺寸按容器算：小了不像鼓，大了顶到字。 */
+  if (drumHost) {
+    drum = buildDrum({
+      host: drumHost,
+      size: Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46),
+      reduced: REDUCED,
+    });
+    window.__XM_DRUM__ = drum;   // 自检用
+  }
 
   /* ---- 首屏概念片 ----
      只在桌面端开：三段全屏视频 + WebGL 会拖垮手机。
@@ -3294,20 +3580,29 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/hero-video.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/network.js */
+/* js/lib/drum.js */
 try {
   __ns = __XM[6];
   __M6__();
   for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/drum.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/network.js */
+try {
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/network.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/home.js */
 try {
-  __ns = __XM[7];
-  __M7__();
-  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
+  __ns = __XM[8];
+  __M8__();
+  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/home.js" + " :: " + (e && e.stack || e));
 }

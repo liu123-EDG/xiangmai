@@ -48,7 +48,9 @@ const PAGES = [
      只验它自己该有的东西。 */
   { path: 'welcome/index.html', nav: '概念片', shell: false,
     need: { '整屏视频': '#hero-video', '入口': '.w-go', '文字层': '#w-title' } },
-  { path: 'index.html', nav: '序', need: { '三段结构柱': '.pillar', '分幕导航': '#act-next', '师承网络': '#network' } },
+  /* 序章的视觉从"三段结构柱"换成了手鼓（.drum-host / .drum）——
+     三块硬切的彩色矩形用户说难看。所以检查项也跟着换。 */
+  { path: 'index.html', nav: '序', need: { '手鼓': '.drum', '分幕导航': '#act-next', '师承网络': '#network' } },
   { path: 'qiongnaieman/index.html', nav: '穹乃额曼', need: { '开场': '.chapter-hero', '概念图': '.plate img', '正文节': '.act' } },
   { path: 'dastan/index.html', nav: '达斯坦', need: { '开场': '.chapter-hero', '正文节': '.act' } },
   { path: 'mashrap/index.html', nav: '麦西热甫', need: { '开场': '.chapter-hero', '正文节': '.act' } },

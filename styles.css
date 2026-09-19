@@ -854,3 +854,40 @@ body[data-stage="0"] .figure__num { color: var(--bone-faint); }
   .link__label { animation-duration: 0.01s; }
   *, *::before, *::after { transition-duration: 0.3s !important; }
 }
+
+/* --------------------------------------------------------------------------
+   手鼓（序章）
+   --------------------------------------------------------------------------
+   替掉原来的三段结构柱 —— 那是三块硬切的彩色矩形，用户说"视觉上很难看"。
+   现在是一只俯视的手鼓，自己在敲；敲击速度跟着当前段变
+   （108 / 122 / 152 bpm，取自音序器同一份数据）。
+
+   类和 id 都带 drum- 前缀：这一页的样式表里有 .pillar / .seg / .word
+   这些名字，换掉旧元素后旧规则还在，新元素不能撞上。
+   -------------------------------------------------------------------------- */
+.drum-host {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  pointer-events: none;          /* 别挡住交互层 */
+}
+.drum { display: block; overflow: visible; }
+
+/* 敲一下：鼓心弹一下。
+   用 CSS 动画而不是每帧重画 SVG —— 便宜，而且浏览器会自动合成。 */
+.drum circle.is-hit {
+  animation: drumHit 0.42s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes drumHit {
+  0%   { transform: scale(1);    transform-origin: center; }
+  22%  { transform: scale(0.86); transform-origin: center; }
+  100% { transform: scale(1);    transform-origin: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drum circle.is-hit { animation: none; }
+}
+
+/* 旧的柱子已经不在 DOM 里了，但规则留着 ——
+   万一要把矩形换回来，样式不用重写。 */

@@ -15,6 +15,7 @@ import { DapSequencer } from '../lib/sequencer.js';
 import { BandScroller } from '../lib/scroll.js';
 import { mountShell, mountSoundButton } from '../lib/site.js';
 import { buildHeroVideo, shouldSkipVideo } from '../lib/hero-video.js';
+import { buildDrum } from '../lib/drum.js';
 import { initNetwork } from './network.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -28,15 +29,19 @@ const FIGURES = [
   { num: '2005', cap: '列入联合国教科文组织人类口头和非物质遗产代表作' },
 ];
 
-/* 各段材质的烘焙尺寸：必须与该段在页面上的真实宽高比一致，否则贴图会被拉伸。
-   设计比例见 styles.css 的 .pillar-wrap 与 .seg 的 --h。 */
+/* 三段的材质烘焙尺寸 —— 原来是给 .pillar 的三块矩形用的。
+   现在视觉换成了手鼓（js/lib/drum.js），DOM 里没有 .seg 了，
+   所以这段烘焙**只在还找得到 .seg 时才跑**（见下面 boot）。
+   留着不删是因为 WebGL 房间本身仍然按三段出图，
+   哪天想把矩形换回来，这里不用重写。 */
 const BAKE_SIZES = [[1024, 428], [1024, 317], [1024, 352]];
 
 const heroEl = $('#hero');
 const canvas = $('#gl');
 const railMarks = $$('.rail__mark');
 const words = $$('.word');
-const segs = $$('.seg');
+const segs = $$('.seg');          // 换成手鼓之后是空数组
+const drumHost = $('#drum-host');
 const figureNum = $('#figure-num');
 const figureCap = $('#figure-cap');
 const networkEl = $('#network');
@@ -50,6 +55,7 @@ mountShell({ base: '', active: 'prologue' });
 let renderer = null;
 let scroller = null;
 let heroVideo = null;
+let drum = null;
 let audio = null;
 let dataIndex = -1;
 let cssW = 0, cssH = 0, dpr = 0;
@@ -293,8 +299,12 @@ async function boot() {
       muralGain: 1.25,
     });
 
-    // 每段烘两张：暗版作底、亮版作高光层。滚动点亮时只改高光层透明度，
-    // 明暗过渡交给 CSS —— 这样既省算力，画质也不受过渡影响。
+    /* 每段烘两张：暗版作底、亮版作高光层。滚动点亮时只改高光层透明度，
+       明暗过渡交给 CSS —— 这样既省算力，画质也不受过渡影响。
+
+       **只在 .seg 还在时才跑**：视觉换成手鼓之后 DOM 里没有 .seg 了，
+       这段循环会空转（segs 是空数组），baked 永远是 0 ——
+       原来靠 baked === 3 判断渲染后端，那样会误判成 webgl。 */
     segs.forEach((el, i) => {
       try {
         const dimUrl = renderer.bake(i, BAKE_SIZES[i][0], BAKE_SIZES[i][1], 0.46);
@@ -313,7 +323,8 @@ async function boot() {
     });
 
     syncSize();
-    document.body.dataset.render = baked === 3 ? 'textured' : 'webgl';
+    document.body.dataset.render =
+      (segs.length === 0 || baked === 3) ? 'textured' : 'webgl';
     window.__XM_RENDERER__ = renderer;   // 自检用：查 uniform 位置、量画布
   } catch (err) {
     // 没有 WebGL：退回 DOM + SVG 滤镜，视觉语法保持一致
@@ -323,6 +334,19 @@ async function boot() {
 
   bindInteractions();
   initNetwork();   // 挂上师承网络：入口句点击时由 CustomEvent 唤起
+
+  /* ---- 手鼓 ----
+     替掉原来的三块矩形。段号它自己从 body[data-stage] 读，
+     所以这里不用管同步 —— home.js 推进 stage，鼓跟着变。
+     尺寸按容器算：小了不像鼓，大了顶到字。 */
+  if (drumHost) {
+    drum = buildDrum({
+      host: drumHost,
+      size: Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46),
+      reduced: REDUCED,
+    });
+    window.__XM_DRUM__ = drum;   // 自检用
+  }
 
   /* ---- 首屏概念片 ----
      只在桌面端开：三段全屏视频 + WebGL 会拖垮手机。
