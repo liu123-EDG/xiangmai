@@ -2465,21 +2465,56 @@ function buildInheritGame(opts = {}) {
   if (kicker) kicker.textContent = LEVEL.kicker || '';
   if (progress) progress.textContent = LEVEL.name || '';
 
-  /* ---- 视频 ---- */
+  /* ---- 视频 ----
+     两个元素：
+       introV  场景环境片（戈壁 / 草原），**循环**放着当背景
+       videoEl 选对/选错/案例那几段，播完触发回调
+
+     原来这两个用的是同一个元素，而且**环境片根本没被播过** ——
+     数据里定义了 gobi / steppe，代码里却只有 clearVideo()，
+     用户看到的是一片纯色底（"这一页我记得背景也有是视频吧，视频呢"）。
+     分开之后各管各的：环境片一直循环，剧情片轮流上。 */
   let videoEl = null;
+  let introV = null;
+
+  function makeEl() {
+    const v = document.createElement('video');
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'none';
+    v.setAttribute('aria-hidden', 'true');
+    v.className = 'g-video';
+    bg.appendChild(v);
+    return v;
+  }
+
   function makeVideo() {
-    if (videoEl) return videoEl;
-    videoEl = document.createElement('video');
-    videoEl.muted = true;
-    videoEl.playsInline = true;
-    videoEl.preload = 'none';
-    videoEl.setAttribute('aria-hidden', 'true');
-    videoEl.className = 'g-video';
-    bg.appendChild(videoEl);
+    if (!videoEl) videoEl = makeEl();
     return videoEl;
   }
 
-  /** 播一段视频；没有素材就静默退化成底色，不让流程断掉 */
+  /** 环境片：循环播放，当背景用。切场景（重玩 / 换关）时换源。 */
+  function playIntroVideo(key) {
+    const file = key && V[key];
+    if (!file || reduced) return;
+    if (!introV) introV = makeEl();
+    // 已经在放同一段就不重来，免得每次 renderIntro 都闪一下
+    if (introV.dataset.key === key && !introV.paused) return;
+    introV.dataset.key = key;
+    introV.loop = true;            // 环境片要循环
+    introV.src = VIDEO_DIR + file;
+    introV.classList.add('is-on');
+    const p = introV.play();
+    if (p && p.catch) p.catch(() => {});   // 起不来就露出底色，不报错
+  }
+
+  function stopIntroVideo() {
+    if (!introV) return;
+    try { introV.pause(); } catch {}
+    introV.classList.remove('is-on');
+  }
+
+  /** 播一段剧情视频；没有素材就静默退化成底色，不让流程断掉 */
   function playVideo(key, onDone) {
     const file = key && V[key];
     if (!file || reduced) { if (onDone) onDone(); return; }
@@ -2488,6 +2523,7 @@ function buildInheritGame(opts = {}) {
     const finish = () => { if (!settled) { settled = true; if (onDone) onDone(); } };
     v.onerror = finish;
     v.onended = finish;
+    v.loop = false;                // 剧情片不循环
     v.src = VIDEO_DIR + file;
     v.classList.add('is-on');
     v.play().then(() => {
@@ -2498,10 +2534,11 @@ function buildInheritGame(opts = {}) {
   }
 
   function clearVideo() {
-    if (!videoEl) return;
-    try { videoEl.pause(); } catch {}
-    videoEl.classList.remove('is-on');
-    videoEl.removeAttribute('src');
+    if (videoEl) {
+      try { videoEl.pause(); } catch {}
+      videoEl.classList.remove('is-on');
+      videoEl.removeAttribute('src');
+    }
   }
 
   function setBg(kind) { host.dataset.bg = kind || ''; }
@@ -2509,8 +2546,11 @@ function buildInheritGame(opts = {}) {
   /* ---------------------------------------------------------- 各阶段 */
   function renderIntro() {
     state.tried = 0;
-    clearVideo();
+    clearVideo();                       // 清掉上一段剧情片
     setBg(LEVEL.scene);
+    /* 环境片循环放着当背景 —— 戈壁 / 草原。
+       这是"你来到了某处"那一段，没有它这一屏就只是一块纯色。 */
+    playIntroVideo(LEVEL.scene);
     title.textContent = LEVEL.intro.title;
     text.textContent = LEVEL.intro.text;
     caseEl.hidden = true;
@@ -2532,6 +2572,7 @@ function buildInheritGame(opts = {}) {
 
   function choose(i) {
     const c = LEVEL.choices[i];
+    stopIntroVideo();   // 剧情片要盖上来，环境片让开
     choices.hidden = true;
     caseEl.hidden = true;
     nextBtn.hidden = true;
@@ -2576,6 +2617,7 @@ function buildInheritGame(opts = {}) {
 
   function showEnding() {
     clearVideo();
+    stopIntroVideo();
     setBg('end');
     title.textContent = '你把它带出来了';
     text.textContent = state.tried
