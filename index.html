@@ -88,10 +88,9 @@
       <canvas class="gl" id="gl" aria-hidden="true"></canvas>
 
       <div class="column-layer">
-        <div class="pillar-wrap" id="pillar-wrap">
-
-          <!-- 水印：萨塔尔琴颈 / 手鼓轮廓，透明度极低，只提供潜意识暗示 -->
-          <div class="watermarks" aria-hidden="true">
+        <!-- 水印：萨塔尔琴颈 / 手鼓轮廓，透明度极低，只提供潜意识暗示。
+             它们直接挂在 .column-layer 下，**不要塞进任何带 opacity 的容器**。 -->
+        <div class="watermarks" aria-hidden="true">
             <svg class="wm--satar" viewBox="0 0 120 720" preserveAspectRatio="xMidYMid meet">
               <rect x="43" y="0" width="34" height="720" rx="3"/>
               <rect x="54" y="6" width="12" height="708" rx="6"/>
@@ -115,15 +114,23 @@
               <path d="M68 150 C 68 78 132 20 200 20 C 268 20 332 78 332 150"/>
               <circle cx="200" cy="150" r="9"/>
             </svg>
-          </div>
-
-          <!-- 手鼓：一只鼓，三种打法 —— 敲击速度跟着当前段变。
-               原来是三块硬切的彩色矩形（560×218 / 560×161 / 560×179），
-               用户说"三个大格子视觉上很难看，弄个鼓自己在那里敲也行"。
-               段号从 body[data-stage] 读，BPM 与音序器同一份数据。
-               减弱动效时只画一只静止的鼓，不敲。 -->
-          <div class="drum-host" id="drum-host"></div>
         </div>
+
+        <!-- 手鼓：一只鼓，三种打法 —— 敲击速度跟着当前段变。
+             原来是三块硬切的彩色矩形（560×218 / 560×161 / 560×179），
+             用户说"三个大格子视觉上很难看，弄个鼓自己在那里敲也行"。
+             段号由 home.js 直接传进来，BPM 与音序器同一份数据。
+
+             **不要放进任何带 opacity 的容器里（血泪教训）。**
+             它原来装在 .pillar-wrap 内，而页面上有一条给旧柱子写的遗留规则：
+               body.has-hero-video:not(.video-gone) .pillar-wrap { opacity: 0 }
+             那条规则本意是"概念片还在放时把三块矩形藏起来"，
+             结果把鼓也一起藏了 —— 父层 opacity:0 会让整个子树都不绘制，
+             连往 SVG 里插一个纯红实心圆都画不出来。
+             症状就是"划到苍劲一片黑、到欢腾才看见"：
+             因为 video-gone 是视频退干净之后才加的。
+             现在鼓直接挂在 .column-layer 下，不受那条规则管。 -->
+        <div class="drum-host" id="drum-host"></div>
 
         <!-- 情绪关键词：不解释，只标注。
              **三个词可以点左右切换** —— 用户要的："苍劲叙事欢腾你改成

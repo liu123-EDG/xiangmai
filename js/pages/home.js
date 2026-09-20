@@ -149,11 +149,19 @@ function loop(now) {
     if (syncActNav) syncActNav(band);
   }
 
-  /* 概念片跟着滚动淡出。这里记一下"视频已经让位"，
-     CSS 靠这个类把结构柱、引导语、时间坐标放出来。 */
+  /* 概念片跟着滚动淡出。
+     同时记一下"该让位了" —— CSS 靠 body.video-gone 把引导语、
+     时间坐标、「苍劲/叙事/欢腾」这些字放出来。
+
+     **判据不能只看视频透明度。** 原来写的是 a < 0.5，
+     也就是要等视频真的淡掉一半才放行；而"苍劲"那一幕更早到来
+     （可滚距离的 22%，视频要到 51% 才淡一半）——
+     结果滚到苍劲时只有一只光鼓、字一个都没有（实测）。
+     现在改成：**进度过了让位起点 0.30 就放行**，和第一幕同步。
+     视频本身是暗的，字压在上面读得清。 */
   if (heroVideo) {
     const a = heroVideo.setProgress(progress);
-    document.body.classList.toggle('video-gone', a < 0.5);
+    document.body.classList.toggle('video-gone', a < 0.5 || progress >= 0.30);
   }
 
   if (!renderer || !visible) return;
@@ -402,14 +410,31 @@ async function boot() {
   if (hvHost && !shouldSkipVideo() && !REDUCED) {
     heroVideo = buildHeroVideo({
       host: hvHost,
-      /* 视频霸屏：前面 4~5 屏全是它，结构柱很晚才出现。
-         整段 hero 3780px、视口 900px，可滚距离 2880px，
-         所以 0.625 / 1.11 换算成滚动距离就是：
-           让位起点 1800px（约 4 屏），完全消失 2880px（滚到底）。
-         早先设 0.06 / 0.42 只有 226 / 1587px ——
-         鼠标滚六七下视频就没了，和"第一眼就是一整屏画面"的意图不符。 */
-      fadeStart: 0.625,   // ≈1800px
-      fadeEnd: 1.0,       // ≈2880px（滚到底）
+      /* 概念片的让位区间。
+         **这两个数必须跟着 .hero 的高度改** ——
+         它们是从滚动进度换算成像素的：可滚距离 = hero高 − 视口高。
+
+         踩过的坑（三次，都记下来）：
+         ① 早先 0.625 / 1.0 是按旧页高 3780px 算的。页高收到 260vh 后
+            没跟着改，视频在 900px 就淡完了，而第一幕从 317px 到 1440px ——
+            中间一大段全黑。
+         ② 一度想"让视频留到第三幕之后再退"（0.62 / 0.98）。
+            但页面里 body.video-gone 是**文字浮现的开关**，
+            而它只在视频退到 2% 以下才加上：
+            视频退得越晚，引导句、「苍劲」这些字出现得就越晚 ——
+            实测滚到苍劲那一幕只有一只光鼓，**字一个都没有**。
+         ③ 另有一个和这里无关的坑：鼓原来装在 .pillar-wrap 里，
+            被一条给旧柱子写的 `opacity: 0` 规则连坐，
+            前三幕根本不绘制（详见 styles.css 第 279 行的说明）。
+
+         现在的取舍：视频在"结构"那一幕（约 576px 前）满额放着，
+         之后用一屏多的时间淡出，**在第二幕之前让干净** ——
+         这样滚到苍劲时，字和鼓都到位了。
+           可滚距离 1440px：
+             fadeStart 0.40 → 576px
+             fadeEnd   0.62 → 893px（第二幕之前） */
+      fadeStart: 0.40,    // ≈576px
+      fadeEnd: 0.62,      // ≈893px
       reduced: REDUCED,
     });
     document.body.classList.add('has-hero-video');

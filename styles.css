@@ -276,18 +276,21 @@ body[data-render="basic"] .gl { display: none; }
    -------------------------------------------------------------------------- */
 .column-layer { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; }
 
-.pillar-wrap {
-  position: relative;
-  width: min(560px, 88vw);
-  height: min(62vh, 560px);
-  margin-top: 12vh;
-}
-
-/* WebGL 接管后，DOM 柱体退场（render=basic 时它才可见） */
-body[data-render="webgl"] .pillar-wrap { visibility: hidden; }
+/* 旧的三段结构柱（.pillar / .pillar-wrap / .seg）已经换成手鼓（.drum-host），
+   DOM 里它们一个都不在了。这里原来有三条针对 .pillar-wrap 的规则：
+     .pillar-wrap { margin-top: 12vh }                        给旧矩形留的偏移
+     body[data-render="webgl"] .pillar-wrap { visibility:hidden }
+     body.has-hero-video:not(.video-gone) .pillar-wrap { opacity:0 }
+   最后那条害惨了：它本意是"概念片还在放时把三块矩形藏起来"，
+   而鼓当时装在 .pillar-wrap 里，于是**被一起藏了** ——
+   父层 opacity:0 会让整个子树都不绘制，连往 SVG 里插一个纯红实心圆
+   都画不出来。症状是"划到苍劲一片黑、到欢腾才看见"
+   （因为 video-gone 要等视频退干净才加）。全部删掉，免得以后再误伤。 */
 
 /* ---- 水印：萨塔尔琴颈 / 手鼓轮廓，透明度极低，仅作潜意识暗示 ---- */
-.watermarks { position: absolute; inset: -14% -22%; z-index: 0; color: #cbbfa8; }
+.watermarks {
+  /* 水印只是底层的潜意识暗示，压到最底，不许盖住主体 */
+  z-index: 0; position: absolute; inset: -14% -22%; z-index: 0; color: #cbbfa8; }
 .watermarks > * {
   position: absolute; fill: none; stroke: currentColor; stroke-width: 1;
   vector-effect: non-scaling-stroke;
@@ -570,18 +573,20 @@ body[data-stage="3"] .entry { opacity: 1; visibility: visible; transform: transl
 /* 视频在时，房间层的东西要等它淡出才出现 —— 由 js 加这个类控制 */
 body.has-hero-video .room__grain { opacity: 0; }
 
-/* 引导语在视频阶段要先藏起来，滚过之后才浮出 */
+/* 引导语在视频阶段要先藏起来，滚过之后才浮出。
+   **这里不含 .drum-host** —— 鼓要在视频还在放的时候就看得见，
+   它是这一页的主角，不该等视频退场才出现。
+   （原来这条选择器里带着 .pillar-wrap，把装在里面的鼓一起藏了；
+   鼓挪出去之后就不会再被误伤。） */
 body.has-hero-video:not(.video-gone) .guide,
 body.has-hero-video:not(.video-gone) .figure,
-body.has-hero-video:not(.video-gone) .stage-words,
-body.has-hero-video:not(.video-gone) .pillar-wrap {
+body.has-hero-video:not(.video-gone) .stage-words {
   opacity: 0;
   transition: opacity 1.6s var(--ease-slow);
 }
 body.has-hero-video .guide,
 body.has-hero-video .figure,
-body.has-hero-video .stage-words,
-body.has-hero-video .pillar-wrap {
+body.has-hero-video .stage-words {
   transition: opacity 1.6s var(--ease-slow);
 }
 
@@ -872,12 +877,25 @@ body[data-stage="0"] .figure__num { color: var(--bone-faint); }
    类和 id 都带 drum- 前缀：这一页的样式表里有 .pillar / .seg / .word
    这些名字，换掉旧元素后旧规则还在，新元素不能撞上。
    -------------------------------------------------------------------------- */
+:root { --drum-shift: clamp(0px, 4vh, 40px); }
 .drum-host {
   position: absolute;
-  left: 50%; top: 50%;
+  left: 50%;
+  /* 垂直位置：默认落在房间正中（和右边那三个词同一条中线）。
+     --drum-shift 让它可以整体下移一点，而不用动布局 ——
+     不同窗口高度下"看着偏低/偏高"的感觉不一样，用变量好调。
+     上限 40px，免得矮屏幕上顶到下面的引导句。 */
+  top: calc(50% + var(--drum-shift, 0px));
   transform: translate(-50%, -50%);
   display: grid; place-items: center;
   pointer-events: none;          /* 别挡住交互层 */
+  /* **必须显式压在 .watermarks 上面。**
+     水印里那个 wm--dap 是手鼓轮廓，画在同一个位置上。
+     两者都是 absolute 时，Chrome 把水印画在了鼓上面
+     （实测：鼓正中心的 elementFromPoint 命中的是 svg.wm--dap），
+     结果鼓被盖住 —— 鼓心亮度只有背景的 0.48×，看着就是一片黑。
+     光靠 DOM 顺序不够可靠，这里写死层级。 */
+  z-index: 3;
 }
 .drum { display: block; overflow: visible; }
 
