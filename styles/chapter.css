@@ -2035,3 +2035,89 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   .src__m { grid-template-columns: 1fr; gap: 0.3rem; }
   .src__item { padding-left: 2.1rem; }
 }
+
+/* --------------------------------------------------------------------------
+   作品信息（全站最末尾）
+   --------------------------------------------------------------------------
+   格式参照同类参赛作品：
+     作品名 · 一句定位 ｜ 赛事与赛道 ｜ 运行方式 · 技术栈
+   不知道的字段留成 ［　］占位，由作者填写 —— 编一个赛事名比留空更糟。
+
+   类名带 colophon__ 前缀：这一页的样式表里有 .foot / .meta 这些通用名。
+   -------------------------------------------------------------------------- */
+.colophon {
+  position: relative;
+  width: min(880px, 92vw);
+  margin: clamp(3rem, 8vh, 5rem) auto clamp(3rem, 8vh, 5rem);
+  padding: clamp(2rem, 5vh, 3rem) clamp(1.4rem, 4vw, 3rem);
+  /* 加一层暗底：这一页背景有地火纹样在动，字直接压上去读不清（踩过）。
+     用径向渐变，边缘化开，不像贴了一张方块纸。 */
+  background:
+    radial-gradient(120% 100% at 50% 50%,
+      rgba(8, 7, 6, 0.84) 0%,
+      rgba(8, 7, 6, 0.64) 60%,
+      rgba(8, 7, 6, 0) 100%);
+  border-top: 1px solid rgba(222, 214, 200, 0.12);
+  text-align: center;
+  font-family: var(--font-sans);
+}
+
+.colophon__title {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+  letter-spacing: 0.22em; text-indent: 0.22em;
+  color: var(--bone);
+}
+
+.colophon__sub {
+  margin: 0 auto 1.5rem;
+  max-width: 32em;
+  font-size: clamp(0.8rem, 1.25vw, 0.9rem);
+  line-height: 2.1;
+  letter-spacing: 0.04em;
+  color: rgba(222, 214, 200, 0.72);
+}
+
+.colophon__meta {
+  margin: 0 0 1.6rem;
+  display: flex; flex-direction: column; gap: 0.45rem;
+  font-size: clamp(0.72rem, 1.1vw, 0.8rem);
+  line-height: 1.9;
+  letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.62);
+}
+/* 待填字段给一点提示色，免得漏填 */
+.colophon__line:first-child { color: var(--amber); opacity: 0.9; }
+
+.colophon__marks {
+  margin: 0 auto 1.6rem;
+  padding: 0;
+  list-style: none;
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 0.5rem 1.6rem;
+  font-size: clamp(0.7rem, 1.05vw, 0.78rem);
+  letter-spacing: 0.08em;
+  color: rgba(222, 214, 200, 0.58);
+}
+.colophon__marks li { position: relative; padding-left: 0.9em; }
+.colophon__marks li::before {
+  content: '·';
+  position: absolute; left: 0;
+  color: rgba(192, 138, 62, 0.7);
+}
+.colophon__marks li b { color: rgba(242, 228, 196, 0.8); font-weight: 500; }
+
+.colophon__note {
+  margin: 0 auto;
+  max-width: 34em;
+  font-size: clamp(0.68rem, 1vw, 0.76rem);
+  line-height: 2;
+  letter-spacing: 0.03em;
+  color: rgba(222, 214, 200, 0.48);
+}
+.colophon__note b { color: rgba(242, 228, 196, 0.62); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .colophon__marks { flex-direction: column; align-items: center; gap: 0.4rem; }
+}

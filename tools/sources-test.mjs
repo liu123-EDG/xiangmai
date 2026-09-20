@@ -157,7 +157,36 @@ try {
   if (sc.stars === 0) ok('页面上没有字面的星号（** 都转成了粗体）');
   else bad('页面上有 ' + sc.stars + ' 处字面星号：' + sc.sample);
 
-  await evalJs(`document.getElementById('src-act').scrollIntoView({block:'start'})`);
+  /* 作品信息块：格式要对（作品名 / 定位 / 赛事 / 运行方式），
+     而且**不能有字面的 markdown 星号** —— 这是 HTML，不是 markdown。 */
+  const cp = JSON.parse(await evalJs(`(() => {
+    const el = document.getElementById('colophon');
+    if (!el) return JSON.stringify({ err: '没有作品信息块' });
+    const t = el.textContent || '';
+    return JSON.stringify({
+      title: el.querySelector('.colophon__title').textContent.trim(),
+      lines: [...el.querySelectorAll('.colophon__line')].map((x) => x.textContent.trim()),
+      marks: [...el.querySelectorAll('.colophon__marks li')].map((x) => x.textContent.trim()),
+      stars: (t.match(/\\*\\*/g) || []).length,
+    });
+  })()`));
+  if (cp.err) {
+    bad(cp.err);
+  } else {
+    ok('作品信息块在：' + cp.title);
+    console.log('       ' + cp.lines.join(' ｜ '));
+    if (cp.lines.length === 3) ok('三行元信息（赛事 / 团队 / 运行方式）');
+    else bad('元信息行数 = ' + cp.lines.length);
+    if (cp.lines.some((l) => /离线运行/.test(l)) && cp.lines.some((l) => /JavaScript/.test(l))) {
+      ok('写明离线运行与技术栈');
+    } else bad('没写运行方式 / 技术栈');
+    if (cp.lines.some((l) => /待填/.test(l))) ok('待填字段留了占位（赛事、团队那几项）');
+    else bad('待填字段没有占位 —— 作者会漏填');
+    if (cp.stars === 0) ok('作品信息块里没有字面 markdown 星号');
+    else bad('作品信息块里有 ' + cp.stars + ' 处字面星号');
+  }
+
+  await evalJs(`document.getElementById('colophon').scrollIntoView({block:'center'})`);
   await sleep(1400);
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(root, 'shots', 'sources.png'), Buffer.from(shot.result.data, 'base64'));
