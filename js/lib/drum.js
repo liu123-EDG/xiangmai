@@ -48,7 +48,7 @@ export function buildDrum(opts = {}) {
   const C = size / 2;
   const R_RIM = C - 10;          // 鼓沿
   const R_SKIN = R_RIM - 16;     // 鼓面
-  const R_C = 52;                // 中心敲击区（太大就吃掉整个鼓面，踩过）
+  const R_C = 56;                // 中心敲击区（太大就吃掉整个鼓面，踩过）
 
   const svg = el('svg', {
     class: 'drum',
@@ -216,19 +216,16 @@ export function buildDrum(opts = {}) {
       if (age > dur) { r.node.setAttribute('opacity', 0); r.t = -1; continue; }
       const p = age / dur;
       r.node.setAttribute('r', String(R_C + p * (R_SKIN - R_C - 20)));
-      r.node.setAttribute('opacity', String(Math.sin(p * Math.PI) * 0.28));
+      /* 涟漪要**立刻能看见**：正弦曲线起手太慢（p=0.2 时才 0.16），
+         看着像"切段了但没在敲"。改成起手就亮，再衰减。 */
+      r.node.setAttribute('opacity', String(Math.min(1, p * 6) * (1 - p) * 0.42));
     }
   }
 
-  /* 段号从 body.dataset.stage 读 —— 那是 home.js 已经算好的权威状态，
-     不另开一套判断，免得两边不一致。stage 0=未点亮，1/2/3 对应三段。 */
-  function syncFromStage() {
-    const st = parseInt(document.body.dataset.stage || '0', 10);
-    if (!isNaN(st) && st >= 1) setSection(st - 1);
-  }
-  const stageObserver = new MutationObserver(syncFromStage);
-  stageObserver.observe(document.body, { attributes: true, attributeFilter: ['data-stage'] });
-  syncFromStage();
+  /* 段号由页面**直接调用** setSection 传进来（见 home.js 的 renderBandState）。
+     原来这里自己观察 body[data-stage]：MutationObserver 是微任务，
+     比页面状态慢一拍，表现是"文字已经到叙事了、鼓还停在苍劲"（踩过）。
+     直接调用没有这个延迟，也少一个监听器要维护。 */
 
   if (reduced) {
     // 减弱动效：画一个静止的鼓，不敲

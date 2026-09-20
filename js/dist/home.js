@@ -2510,7 +2510,7 @@ function buildDrum(opts = {}) {
   const C = size / 2;
   const R_RIM = C - 10;          // 鼓沿
   const R_SKIN = R_RIM - 16;     // 鼓面
-  const R_C = 52;                // 中心敲击区（太大就吃掉整个鼓面，踩过）
+  const R_C = 56;                // 中心敲击区（太大就吃掉整个鼓面，踩过）
 
   const svg = el('svg', {
     class: 'drum',
@@ -2678,19 +2678,16 @@ function buildDrum(opts = {}) {
       if (age > dur) { r.node.setAttribute('opacity', 0); r.t = -1; continue; }
       const p = age / dur;
       r.node.setAttribute('r', String(R_C + p * (R_SKIN - R_C - 20)));
-      r.node.setAttribute('opacity', String(Math.sin(p * Math.PI) * 0.28));
+      /* 涟漪要**立刻能看见**：正弦曲线起手太慢（p=0.2 时才 0.16），
+         看着像"切段了但没在敲"。改成起手就亮，再衰减。 */
+      r.node.setAttribute('opacity', String(Math.min(1, p * 6) * (1 - p) * 0.42));
     }
   }
 
-  /* 段号从 body.dataset.stage 读 —— 那是 home.js 已经算好的权威状态，
-     不另开一套判断，免得两边不一致。stage 0=未点亮，1/2/3 对应三段。 */
-  function syncFromStage() {
-    const st = parseInt(document.body.dataset.stage || '0', 10);
-    if (!isNaN(st) && st >= 1) setSection(st - 1);
-  }
-  const stageObserver = new MutationObserver(syncFromStage);
-  stageObserver.observe(document.body, { attributes: true, attributeFilter: ['data-stage'] });
-  syncFromStage();
+  /* 段号由页面**直接调用** setSection 传进来（见 home.js 的 renderBandState）。
+     原来这里自己观察 body[data-stage]：MutationObserver 是微任务，
+     比页面状态慢一拍，表现是"文字已经到叙事了、鼓还停在苍劲"（踩过）。
+     直接调用没有这个延迟，也少一个监听器要维护。 */
 
   if (reduced) {
     // 减弱动效：画一个静止的鼓，不敲
@@ -3216,6 +3213,12 @@ function renderBandState(band) {
   document.body.dataset.stage = String(band);
   const litCount = Math.min(band, 3);
 
+  /* 手鼓**直接跟着段号走**，不用 MutationObserver 观察 data-stage。
+     原来靠观察器：它是微任务，时序上比这里慢一拍，
+     表现是"文字已经到叙事了，鼓还停在苍劲"（用户报的正是这个）。
+     直接调用没有这个延迟。 */
+  if (drum) drum.setSection(Math.max(0, litCount - 1));
+
   segs.forEach((el, i) => {
     el.classList.toggle('is-lit', i < litCount);
     el.classList.toggle('is-active', i < litCount && i === litCount - 1);
@@ -3356,6 +3359,18 @@ function bindInteractions() {
     m.addEventListener('click', () => scroller.jumpTo(i + 1));
   });
 
+  /* 三个情绪词：**点哪一幕就滚到哪一幕**，能来回点。
+     原来它们是 <span>，而且是"滚动到哪就显示哪个"，点不了（用户要求改）。
+     点一下 = 跳到那一幕；再点别的就切回去。
+     滚过去之后 renderBandState 会把样式和鼓一起更新，所以这里只管跳转。 */
+  words.forEach((w) => {
+    w.addEventListener('click', () => {
+      const i = Number(w.dataset.word);              // 0 / 1 / 2
+      if (isNaN(i)) return;
+      scroller.jumpTo(i + 1);                        // 幕号 = 词的序号 + 1
+    });
+  });
+
   document.addEventListener('keydown', (e) => {
     if (document.body.classList.contains('is-network')) return;
     const k = e.key;
@@ -3480,6 +3495,10 @@ async function boot() {
       reduced: REDUCED,
     });
     window.__XM_DRUM__ = drum;   // 自检用
+    /* 建好之后立刻按当前幕对齐一次 ——
+       不然第一次滚动前鼓停在第一段，而页面可能已经停在第 2 幕了
+       （刷新后浏览器会恢复滚动位置）。 */
+    drum.setSection(Math.max(0, Math.min(2, scroller.band - 1)));
   }
 
   /* ---- 首屏概念片 ----

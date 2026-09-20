@@ -184,7 +184,13 @@ body {
 /* --------------------------------------------------------------------------
    4. 幕：极暗房间
    -------------------------------------------------------------------------- */
-.hero { position: relative; height: 420vh; }
+/* 序章的可滚长度。
+   .room 是 sticky 的：从 0 滚到 (height − 100vh) 这段里房间钉在屏幕上，
+   靠滚动进度推进三段。
+   420vh 太长了 —— 3.2 屏的可滚距离摊给三段，每段要滚一屏多，
+   中间就显得空（用户："这一页短一点"）。260vh = 1.6 屏，紧凑得多。
+   概念片的淡出阈值是按比例算的，改这里它会自动跟着缩。 */
+.hero { position: relative; height: 260vh; }
 
 .room {
   position: sticky; top: 0;
@@ -340,13 +346,13 @@ body[data-stage="3"] .wm--dap { opacity: 0.07; }
 .seg--dastan.is-active  { --glow: rgba(192, 138, 62, 0.5); }
 .seg--mashrap.is-active { --glow: rgba(74, 128, 113, 0.46); }
 
-/* ---- 情绪关键字：滚动点亮时才浮出，不解释，只标注 ---- */
+/* ---- 情绪关键字：三个可点的词，当前那一幕亮 ---- */
 .stage-words {
   position: absolute; z-index: 2;
   left: calc(50% + min(300px, 46vw)); top: 50%;
   transform: translateY(-50%);
   display: flex; flex-direction: column;
-  gap: clamp(1.1rem, 6vh, 3.4rem);
+  gap: clamp(0.9rem, 4.2vh, 2.4rem);
   pointer-events: none;
 }
 .word {
@@ -816,7 +822,8 @@ body[data-stage="0"] .figure__num { color: var(--bone-faint); }
   .sitelinks__sub { display: none; }
 
   .figure { display: none; }
-  .hero { height: 380vh; }
+  /* 窄屏也收紧：手机上更受不了长页面 */
+  .hero { height: 230vh; }
   .rail { display: none; }
   .guide { top: 6.4rem; width: 88vw; }
   .guide__line { font-size: 0.92rem; letter-spacing: 0.12em; }
@@ -891,3 +898,105 @@ body[data-stage="0"] .figure__num { color: var(--bone-faint); }
 
 /* 旧的柱子已经不在 DOM 里了，但规则留着 ——
    万一要把矩形换回来，样式不用重写。 */
+
+/* --------------------------------------------------------------------------
+   情绪关键词改成可点击（苍劲 / 叙事 / 欢腾）
+   --------------------------------------------------------------------------
+   原来是三个 <span>，容器还带着 pointer-events: none —— 点不了。
+   现在换成 button，能点左右来回切，并且点哪一幕就滚到哪一幕。
+
+   特效分三层（用户要"做一些特效起到提升"）：
+     · 可点：悬停时字浮起来、描边亮起来，明确告诉人能点
+     · 已抵达：当前那一幕的字带一道暖色光晕在呼吸
+     · 已走过：去过的字压暗一点，形成"来回走"的痕迹感
+   -------------------------------------------------------------------------- */
+.stage-words {
+  pointer-events: auto;          /* 原来这里是 none，点不了（踩过） */
+}
+
+.word {
+  /* button 复位：字体、颜色、背景、边框全都得自己写 */
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  padding: 0.1em 0.05em;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  /* 可点的暗示：底下一条极淡的横线，指到才亮 */
+}
+.word::after {
+  content: '';
+  position: absolute;
+  left: 0.42em; right: 0; bottom: 0.06em;
+  height: 1px;
+  background: currentColor;
+  opacity: 0;
+  transform: scaleX(0.4);
+  transform-origin: left center;
+  transition: opacity .5s var(--ease-slow), transform .5s var(--ease-slow);
+}
+.word:hover::after, .word:focus-visible::after {
+  opacity: 0.5;
+  transform: scaleX(1);
+}
+.word:hover, .word:focus-visible {
+  color: #fff6e2;
+  outline: none;
+}
+.word:focus-visible {
+  /* 键盘可达：给一圈很淡的焦点环 */
+  box-shadow: 0 0 0 1px rgba(192, 138, 62, 0.55);
+}
+
+/* 当前这一幕：暖色光晕呼吸 */
+.word.is-shown {
+  color: #fff6e2;
+  text-shadow:
+    0 0 22px rgba(217, 178, 104, 0.55),
+    0 0 60px rgba(217, 178, 104, 0.28),
+    0 0 30px rgba(0, 0, 0, 0.95);
+  animation: wordBreathe 4s ease-in-out infinite;
+}
+@keyframes wordBreathe {
+  0%, 100% { text-shadow: 0 0 18px rgba(217,178,104,0.42), 0 0 50px rgba(217,178,104,0.20), 0 0 30px rgba(0,0,0,0.95); }
+  50%      { text-shadow: 0 0 30px rgba(217,178,104,0.72), 0 0 78px rgba(217,178,104,0.38), 0 0 30px rgba(0,0,0,0.95); }
+}
+/* 走过的：压暗，留个痕迹 —— 来回走的时候能看出路径 */
+.word.is-past { color: rgba(222, 214, 200, 0.42); }
+
+@media (prefers-reduced-motion: reduce) {
+  .word.is-shown { animation: none; }
+}
+
+/* 三个词要有"这是一组控件"的样子 ——
+   原来只是三个浮在空处的字，看不出能点、也看不出是一组。
+   加一层极淡的底板和一条竖线，把它们收在一处；
+   当前那一幕在竖线上带一个短的暖色标记。 */
+.stage-words::before {
+  content: '';
+  position: absolute;
+  left: -1.1rem; top: 0.2rem; bottom: 0.2rem;
+  width: 1px;
+  background: linear-gradient(180deg,
+    rgba(222,214,200,0) 0%,
+    rgba(222,214,200,0.14) 20%,
+    rgba(222,214,200,0.14) 80%,
+    rgba(222,214,200,0) 100%);
+}
+.word::before {
+  content: '';
+  position: absolute;
+  left: -1.1rem; top: 50%;
+  width: 1px; height: 0;
+  transform: translateY(-50%);
+  background: var(--amber);
+  transition: height .7s var(--ease-slow), opacity .7s var(--ease-slow);
+  opacity: 0;
+}
+.word.is-shown::before { height: 72%; opacity: 0.95; }
+
+/* 未到的：再淡一点，让"当前"更突出 */
+.word:not(.is-shown):not(.is-past) { color: rgba(222, 214, 200, 0.3); }

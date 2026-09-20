@@ -125,11 +125,15 @@
           <div class="drum-host" id="drum-host"></div>
         </div>
 
-        <!-- 情绪关键词：不解释，只标注 -->
-        <div class="stage-words" aria-live="polite">
-          <span class="word word--qon"     data-word="0">苍劲</span>
-          <span class="word word--dastan"  data-word="1">叙事</span>
-          <span class="word word--mashrap" data-word="2">欢腾</span>
+        <!-- 情绪关键词：不解释，只标注。
+             **三个词可以点左右切换** —— 用户要的："苍劲叙事欢腾你改成
+             能来回点击的，所以做一些特效起到提升"。
+             所以用 button 不用 span：键盘也能到、读屏也认。
+             点一下 → 跳到那一幕（滚动位置跟着走，不是只换个样式）。 -->
+        <div class="stage-words" id="stage-words" role="group" aria-label="三段的情绪">
+          <button class="word word--qon"     type="button" data-word="0">苍劲</button>
+          <button class="word word--dastan"  type="button" data-word="1">叙事</button>
+          <button class="word word--mashrap" type="button" data-word="2">欢腾</button>
         </div>
       </div>
 
