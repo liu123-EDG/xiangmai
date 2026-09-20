@@ -41,8 +41,12 @@ const game = buildInheritGame({
 window.__XM_GAME__ = game;
 window.__XM_LEVEL__ = level;
 
-/* 参数给错（比如手改地址）时别留一屏空白，直接回旋律图 */
-if (!scene) {
+/* 参数给错（比如手改地址）时别留一屏空白，明说没有这一关。
+   注意判据是 `L`（levelByKey 的结果）—— 这里原来写着 `!scene`，
+   而那是个已改名的旧变量，恒为 undefined，
+   所以这段**永远不会执行**：参数给错时页面还正常渲染了第一关，
+   既不提示也不报错（踩过）。 */
+if (!L) {
   const t = document.getElementById('g-title');
   const x = document.getElementById('g-text');
   if (t) t.textContent = '没有这一关';

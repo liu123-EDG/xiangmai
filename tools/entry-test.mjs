@@ -139,7 +139,8 @@ try {
     const gm = window.__XM_GAME__;
     return JSON.stringify({
       level: window.__XM_LEVEL__,
-      scene: gm ? gm.scene() : null,
+      /* gm.level() 返回整个关卡配置，这里取它的 scene 字段（gobi/steppe）。 */
+      scene: gm && gm.level ? gm.level().scene : null,
       title: document.getElementById('g-title').textContent.trim(),
       kicker: document.getElementById('g-kicker').textContent.trim(),
       progress: document.getElementById('g-progress').textContent.trim(),
@@ -150,7 +151,9 @@ try {
   })()`));
   console.log('       ' + JSON.stringify(g));
   if (g.level === 'gesar') ok('level 参数读到 gesar'); else bad('level = ' + g.level);
-  if (g.scene && g.scene.id === 'steppe') ok('这一关是草原那一幕'); else bad('幕不对：' + JSON.stringify(g.scene));
+  /* g.scene 现在直接是关卡配置里的 scene 字段（'steppe' / 'gobi'）。 */
+  if (g.scene === 'steppe') ok('这一关是草原那一幕');
+  else bad('幕不对：' + JSON.stringify(g.scene));
   if (/草原/.test(g.title)) ok('开场文案对：' + g.title); else bad('开场文案不对：' + g.title);
   if (g.progress && /藏族/.test(g.progress)) ok('进度写着：' + g.progress); else bad('进度不对：' + g.progress);
   if (g.choices.some((c) => /图书馆/.test(c))) ok('选项是格萨尔那套'); else bad('选项不对：' + JSON.stringify(g.choices));
@@ -163,7 +166,9 @@ try {
   const m = JSON.parse(await evalJs(`(() => {
     const gm = window.__XM_GAME__;
     return JSON.stringify({
-      scene: gm ? gm.scene().id : null,
+      /* 取关卡配置里的 scene 字段（gobi / steppe），
+         和上面 gesar 那块保持同一种判据。 */
+      scene: gm && gm.level ? gm.level().scene : null,
       title: document.getElementById('g-title').textContent.trim(),
       progress: document.getElementById('g-progress').textContent.trim(),
       choices: [...document.querySelectorAll('.g-choice__label')].map((b) => b.textContent.trim()),
