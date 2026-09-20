@@ -85,8 +85,11 @@ function renderBandState(band) {
   /* 手鼓**直接跟着段号走**，不用 MutationObserver 观察 data-stage。
      原来靠观察器：它是微任务，时序上比这里慢一拍，
      表现是"文字已经到叙事了，鼓还停在苍劲"（用户报的正是这个）。
-     直接调用没有这个延迟。 */
-  if (drum) drum.setSection(Math.max(0, litCount - 1));
+     直接调用没有这个延迟。
+
+     注意 band 0（还没开始）要传 -1：那时候文字一个都没出现，
+     鼓也不该亮任何一圈。原来夹到 0 会让第一圈一进来就亮着。 */
+  if (drum) drum.setSection(litCount === 0 ? -1 : litCount - 1);
 
   segs.forEach((el, i) => {
     el.classList.toggle('is-lit', i < litCount);
@@ -367,7 +370,7 @@ async function boot() {
     /* 建好之后立刻按当前幕对齐一次 ——
        不然第一次滚动前鼓停在第一段，而页面可能已经停在第 2 幕了
        （刷新后浏览器会恢复滚动位置）。 */
-    drum.setSection(Math.max(0, Math.min(2, scroller.band - 1)));
+    drum.setSection(scroller.band <= 0 ? -1 : Math.min(2, scroller.band - 1));
   }
 
   /* ---- 首屏概念片 ----

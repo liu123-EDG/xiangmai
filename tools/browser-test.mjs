@@ -403,8 +403,13 @@ try {
   else bad('手鼓没在敲：' + JSON.stringify(S.drumState));
   if (S.rings.length === 3) ok('鼓面三个圈就位（分别代表三段）');
   else bad('三段圈数量 = ' + S.rings.length);
-  if (S.rings.filter((o) => o > 0.5).length === 1) ok('恰有一段亮着：' + JSON.stringify(S.rings));
-  else bad('亮的圈不是恰好一个：' + JSON.stringify(S.rings));
+  /* 起点（stage 0）时**一圈都不该亮** —— 那时候文字一个都没出现，
+     鼓亮着第一圈就不一致了。所以这里允许 0 个亮着的圈。 */
+  if (S.rings.filter((o) => o > 0.6).length === 0) {
+    ok('起点时鼓一圈都不亮（与文字一致）：' + JSON.stringify(S.rings));
+  } else {
+    bad('起点时鼓已经亮了：' + JSON.stringify(S.rings));
+  }
 
   /* 画面健康度。
      原来这里调 window.__XM.measurePillar —— 那个函数在全项目里**不存在**，
@@ -713,28 +718,39 @@ try {
   if (s3.entryVis === 'visible') ok('入口句浮现可见');
   else bad('入口句不可见：' + s3.entryVis);
 
-  /* 逐段点亮：判据用 **DOM 的 lit 不透明度**，不用截图亮度。
-     为什么：柱体是 sticky 的，截图取样窗口随滚动位置漂移，
-     单段平均亮度会被取样偏差左右；第 1 段的亮版纹理本身也偏暗
-     （实测 0.127，第 2 段是 0.209），拿绝对亮度当判据不稳。
-     lit 不透明度才是真正驱动画面的东西，而"画面确实亮了"
-     由下面那条"底部一幕至少两段亮度 > 0.08"另行保证。 */
-  console.log('       逐段点亮对比（DOM 的 lit 不透明度 / 画面亮度）：');
+  /* 逐段点亮：判据用**鼓自己那一圈的不透明度**。
+     换了三次判据，记一下为什么：
+       · 一开始用截图亮度 —— 柱体 sticky，取样窗口随滚动漂移，不稳
+       · 后来用 .seg 的 lit 不透明度 —— 换成手鼓后 .seg 没了
+       · 现在用 .drum-ring：鼓面上三个圈分别代表三段，当前那段是 1、其余 0.34
+     这是真正驱动画面的东西，而且不受取样偏差影响。 */
+  console.log('       逐段点亮对比（鼓面三段圈的不透明度）：');
   const byStage = {};
   bandSeries.forEach((b) => { byStage[b.st] = b; });
   let litOk = true;
   for (let bi = 0; bi < 3; bi++) {
-    const atStage = byStage[String(bi + 1)];
-    const prevStage = bi === 0 ? byStage['0'] : byStage[String(bi)];
-    if (!atStage || !prevStage) { litOk = false; console.log('         第' + (bi + 1) + '段：缺某一幕的记录'); continue; }
-    const atLit = atStage.dom[bi].lit;
-    const beforeLit = prevStage.dom[bi].lit;
-    console.log('         第' + (bi + 1) + '段：lit ' + beforeLit + ' → ' + atLit +
-      '   画面亮度 ' + prevStage.bands[bi] + ' → ' + atStage.bands[bi]);
-    if (!(atLit > beforeLit + 0.3)) litOk = false;
+    /* 判据是"**在这一段自己那一幕达到峰值**"，不是"逐幕递增"。
+       第一段的圈在 stage 1 是 1，走到 stage 2 就掉回 0.34
+       （亮点移到第二段去了）—— 拿"递增"当判据会得出假失败（踩过）。 */
+    const series = Object.keys(byStage)
+      .sort()
+      .map((k) => ({ stage: k, lit: byStage[k].dom && byStage[k].dom[bi] ? byStage[k].dom[bi].lit : null }))
+      .filter((x) => x.lit !== null);
+    if (!series.length) { litOk = false; console.log('         第' + (bi + 1) + '段：没有记录'); continue; }
+    const peak = Math.max(...series.map((x) => x.lit));
+    const peakAt = series.find((x) => x.lit === peak).stage;
+    console.log('         第' + (bi + 1) + '段：各幕 ' +
+      series.map((x) => x.stage + '→' + x.lit).join('  ') + '   峰值在 stage ' + peakAt);
+    // 峰值必须出现在"第 bi 段该亮"的那一幕（stage bi+1），且确实拉得开
+    if (peakAt !== String(bi + 1) || peak < 0.6) litOk = false;
   }
-  if (litOk) ok('三段各自在自己那一幕被点亮（lit 不透明度逐段上升）');
-  else bad('某一段点亮前后没有上升，"逐段点亮"未生效');
+  /* 还要确认"每一幕最多只有一段亮着" —— 三段一起亮等于没分段 */
+  const onlyOne = bandSeries.every((b) =>
+    (b.dom || []).filter((d) => d.lit > 0.6).length <= 1);
+  if (onlyOne) ok('每一幕最多只有一段亮着（分段是分开的）');
+  else bad('有一幕同时亮了多段');
+  if (litOk) ok('三段各自在自己那一幕最亮');
+  else bad('某一段没有在自己那一幕亮起来，"逐段点亮"未生效');
 
   /* 画面确实有内容 —— 不再拿"三段亮度 > 0.08"当判据。
      那是给旧柱子写的：三块彩色矩形当然够亮，鼓是暗底上的浅色圆，
@@ -793,7 +809,11 @@ try {
 
   /* ---------- 6. 错误汇总 ---------- */
   console.log('\n[6] 控制台');
-  const real = errors.filter((e) => !/favicon|DevTools|Autofill/i.test(e));
+  /* AudioContext 警告归到忽略类：那是**浏览器规定** ——
+     没有用户手势不许起音频。而本站的设计就是"第一次交互才起声"，
+     所以这条警告是预期内的，不是缺陷。 */
+  const real = errors.filter((e) =>
+    !/favicon|DevTools|Autofill|AudioContext was not allowed/i.test(e));
   if (real.length === 0) ok('无错误、无警告');
   else real.slice(0, 12).forEach((e) => bad(e.slice(0, 180)));
   if (errors.length !== real.length) ok('忽略的条目：favicon 404（无图标文件，非缺陷）');

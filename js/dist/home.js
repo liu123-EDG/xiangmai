@@ -2484,7 +2484,16 @@ const NS = 'http://www.w3.org/2000/svg';
 
 const el = (tag, attrs) => {
   const n = document.createElementNS(NS, tag);
-  if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (attrs) {
+    for (const k in attrs) {
+      /* 防御：SVG 的 r / rx / ry 写负数会直接抛错
+         （"A negative value is not valid"），而且报错里不带来源，
+         很难定位。所以这一层就夹住 —— 半径最小 0。 */
+      let v = attrs[k];
+      if ((k === 'r' || k === 'rx' || k === 'ry') && typeof v === 'number' && v < 0) v = 0;
+      n.setAttribute(k, v);
+    }
+  }
   return n;
 };
 
@@ -2525,29 +2534,32 @@ function buildDrum(opts = {}) {
      三层同心圈 **分别代表三段**，而不是装饰性的同心圆：
        外圈 穹乃额曼 · 中圈 达斯坦 · 内圈 麦西热甫
      当前那一段亮起来，另外两圈按到最暗 —— 一眼看出"现在在打哪一段"。
-     这是这只鼓存在的理由：一只鼓，三种打法。 */
+
+     **整体提亮过一轮。** 原来太暗：暗底 + 细描边 + 低不透明度，
+     在极暗房间里几乎看不见 —— 实测鼓心亮度 0.020、背景 0.018，几乎一样。
+     用户感觉"鼓出来的时候已经到叙事了"，其实它在第一幕就渲染着，只是看不见。 */
   const defs = el('defs');
   const grad = el('radialGradient', { id: 'drumSkin', cx: '50%', cy: '44%', r: '64%' });
-  grad.appendChild(el('stop', { offset: '0%', 'stop-color': 'rgba(86,68,46,0.55)' }));
-  grad.appendChild(el('stop', { offset: '62%', 'stop-color': 'rgba(38,30,22,0.72)' }));
-  grad.appendChild(el('stop', { offset: '100%', 'stop-color': 'rgba(14,12,9,0.92)' }));
+  grad.appendChild(el('stop', { offset: '0%', 'stop-color': 'rgba(150,120,80,0.82)' }));
+  grad.appendChild(el('stop', { offset: '58%', 'stop-color': 'rgba(86,66,46,0.84)' }));
+  grad.appendChild(el('stop', { offset: '100%', 'stop-color': 'rgba(36,28,20,0.94)' }));
   defs.appendChild(grad);
   svg.appendChild(defs);
 
   // 鼓面（羊皮）
   svg.appendChild(el('circle', {
     cx: C, cy: C, r: R_SKIN, fill: 'url(#drumSkin)',
-    stroke: 'rgba(222,214,200,0.12)', 'stroke-width': 1,
+    stroke: 'rgba(240,226,200,0.34)', 'stroke-width': 1.4,
   }));
 
   /* 内阴影：鼓面不是平的，靠中心亮、靠边压暗才有弧度。
-     用一圈从透明到黑的径向渐变叠上去。 */
+     比原来淡 —— 0.55 太重，把鼓面整个压没了。 */
   const inner = el('circle', {
     cx: C, cy: C, r: R_SKIN,
     fill: 'none',
-    stroke: 'rgba(0,0,0,0.55)',
-    'stroke-width': 34,
-    opacity: 0.5,
+    stroke: 'rgba(0,0,0,0.42)',
+    'stroke-width': 30,
+    opacity: 0.38,
     filter: 'blur(9px)',
   });
   svg.appendChild(inner);
@@ -2556,15 +2568,15 @@ function buildDrum(opts = {}) {
      用 dashed stroke 做斜纹，比真画几十条线便宜。 */
   const lash = el('circle', {
     cx: C, cy: C, r: R_RIM - 5, fill: 'none',
-    stroke: 'rgba(196,172,132,0.30)', 'stroke-width': 2.4,
-    'stroke-dasharray': '3 9', 'stroke-linecap': 'round',
+    stroke: 'rgba(216,190,144,0.55)', 'stroke-width': 3,
+    'stroke-dasharray': '3.5 8', 'stroke-linecap': 'round',
   });
   svg.appendChild(lash);
 
   // 鼓沿
   svg.appendChild(el('circle', {
     cx: C, cy: C, r: R_RIM, fill: 'none',
-    stroke: 'rgba(222,214,200,0.26)', 'stroke-width': 1,
+    stroke: 'rgba(240,226,200,0.46)', 'stroke-width': 1.6,
   }));
 
   /* ---- 三段圈：当前那段亮 ----
@@ -2576,8 +2588,8 @@ function buildDrum(opts = {}) {
       cx: C, cy: C, r,
       fill: 'none',
       stroke: SECTIONS[i].tone,
-      'stroke-width': 1.4,
-      opacity: i === 0 ? 0.9 : 0.16,
+      'stroke-width': 2,
+      opacity: i === 0 ? 1 : 0.34,
       /* 加类名：自检要按名字找这三圈。
          只按 stroke-width 找会把涟漪和脉冲圈一起算进来（踩过：
          探针报"三段圈数量 = 5"）。 */
@@ -2630,19 +2642,31 @@ function buildDrum(opts = {}) {
   let raf = 0;
 
   function setSection(i) {
+    /* 允许 -1：表示"还没到任何一段"（页面刚进来时 litCount 是 0）。
+       原来把它夹到 0，于是**页面刚进来第一圈就是亮的**，
+       而文字一个都没出现 —— 两边不一致（踩过）。 */
+    if (i < 0) {
+      section = -1;
+      rings.forEach((r) => r.setAttribute('opacity', 0.22));
+      return;
+    }
     const n = Math.max(0, Math.min(2, i | 0));
     if (n === section) return;
     section = n;
     const s = SECTIONS[n];
     core.setAttribute('fill', s.tone);
     pulseRing.setAttribute('stroke', s.tone);
-    rings.forEach((r, k) => r.setAttribute('opacity', k === n ? 0.9 : 0.14));
+    rings.forEach((r, k) => r.setAttribute('opacity', k === n ? 1 : 0.34));
   }
-  // 初始就把第 0 段的圈点亮
-  rings.forEach((r, k) => r.setAttribute('opacity', k === 0 ? 0.9 : 0.14));
+  /* 初始**不点亮任何一段** —— 页面还没滚动，一段都还没到。
+     由 home.js 建好之后立刻按当前幕对齐一次。 */
+  setSection(-1);
 
   /** 敲一下：鼓心弹一下 + 荡出一圈涟漪 */
   function strike(now) {
+    /* section 可能是 -1（还没到任何一段）—— 那时候不该敲。
+       原来没拦，SECTIONS[-1] 是 undefined，读 .tone 直接抛异常（踩过）。 */
+    if (section < 0) return;
     const s = SECTIONS[section];
     // 中心：缩一下再回去（用 CSS 类触发动画比重画 SVG 便宜）
     core.classList.remove('is-hit');
@@ -2657,10 +2681,14 @@ function buildDrum(opts = {}) {
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - lastNow) / 1000 || 0);
+    /* dt 允许为负吗？不允许。
+       起点不一样时（比如 r.t 是上一帧的 now），差可能是负的，
+       而 first 也为负的话 dt 就负了 —— 后面按 dt 推的角度会走到反方向。
+       所以夹在 0 以上。 */
+    const dt = Math.max(0, Math.min(0.05, (now - lastNow) / 1000 || 0));
     lastNow = now;
 
-    if (running && now >= nextBeat) {
+    if (running && now >= nextBeat && section >= 0) {
       strike(now);
       const s = SECTIONS[section];
       nextBeat = now + (60000 / s.bpm / s.div);   // 与音序器同一算法
@@ -2669,17 +2697,18 @@ function buildDrum(opts = {}) {
     // 推涟漪
     /* 寿命要**短于敲击间隔**，否则几条同时挂在屏幕上，
        叠成一圈圈同心圆 —— 看着像靶子，不像在敲（踩过）。
-       152 bpm 时间隔约 0.39 秒，所以寿命取 0.85 秒 + 两条轮流，
-       最多同时一条多一点，能看清"一圈荡出去、下一圈才开始"。 */
+       152 bpm 时间隔约 0.39 秒，所以寿命取 0.85 秒 + 两条轮流。 */
     for (const r of ripples) {
       if (r.t < 0) continue;
       const age = (now - r.t) / 1000;
       const dur = 0.85;
-      if (age > dur) { r.node.setAttribute('opacity', 0); r.t = -1; continue; }
+      if (age > dur || age < 0) { r.node.setAttribute('opacity', 0); r.t = -1; continue; }
       const p = age / dur;
-      r.node.setAttribute('r', String(R_C + p * (R_SKIN - R_C - 20)));
-      /* 涟漪要**立刻能看见**：正弦曲线起手太慢（p=0.2 时才 0.16），
-         看着像"切段了但没在敲"。改成起手就亮，再衰减。 */
+      /* r 必须**夹在有效区间**：p 一旦为负或越界，算出来的半径会是负数，
+         SVG 会直接报 "A negative value is not valid"（踩过）。
+         半径只允许 R_C .. R_SKIN-20。 */
+      const rad = R_C + p * (R_SKIN - R_C - 20);
+      r.node.setAttribute('r', String(Math.max(R_C, Math.min(R_SKIN - 20, rad))));
       r.node.setAttribute('opacity', String(Math.min(1, p * 6) * (1 - p) * 0.42));
     }
   }
@@ -3216,8 +3245,11 @@ function renderBandState(band) {
   /* 手鼓**直接跟着段号走**，不用 MutationObserver 观察 data-stage。
      原来靠观察器：它是微任务，时序上比这里慢一拍，
      表现是"文字已经到叙事了，鼓还停在苍劲"（用户报的正是这个）。
-     直接调用没有这个延迟。 */
-  if (drum) drum.setSection(Math.max(0, litCount - 1));
+     直接调用没有这个延迟。
+
+     注意 band 0（还没开始）要传 -1：那时候文字一个都没出现，
+     鼓也不该亮任何一圈。原来夹到 0 会让第一圈一进来就亮着。 */
+  if (drum) drum.setSection(litCount === 0 ? -1 : litCount - 1);
 
   segs.forEach((el, i) => {
     el.classList.toggle('is-lit', i < litCount);
@@ -3498,7 +3530,7 @@ async function boot() {
     /* 建好之后立刻按当前幕对齐一次 ——
        不然第一次滚动前鼓停在第一段，而页面可能已经停在第 2 幕了
        （刷新后浏览器会恢复滚动位置）。 */
-    drum.setSection(Math.max(0, Math.min(2, scroller.band - 1)));
+    drum.setSection(scroller.band <= 0 ? -1 : Math.min(2, scroller.band - 1));
   }
 
   /* ---- 首屏概念片 ----
