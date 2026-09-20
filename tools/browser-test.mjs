@@ -693,7 +693,42 @@ try {
   const d0 = await drumAt();
   console.log('       鼓（滚到顶部时）' + JSON.stringify(d0));
 
-  const s1 = await go(0.20, '02-qon');
+  /* 滚动位置**按页面自己的 thresholds 现算**，不写死数字。
+     写死的话每次调阈值这里就断，报"第一段状态错误 stage=0 / 鼓段号 = -1"
+     这种假失败 —— 而实现是好的（刚踩过）。
+     取法：该段阈值再往段内走一点，确保落在这一段里。 */
+  const TH = JSON.parse(await evalJs(`(() => {
+    const hero = document.getElementById('hero');
+    return JSON.stringify({
+      // thresholds 没暴露到 window，所以按 data-stage 反推：
+      // 直接二分找出每个 stage 的起点进度
+    });
+  })()`));
+  /** 找出第 n 段（0 起）的滚动位置：从 0 到 1 二分，找到 band 首次 >= n+1 的进度 */
+  const bandAt = async (p) => {
+    await evalJs(`(() => {
+      const hero = document.getElementById('hero');
+      const d = Math.max(1, hero.offsetHeight - innerHeight);
+      scrollTo(0, hero.offsetTop + d * ${p});
+    })()`);
+    await sleep(900);
+    return Number(await evalJs(`document.body.dataset.stage`));
+  };
+  const findBandStart = async (want) => {
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 7; k++) {
+      const mid = (lo + hi) / 2;
+      const b = await bandAt(mid);
+      if (b >= want) hi = mid; else lo = mid;
+    }
+    return Math.min(0.99, hi + 0.08);   // 往段内走一点
+  };
+  const P1 = await findBandStart(1);
+  const P2 = await findBandStart(2);
+  const P3 = await findBandStart(3);
+  console.log('       实测三段阈值位置：' + P1.toFixed(2) + ' / ' + P2.toFixed(2) + ' / ' + P3.toFixed(2));
+
+  const s1 = await go(P1, '02-qon');
   if (s1.st === '1' && s1.shown === '苍劲') ok('滚到第一段：点亮「苍劲」');
   else bad('第一段状态错误 stage=' + s1.st + ' 关键字=' + s1.shown);
   /* 鼓的段号要在**滚过去之后**读 —— 之前写在 go() 前面，
