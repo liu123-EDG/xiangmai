@@ -80,6 +80,28 @@ export class BandScroller {
     window.scrollTo({ top: top + denom * a + 2, behavior: smooth ? 'smooth' : 'auto' });
   }
 
+  /**
+   * 跳到**第 n 段**（n 从 0 开始），按 thresholds 算位置。
+   *
+   * 为什么不能直接用 jumpTo(n + 1)：jumpTo 走的是 anchors，
+   * 那套锚点是**分幕刻度**的位置，和"某一段刚开始"不是一回事 ——
+   * anchors[1] = 0.16 落在第二段里（thresholds[1] = 0.40 是第二段起点）。
+   * 用 jumpTo(n+1) 点第一段会跳到第二段去（踩过：
+   * 用户报"苍劲叙事点不到"，其实是跳过头了）。
+   *
+   * 这里取该段阈值再加一点余量，落在这一段的**前部** ——
+   * 既是这一段，又不至于贴着边界被四舍五入到上一段。
+   */
+  jumpToBand(n) {
+    const i = Math.max(0, Math.min(this.count - 1, n | 0));
+    const t = this.thresholds[i] === undefined ? 0 : this.thresholds[i];
+    const top = this.section.offsetTop;
+    const denom = Math.max(1, this.section.offsetHeight - window.innerHeight);
+    // 段内 18% 处：离边界够远，视觉上又刚到这一段
+    const p = Math.min(0.995, t + 0.18 * (1 - t));
+    window.scrollTo({ top: top + denom * p + 2, behavior: 'smooth' });
+  }
+
   get velocity() { return this._velocity; }
 
   /** 页面切到后台再回来时重置惯性，避免累积出一个巨大的差值 */

@@ -227,19 +227,27 @@ function jumpTo(stage) {
 /* ----------------------------------------------------------------- 交互 */
 
 function bindInteractions() {
+  /* 右侧进度轴的三格。
+     **也要用 jumpToBand** —— 原来用 jumpTo(i + 1)，
+     那套锚点 anchors[1] = 0.16 落在第二段里，
+     点第一格会跳到第二段（和情绪词同一个 bug）。 */
   railMarks.forEach((m, i) => {
-    m.addEventListener('click', () => scroller.jumpTo(i + 1));
+    m.addEventListener('click', () => scroller.jumpToBand(i));
   });
 
   /* 三个情绪词：**点哪一幕就滚到哪一幕**，能来回点。
-     原来它们是 <span>，而且是"滚动到哪就显示哪个"，点不了（用户要求改）。
-     点一下 = 跳到那一幕；再点别的就切回去。
-     滚过去之后 renderBandState 会把样式和鼓一起更新，所以这里只管跳转。 */
+     原来它们是 <span>，而且是"滚动到哪就显示哪个"，点不了。
+
+     **必须用 jumpToBand 而不是 jumpTo(i + 1)。**
+     jumpTo 走的是分幕刻度那套锚点 [0.02, 0.16, 0.52, 0.97]，
+     其中 anchors[1] = 0.16 落在第二段里 —— 点"苍劲"会跳到"叙事"去。
+     用户报的"苍劲叙事点不到"就是这个：不是点不动，是**跳过头了**。
+     jumpToBand 按 thresholds 算，落在那一段的前部。 */
   words.forEach((w) => {
     w.addEventListener('click', () => {
       const i = Number(w.dataset.word);              // 0 / 1 / 2
       if (isNaN(i)) return;
-      scroller.jumpTo(i + 1);                        // 幕号 = 词的序号 + 1
+      scroller.jumpToBand(i);
     });
   });
 
@@ -298,8 +306,20 @@ function bindInteractions() {
 
 async function boot() {
   scroller = new BandScroller(heroEl, {
-    thresholds: [0.10, 0.40, 0.86],
-    anchors: [0.02, 0.16, 0.52, 0.97],
+    /* 三段的分界。原来 [0.10, 0.40, 0.86] 间距不匀 ——
+       第一段只占 10%，滚动时一晃就过去了，感觉"苍劲还没看清就到叙事"。
+       改成 [0.22, 0.50, 0.78]：三段各占约 1/3，滚起来才均匀。
+       改这里不影响 jumpToBand —— 它是按 thresholds 现算的。 */
+    thresholds: [0.22, 0.50, 0.78],
+    /* anchors 是**分幕刻度点**的位置（右下角那四个点），
+       不等于"第几段的起点"。别拿它当段起点用（踩过）。 */
+    /* anchors 是**分幕刻度点**（右下角那四个点）的位置。
+       它们必须各自落在自己那一幕**之内**，否则点了刻度却停在上/下一幕：
+       原来 anchors[1] = 0.16 小于 thresholds[0] = 0.22，
+       点"第二幕"的刻度会停在第 0 幕 —— 看起来就是"这个点坏了"（用户报的）。
+       现在按阈值 +0.14 排：0.36 / 0.64 / 0.92，都在各幕之内。
+       （anchors[0] = 0.02 是"回到开头"，不属于任何一段。） */
+    anchors: [0.02, 0.36, 0.64, 0.92],
     count: 3,
   });
 
