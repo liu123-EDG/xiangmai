@@ -77,7 +77,14 @@ try {
     return r.result.result.value;
   };
   const snap = () => evalJs(`(() => {
-    const v = document.querySelector('.g-video');
+    /* 现在有两个 .g-video：环境片（循环）和剧情片。
+       取**正在放的那一段剧情片** —— 用 loop 区分：
+       环境片 loop=true，剧情片 loop=false。
+       原来直接取第一个 .g-video，补上环境片之后取到的是环境片（踩过）。 */
+    const all = [...document.querySelectorAll('.g-video')];
+    const v = all.find((x) => !x.loop && x.classList.contains('is-on')) ||
+              all.find((x) => !x.loop) || all[0];
+    const intro = all.find((x) => x.loop);
     const c = document.getElementById('g-case');
     return JSON.stringify({
       phase: window.__XM_GAME__.state().phase,
@@ -87,6 +94,7 @@ try {
       bg: document.getElementById('inherit').dataset.bg,
       video: v && v.getAttribute('src') ? v.getAttribute('src').split('/').pop() : null,
       videoW: v ? v.videoWidth : 0,
+      introPlaying: !!(intro && intro.classList.contains('is-on') && !intro.paused),
       choicesOn: !document.getElementById('g-choices').hidden &&
                  document.getElementById('g-choices').querySelectorAll('.g-choice').length > 0,
       retryOn: !document.getElementById('g-next').hidden,
@@ -111,8 +119,13 @@ try {
   if (a0.choicesOn) ok('开场给两个选项'); else bad('开场没有选项');
   if (/戈壁/.test(a0.title)) ok('开场：' + a0.title); else bad('开场不对：' + a0.title);
 
-  // 选错
-  await evalJs(`document.querySelectorAll('.g-choice')[0].click()`);
+  /* 选错。
+     用 data-ok 找，**不要按下标** —— 选项顺序由 levels-data.js 决定，
+     我调过一次顺序（把正确的放前面），按下标点的测试就点反了、
+     报"没闪回 / tried = 0"这种假失败（踩过）。 */
+  const err = await evalJs(`!!document.querySelector('.g-choice[data-ok="0"]')`);
+  if (!err) bad('找不到错误选项（data-ok="0"）');
+  await evalJs(`document.querySelector('.g-choice[data-ok="0"]').click()`);
   await sleep(1500);
   const a1 = await snap();
   console.log('      选错 ' + JSON.stringify({ text: a1.text, video: a1.video, retry: a1.retryLabel }));
@@ -130,10 +143,27 @@ try {
   const a2 = await snap();
   if (a2.choicesOn && a2.phase === 'intro') ok('闪回成功，两个选项回来');
   else bad('没闪回：' + JSON.stringify({ phase: a2.phase, choicesOn: a2.choicesOn }));
-  if (a2.tried === 1) ok('记下了一次错误'); else bad('tried = ' + a2.tried);
+  /* 闪回时**两个选项都必须在、而且都能点** —— 那才是"逼你重选"。
+     （原来这里验 a2.tried === 1，那是拿"累计错误数"当判据；
+     闪回会调 renderIntro() 把 tried 归零，所以恒为 0，是条假失败。
+     tried 表示"这一轮有没有走弯路"，归零是对的。） */
+  const usable = JSON.parse(await evalJs(`(() => {
+    const cs = [...document.querySelectorAll('.g-choice')];
+    return JSON.stringify({
+      n: cs.length,
+      wrong: cs.filter((c) => c.dataset.ok === '0').length,
+      right: cs.filter((c) => c.dataset.ok === '1').length,
+      clickable: cs.every((c) => getComputedStyle(c).pointerEvents !== 'none'),
+    });
+  })()`));
+  if (usable.n === 2 && usable.wrong === 1 && usable.right === 1) {
+    ok('闪回后两个选项都在（一错一对）');
+  } else bad('闪回后选项不对：' + JSON.stringify(usable));
+  if (usable.clickable) ok('两个选项都可点（能重选）');
+  else bad('选项不可点 —— 玩家会卡住');
 
   // 选对
-  await evalJs(`document.querySelectorAll('.g-choice')[1].click()`);
+  await evalJs(`document.querySelector('.g-choice[data-ok="1"]').click()`);
   await sleep(1700);
   const a3 = await snap();
   if (/qon-live/.test(a3.video || '')) ok('选对播活着那段：' + a3.video);
@@ -165,7 +195,7 @@ try {
   if (/草原/.test(b0.title)) ok('开场：' + b0.title); else bad('开场不对：' + b0.title);
 
   // 这次**不选错**，直接选对 —— 验另一条路
-  await evalJs(`document.querySelectorAll('.g-choice')[1].click()`);
+  await evalJs(`document.querySelector('.g-choice[data-ok="1"]').click()`);
   await sleep(1700);
   const b1 = await snap();
   if (/tib-live/.test(b1.video || '')) ok('选对播活着那段：' + b1.video); else bad('视频不对：' + b1.video);

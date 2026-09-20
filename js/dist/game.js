@@ -2439,7 +2439,12 @@ const V = {
 };
 
 /* ------------------------------------------------------------------ 状态 */
-const state = { tried: 0 };
+/* phase 记录走到哪一步了：
+     intro 正在选 · right 选对了（放"活着"）· wrong 选错了（放"失传"）
+     case  正在看成功案例 · end 收束
+   自检靠它判断进度。
+   （重写引擎时我把它漏掉了，测试一直报 "没收束：undefined" —— 补回来。） */
+const state = { phase: 'intro', tried: 0 };
 let LEVEL = null;
 
 /* ------------------------------------------------------------------ 构建 */
@@ -2545,6 +2550,7 @@ function buildInheritGame(opts = {}) {
 
   /* ---------------------------------------------------------- 各阶段 */
   function renderIntro() {
+    state.phase = 'intro';
     state.tried = 0;
     clearVideo();                       // 清掉上一段剧情片
     setBg(LEVEL.scene);
@@ -2579,9 +2585,11 @@ function buildInheritGame(opts = {}) {
     title.textContent = c.say;
     text.textContent = c.tail;
     if (c.ok) {
+      state.phase = 'right';
       setBg(LEVEL.scene);
       playVideo(c.video, () => showCase());
     } else {
+      state.phase = 'wrong';
       state.tried++;
       setBg(LEVEL.scene + '-lost');
       /* **闪回按钮立刻出现**，不等视频播完。
@@ -2600,6 +2608,7 @@ function buildInheritGame(opts = {}) {
   }
 
   function showCase() {
+    state.phase = 'case';
     setBg(LEVEL.scene);
     playVideo(LEVEL.choices.find((x) => x.ok).caseVideo, () => {});
     const c = LEVEL.case;
@@ -2616,6 +2625,7 @@ function buildInheritGame(opts = {}) {
   }
 
   function showEnding() {
+    state.phase = 'end';
     clearVideo();
     stopIntroVideo();
     setBg('end');
