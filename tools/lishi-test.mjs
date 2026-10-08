@@ -151,6 +151,36 @@ try {
   else bad('部件数 = ' + built.keys.length + '：' + built.keys.join(','));
   if (built.dom.tlsNodes === 3) ok('时间长轴 3 个节点'); else bad('长轴节点 = ' + built.dom.tlsNodes);
   if (built.dom.subCells === 16) ok('减法 16 个方块'); else bad('方块 = ' + built.dom.subCells);
+
+  /* **留下来的 12 格必须有名字。**
+     这条是补的：原来只验了"16 格里剔掉 4 格"，
+     没问"那 12 格里有没有内容" —— 结果我做完一屏空方块，
+     自检还是绿的（用户问"所以这12个就是空白？"才发现）。
+     数格子数不出内容，得看字。 */
+  const subNames = JSON.parse(await evalJs(`(() => {
+    const kept = [...document.querySelectorAll('.sub__cell--kept')];
+    const drops = [...document.querySelectorAll('.sub__cell--drop')];
+    return JSON.stringify({
+      kept: kept.length,
+      named: kept.filter((c) => {
+        const n = c.querySelector('.sub__cell-name');
+        return n && n.textContent.trim().length > 0;
+      }).length,
+      sample: kept.slice(0, 3).map((c) => {
+        const n = c.querySelector('.sub__cell-name');
+        return n ? n.textContent.trim() : '（空）';
+      }),
+      // 被剔掉的格子**不该有名字** —— 史料里没有 16 部的名录，编了就是造假
+      dropNamed: drops.filter((c) => c.querySelector('.sub__cell-name')).length,
+    });
+  })()`));
+  if (subNames.kept === 12 && subNames.named === 12) {
+    ok('12 个格子里都写了套名：' + subNames.sample.join(' / ') + ' …');
+  } else {
+    bad('有格子是空的：留 ' + subNames.kept + ' 格，其中 ' + subNames.named + ' 格有名字');
+  }
+  if (subNames.dropNamed === 0) ok('被剔除的 4 格没有编造名字（对）');
+  else bad('被剔除的格子里出现了名字 —— 那是编的：' + subNames.dropNamed + ' 格');
   if (built.dom.recTicks >= 6) ok('录音机 ' + built.dom.recTicks + ' 个年份刻度');
   else bad('刻度 = ' + built.dom.recTicks);
   if (built.dom.railBars === 4) ok('双轨 ' + built.dom.railBars + ' 条数据条');
