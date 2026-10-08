@@ -154,8 +154,14 @@ try {
       navLinks: document.querySelectorAll('.sitelinks a').length,
       navActive: (document.querySelector('.sitelinks a[aria-current]') || {}).textContent || '',
       acts: document.querySelectorAll('[data-act]').length,
-      slots: document.querySelectorAll('figure.slot').length,
-      slotsEmpty: document.querySelectorAll('figure.slot.is-empty').length,
+      /* 部件统计。**图位（figure.slot）已经全站删掉了** ——
+         那套"图片位 / 图注位"占位在重做里被移除，现在八个页面一个都没有。
+         所以这里改成数真正存在的正文部件：
+         对照表、字幕块、章节导航。 */
+      duos: document.querySelectorAll('.duo').length,
+      plates: document.querySelectorAll('.plate-act').length,
+      bodies: document.querySelectorAll('.body').length,
+      navLinks2: document.querySelectorAll('.chapter-nav a').length,
       wheelNodes: document.querySelectorAll('.wnode').length,
       revealed: document.querySelectorAll('.reveal.is-in').length,
     });
@@ -192,65 +198,89 @@ try {
 
   // 结构
   if (info.acts >= 7) ok('幕数 = ' + info.acts); else bad('幕数偏少：' + info.acts);
-  if (info.slots >= 5) ok('图片槽 = ' + info.slots + '（缺图 ' + info.slotsEmpty + ' 个，占位不报错）');
-  else bad('图片槽偏少：' + info.slots);
+  /* 正文部件（原来查 figure.slot，那套图位已全站删除）。
+     改查真正存在的：正文段 + 章节导航 + 字幕块。
+     判据放宽到"有正文且导航在"，因为各章的正文形式不一样。 */
+  const partTotal = info.duos + info.plates + info.bodies;
+  if (partTotal >= 5) ok('正文部件 = ' + partTotal +
+    '（正文段 ' + info.bodies + ' · 字幕块 ' + info.plates + ' · 对照表 ' + info.duos + '）');
+  else bad('正文部件偏少：' + partTotal);
+  if (info.navLinks2 >= 1 || info.navLinks >= 1) {
+    ok('章节导航在（导航链接 ' + Math.max(info.navLinks, info.navLinks2) + ' 个）');
+  } else bad('找不到章节导航');
   if (info.revealed > 0) ok('滚动显形已生效（' + info.revealed + ' 个元素入场）');
   else bad('没有任何元素进入 is-in');
 
-  // 轮盘
-  if (info.wheelNodes === 12) ok('十二木卡姆轮盘：12 个节点');
-  else bad('轮盘节点数 = ' + info.wheelNodes + '，应为 12');
+  /* 轮盘 / 读数。
+     **轮盘只存在于附录（fulu）**，第二、三、四章都没有。
+     原来这里无条件查第二幕的 .wnode 并取 [2] —— 取到 undefined
+     再 .dispatchEvent 就抛 "Uncaught"，整个自检中断在半路，
+     后面全都没跑（踩过）。所以这类"某页才有的部件"必须先判断在不在。 */
+  if (info.wheelNodes > 0) {
+    if (info.wheelNodes === 12) ok('十二木卡姆轮盘：12 个节点');
+    else bad('轮盘节点数 = ' + info.wheelNodes + '，应为 12');
 
-  // 悬停读数
-  const hover = await evalJs(`(() => {
-    const n = document.querySelectorAll('.wnode')[2];
-    n.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const r = document.getElementById('wheel-readout');
-    return r ? r.textContent.trim().slice(0, 60) : '';
-  })()`);
-  if (hover && hover.indexOf('木夏吾莱克') >= 0) ok('悬停第三个节点，读数已更新：' + hover);
-  else bad('轮盘读数未按悬停更新，实际为：' + hover);
+    const hover = await evalJs(`(() => {
+      const nodes = document.querySelectorAll('.wnode');
+      if (nodes.length < 3) return '';
+      nodes[2].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      const r = document.getElementById('wheel-readout');
+      return r ? r.textContent.trim().slice(0, 60) : '';
+    })()`);
+    if (hover && hover.indexOf('木夏吾莱克') >= 0) ok('悬停第三个节点，读数已更新：' + hover);
+    else bad('轮盘读数未按悬停更新，实际为：' + hover);
+  } else {
+    ok('这一页没有轮盘（轮盘在附录），跳过轮盘检查');
+  }
 
-  // 节点应当是真正的链接（可 Tab、可新标签打开）
-  const linkInfo = JSON.parse(await evalJs(`(() => {
-    const n = document.querySelectorAll('.wnode')[0];
-    return JSON.stringify({
-      tag: n.tagName,
-      ns: n.namespaceURI,
-      hrefAttr: n.getAttribute('href'),
-      isLink: n instanceof SVGAElement || n.tagName.toLowerCase() === 'a',
-      tabbable: n.hasAttribute('tabindex') || n.tagName.toLowerCase() === 'a',
-    });
-  })()`));
-  console.log('       节点链接信息 ' + JSON.stringify(linkInfo));
-  if (linkInfo.isLink && linkInfo.hrefAttr) ok('节点是真正的链接（可键盘、可新标签打开）');
-  else bad('节点不是链接，键盘与语义会退化：' + JSON.stringify(linkInfo));
+  /* ---- 以下都是**轮盘 / 旋律专有**的检查，只有附录有这两个部件 ----
+     整段包在 hasParts 里。原来没有守卫：第二章上取 .wnode[0] 得到 undefined，
+     读 .tagName 就抛 "Uncaught"，自检从中间断掉，后面全没跑（踩过）。 */
+  const hasParts = info.wheelNodes > 0;
+  if (hasParts) {
+    // 节点应当是真正的链接（可 Tab、可新标签打开）
+    const linkInfo = JSON.parse(await evalJs(`(() => {
+      const n = document.querySelectorAll('.wnode')[0];
+      if (!n) return JSON.stringify({});
+      return JSON.stringify({
+        tag: n.tagName,
+        ns: n.namespaceURI,
+        hrefAttr: n.getAttribute('href'),
+        isLink: n instanceof SVGAElement || n.tagName.toLowerCase() === 'a',
+        tabbable: n.hasAttribute('tabindex') || n.tagName.toLowerCase() === 'a',
+      });
+    })()`));
+    console.log('       节点链接信息 ' + JSON.stringify(linkInfo));
+    if (linkInfo.isLink && linkInfo.hrefAttr) ok('节点是真正的链接（可键盘、可新标签打开）');
+    else bad('节点不是链接，键盘与语义会退化：' + JSON.stringify(linkInfo));
 
-  // 滚动到轮盘正中，让它完整进入视口
-  await evalJs(`(() => {
-    const w = document.getElementById('wheel-act');
-    window.scrollTo(0, w.offsetTop + w.offsetHeight / 2 - innerHeight / 2);
-  })()`);
-  await sleep(1600);
-  const wheelState = JSON.parse(await evalJs(`(() => {
-    const svg = document.querySelector('.wheel');
-    const r = svg.getBoundingClientRect();
-    const rotor = document.querySelector('.wheel__rotor');
-    return JSON.stringify({
-      visible: r.top < innerHeight && r.bottom > 0,
-      focusVar: getComputedStyle(svg).getPropertyValue('--wheel-focus').trim(),
-      transform: rotor ? rotor.style.transform : '',
-    });
-  })()`));
-  console.log('       ' + JSON.stringify(wheelState));
-  if (wheelState.visible) ok('滚动后轮盘进入视口');
-  else bad('轮盘未进入视口');
-  if (wheelState.transform) ok('轮盘随滚动转动：' + wheelState.transform);
-  else bad('轮盘未随滚动转动（transform 为空）');
+    // 滚动到轮盘正中，让它完整进入视口
+    await evalJs(`(() => {
+      const w = document.getElementById('wheel-act');
+      if (w) window.scrollTo(0, w.offsetTop + w.offsetHeight / 2 - innerHeight / 2);
+    })()`);
+    await sleep(1600);
+    const wheelState = JSON.parse(await evalJs(`(() => {
+      const svg = document.querySelector('.wheel');
+      if (!svg) return JSON.stringify({});
+      const r = svg.getBoundingClientRect();
+      const rotor = document.querySelector('.wheel__rotor');
+      return JSON.stringify({
+        visible: r.top < innerHeight && r.bottom > 0,
+        focusVar: getComputedStyle(svg).getPropertyValue('--wheel-focus').trim(),
+        transform: rotor ? rotor.style.transform : '',
+      });
+    })()`));
+    console.log('       ' + JSON.stringify(wheelState));
+    if (wheelState.visible) ok('滚动后轮盘进入视口');
+    else bad('轮盘未进入视口');
+    if (wheelState.transform) ok('轮盘随滚动转动：' + wheelState.transform);
+    else bad('轮盘未随滚动转动（transform 为空）');
 
-  // 轮盘截图（放在这里，因为它刚滚过去）
-  const shotWheel = await send('Page.captureScreenshot', { format: 'png' });
-  await writeFile(join(root, 'shots', 'chapter-wheel.png'), Buffer.from(shotWheel.result.data, 'base64'));
+    // 轮盘截图（放在这里，因为它刚滚过去）
+    const shotWheel = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(join(root, 'shots', 'chapter-wheel.png'), Buffer.from(shotWheel.result.data, 'base64'));
+  }
 
   // 旋律入口图
   const mel = JSON.parse(await evalJs(`(() => {
@@ -267,38 +297,51 @@ try {
     });
   })()`));
   console.log('       旋律图 ' + JSON.stringify(mel));
-  if (mel.count === 8) ok('旋律入口：8 个音符');
-  else bad('音符数 = ' + mel.count + '，应为 8');
-  if (mel.staffLines === 5 && mel.hasClef) ok('五线谱与谱号已绘制');
-  else bad('谱表不完整：线=' + mel.staffLines + ' 谱号=' + mel.hasClef);
-  if (mel.curveLen > 400) ok('旋律曲线长度 ' + mel.curveLen + '（可被"吹奏"出来）');
-  else bad('旋律曲线异常，长度 ' + mel.curveLen);
-  if (mel.firstHref && mel.firstHref.indexOf('../heritage/') === 0) ok('音符是真链接：' + mel.firstHref);
-  else bad('音符不是链接：' + mel.firstHref);
+  if (mel.count === 0) {
+    /* 这一页没有旋律入口（它也在附录）。
+       **不能无条件取 notes[1] 再 dispatchEvent** —— 取到 undefined 会抛
+       "Uncaught"，把整个自检中断在半路（和上面轮盘那个坑一样）。 */
+    ok('这一页没有旋律入口（它在附录），跳过旋律检查');
+  } else {
+    if (mel.count === 8) ok('旋律入口：8 个音符');
+    else bad('音符数 = ' + mel.count + '，应为 8');
+    if (mel.staffLines === 5 && mel.hasClef) ok('五线谱与谱号已绘制');
+    else bad('谱表不完整：线=' + mel.staffLines + ' 谱号=' + mel.hasClef);
+    if (mel.curveLen > 400) ok('旋律曲线长度 ' + mel.curveLen + '（可被"吹奏"出来）');
+    else bad('旋律曲线异常，长度 ' + mel.curveLen);
+    if (mel.firstHref) ok('音符是真链接：' + mel.firstHref);
+    else bad('音符不是链接：' + mel.firstHref);
 
-  const melHover = await evalJs(`(() => {
-    const n = document.querySelectorAll('.mnote')[1];
-    n.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    const r = document.getElementById('melody-readout');
-    return r ? r.textContent.trim().slice(0, 48) : '';
-  })()`);
-  if (melHover && melHover.indexOf('马头琴') >= 0) ok('悬停第二个音符，读数已更新：' + melHover);
-  else bad('旋律读数未按悬停更新，实际为：' + melHover);
+    const melHover = await evalJs(`(() => {
+      const nodes = document.querySelectorAll('.mnote');
+      if (nodes.length < 2) return '';
+      nodes[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      const r = document.getElementById('melody-readout');
+      return r ? r.textContent.trim().slice(0, 48) : '';
+    })()`);
+    if (melHover && melHover.indexOf('马头琴') >= 0) ok('悬停第二个音符，读数已更新：' + melHover);
+    else bad('旋律读数未按悬停更新，实际为：' + melHover);
+  }
 
-  // 滚动后旋律线应当被画出一部分
-  await evalJs(`(() => {
-    const w = document.getElementById('melody-act');
-    window.scrollTo(0, w.offsetTop + w.offsetHeight / 2 - innerHeight / 2);
-  })()`);
-  await sleep(1500);
-  const played = await evalJs(`document.querySelector('.melody__curve').style.strokeDashoffset`);
-  console.log('       旋律播放进度（dashoffset）=' + played);
-  if (played && parseFloat(played) >= 0) ok('旋律随滚动被"吹奏"出来');
-  else bad('旋律未随滚动推进：' + played);
+  // 滚动后旋律线应当被画出一部分（同样只有附录有）
+  if (mel.count > 0) {
+    await evalJs(`(() => {
+      const w = document.getElementById('melody-act');
+      if (w) window.scrollTo(0, w.offsetTop + w.offsetHeight / 2 - innerHeight / 2);
+    })()`);
+    await sleep(1500);
+    const played = await evalJs(`(() => {
+      const c = document.querySelector('.melody__curve');
+      return c ? c.style.strokeDashoffset : '';
+    })()`);
+    console.log('       旋律播放进度（dashoffset）=' + played);
+    if (played && parseFloat(played) >= 0) ok('旋律随滚动被"吹奏"出来');
+    else bad('旋律未随滚动推进：' + played);
 
-  const shot3 = await send('Page.captureScreenshot', { format: 'png' });
-  await writeFile(join(root, 'shots', 'chapter-melody.png'), Buffer.from(shot3.result.data, 'base64'));
-  console.log('       shots/chapter-melody.png');
+    const shot3 = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(join(root, 'shots', 'chapter-melody.png'), Buffer.from(shot3.result.data, 'base64'));
+    console.log('       shots/chapter-melody.png');
+  }
 
   await evalJs('window.scrollTo(0,0)');
   await sleep(1400);
@@ -321,22 +364,25 @@ try {
   console.log('       file:// ' + JSON.stringify(fileState));
   if (fileState.ready && fileState.canvasAttr && fileState.canvasAttr[0] > 300) ok('file:// 下正常执行');
   else bad('file:// 下脚本未执行完：' + JSON.stringify(fileState));
-  if (fileState.wheel === 12) ok('file:// 下轮盘也生成了');
-  else bad('file:// 下轮盘节点数 = ' + fileState.wheel);
-
-  /* 图片还没放进来时的 404 是设计内的 —— 槽位会退回占位，版面不变形。
-     所以这一类单独判定：必须"有 404"且"槽位标记为 empty"。
-     注意 Log 域的文本不带 URL，只统计带路径的那条（[net] 记的），
-     以及必然随之出现的那句无路径的 "Failed to load resource"。 */
-  const img404 = logs.filter((l) => /assets\/img\//.test(l) && /404/.test(l)).length;
-  const genericRes404 = logs.filter((l) => /Failed to load resource/.test(l)).length;
-  console.log('       资源 404：带路径 ' + img404 + ' 条，通用提示 ' + genericRes404 + ' 条，槽位空的 ' + info.slotsEmpty + ' 个');
-  if (info.slotsEmpty > 0 && img404 > 0) {
-    ok('缺图 ' + info.slotsEmpty + ' 个，已按占位渲染（404 属设计内）');
-  } else if (img404 === 0 && genericRes404 === 0) {
-    ok('图片均已就位，无缺图');
+  /* 轮盘只在附录。第二章 file:// 下不该有它 ——
+     该查的是"双击打开时脚本照样跑起来"，那由上面那条保证。 */
+  if (hasParts) {
+    if (fileState.wheel === 12) ok('file:// 下轮盘也生成了');
+    else bad('file:// 下轮盘节点数 = ' + fileState.wheel);
   } else {
-    bad('有缺图但没有进入占位状态：404=' + img404 + ' empty=' + info.slotsEmpty);
+    ok('这一页本来就没有轮盘（file:// 下不该有），跳过');
+  }
+
+  /* 资源 404。
+     这一段原来是"缺图 → 槽位退回占位"的判定，但**图位已经全站删掉**了，
+     所以现在只分两种情况：有 404 就是真问题（页面不再有任何预期内的缺图）。 */
+  const img404 = logs.filter((l) => /assets\//.test(l) && /404/.test(l)).length;
+  const genericRes404 = logs.filter((l) => /Failed to load resource/.test(l)).length;
+  console.log('       资源 404：带路径 ' + img404 + ' 条，通用提示 ' + genericRes404 + ' 条');
+  if (img404 === 0 && genericRes404 === 0) {
+    ok('无资源 404（图位已删，不再有预期内的缺图）');
+  } else {
+    bad('有资源 404：带路径 ' + img404 + ' 条，通用 ' + genericRes404 + ' 条');
   }
 
   const real = logs.filter((l) =>

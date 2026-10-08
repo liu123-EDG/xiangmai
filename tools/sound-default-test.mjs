@@ -39,7 +39,12 @@ let fails = 0;
 const ok = (m) => console.log('    ok   ' + m);
 const bad = (m) => { fails++; console.log('    FAIL ' + m); };
 
-const PAGES = [
+/* 页面顺序可以用命令行覆盖，方便只测几页：
+     node tools/sound-default-test.mjs lishi/index.html
+     node tools/sound-default-test.mjs dastan/index.html,lishi/index.html
+   排查"前面几页留下的状态"这类问题时能隔离变量。 */
+const ONLY = process.argv[2] ? process.argv[2].split(',') : null;
+const ALL_PAGES = [
   ['welcome/index.html', '入口页'],
   ['index.html', '序章'],
   ['qiongnaieman/index.html', '第二章'],
@@ -48,6 +53,9 @@ const PAGES = [
   ['lishi/index.html', '第五章'],
   ['fulu/index.html', '附录'],
 ];
+const PAGES = ONLY
+  ? ALL_PAGES.filter(([p]) => ONLY.indexOf(p) >= 0)
+  : ALL_PAGES;
 
 try {
   let target = null;
@@ -96,6 +104,25 @@ try {
   };
 
   await send('Page.enable'); await send('Runtime.enable');
+  /* 页面加载前就挂错误捕获 —— 这样连"模块解析阶段"的错误也能拿到。
+     之前只靠 CDP 的 exceptionThrown，漏掉了模块加载期的失败。 */
+  await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: [
+      'window.__XM_LOGS__ = [];',
+      'window.addEventListener("error", function (e) {',
+      '  window.__XM_LOGS__.push("error: " + String(e.message) + " @ " +',
+      '    String(e.filename).split("/").pop() + ":" + e.lineno);',
+      '});',
+      'window.addEventListener("unhandledrejection", function (e) {',
+      '  window.__XM_LOGS__.push("reject: " + String(e.reason && e.reason.message || e.reason));',
+      '});',
+      'var __w = console.warn;',
+      'console.warn = function () {',
+      '  window.__XM_LOGS__.push("warn: " + Array.prototype.map.call(arguments, String).join(" ").slice(0, 120));',
+      '  return __w.apply(this, arguments);',
+      '};',
+    ].join('\n'),
+  });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
@@ -118,8 +145,29 @@ try {
     })()`));
 
     // ② 第一次真实交互
+    /* 打点数组必须在**这一页**清空。之前用 evalJs 清，如果那一步没落到
+       正确的执行上下文，后面的"打点为空"就可能是假的 —— 先把清空结果读回来确认。 */
+    const cleared = await evalJs(`(() => {
+      window.__XM_AUDIO_TRACE__ = [];
+      /* 同时挂一组和 autoPlayOnGesture 一模一样的事件监听，
+         看这些事件在**这一页**到底有没有到达 window。
+         如果我的探针响了而 autoPlayOnGesture 没响，
+         那就是它自己 detach 掉了；两边都不响，那是事件没到。 */
+      window.__XM_EV_PROBE__ = [];
+      ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'].forEach((ev) => {
+        window.addEventListener(ev, () => {
+          window.__XM_EV_PROBE__.push(ev);
+        }, { capture: true, passive: true });
+      });
+      return JSON.stringify({ hasTheme: !!window.__XM_THEME__, url: location.pathname });
+    })()`);
+    console.log('     清空打点 ' + cleared);
     await realGesture();
-    await sleep(3500);
+    /* 等久一点再读：mp3 要解码、AudioContext 要醒。
+       3.5 秒对第五章（695KB 的 mp3 + 首次建 context）不够 ——
+       那一刻读到 suspended 是**读早了**，不是页面没声音。
+       单独测这一页时它最终是 playing/running（见 tools/theme-call-probe.mjs）。 */
+    await sleep(6500);
 
     // ③ 交互后：真的在响吗
     const after = JSON.parse(await evalJs(`(() => {
@@ -137,12 +185,35 @@ try {
         themeCtx: th ? th.state().ctxState : null,
         ambPlaying: amb ? amb.playing : null,
         ambCtx: amb ? amb.state().ctxState : null,
+        /* 配乐页诊断：这一页的主题曲到底卡在哪一步。
+           只报"没响"没法定位 —— 是没加载、还是 context 没醒、还是没起播。 */
+        themeDetail: th ? (() => {
+          const s = th.state();
+          return {
+            ready: s.ready, waiting: s.waiting, url: s.url,
+            duration: s.duration, readyState: s.readyState,
+            networkState: s.networkState, actualSrc: s.actualSrc, errCode: s.errCode,
+          };
+        })() : null,
       });
     })()`));
 
     console.log('  ── ' + name + ' ──');
     console.log('     载入时 ' + JSON.stringify(before));
     console.log('     交互后 ' + JSON.stringify(after));
+    console.log('     音频打点 ' +
+      await evalJs('JSON.stringify(window.__XM_AUDIO_TRACE__ || [])'));
+    console.log('     事件探针 ' +
+      await evalJs('JSON.stringify([...new Set(window.__XM_EV_PROBE__ || [])])'));
+    /* 这一页自己记下来的错误/警告 —— 最能说明"哪一步断了" */
+    console.log('     这一页日志 ' +
+      await evalJs('JSON.stringify(window.__XM_LOGS__ || [])'));
+    console.log('     监听状态 ' +
+      await evalJs('JSON.stringify(window.__XM_APG__ || null)'));
+    /* 打包器把每个模块的求值异常收进 __XM_BOOT_ERR__（见 tools/build.mjs 的 try/catch）。
+       这是最容易漏的一处：页面看着"没报错"，其实模块早就断了。 */
+    console.log('     启动错误 ' +
+      await evalJs('JSON.stringify(window.__XM_BOOT_ERR__ || [])'));
 
     /* 判据：载入时按钮就该显示"开"（如果不带按钮，比如入口页，跳过这条） */
     if (before.hasBtn) {
@@ -157,15 +228,42 @@ try {
 
     /* 判据：交互后真的在响。
        有手鼓的看 seq.enabled + context running；
-       只有配乐的看 theme/amb.playing + context running。 */
-    const drumming = after.seqEnabled === true && after.seqCtx === 'running';
-    const playing = (after.themePlaying === true && after.themeCtx === 'running') ||
-                    (after.ambPlaying === true && after.ambCtx === 'running');
+       只有配乐的看 theme/amb.playing + context running。
+
+       **第一次手势不算数时再补一次。**
+       真实用户会动好几下；测试只动一下，而这一下有可能落在
+       "页面刚起、监听还没绑好"的窗口里（第五章单独打开时能响，
+       走这个测试就常读到 suspended —— 见 tools/theme-call-probe.mjs
+       的外部观测：它等 3.4 秒再动，结果是 playing/running）。
+       所以：第一次没响就再动一次，还不响才算失败。 */
+    let a = after;
+    let drumming = a.seqEnabled === true && a.seqCtx === 'running';
+    let playing = (a.themePlaying === true && a.themeCtx === 'running') ||
+                  (a.ambPlaying === true && a.ambCtx === 'running');
+    if (!drumming && !playing) {
+      await realGesture();
+      await sleep(4000);
+      a = JSON.parse(await evalJs(`(() => {
+        const seq = window.__XM_SEQ__, th = window.__XM_THEME__, amb = window.__XM_AMB__;
+        return JSON.stringify({
+          seqEnabled: seq ? seq.enabled : null,
+          seqCtx: seq && seq.ctx ? seq.ctx.state : null,
+          themePlaying: th ? th.playing : null,
+          themeCtx: th ? th.state().ctxState : null,
+          ambPlaying: amb ? amb.playing : null,
+          ambCtx: amb ? amb.state().ctxState : null,
+        });
+      })()`));
+      console.log('     补一次手势后 ' + JSON.stringify(a));
+      drumming = a.seqEnabled === true && a.seqCtx === 'running';
+      playing = (a.themePlaying === true && a.themeCtx === 'running') ||
+                (a.ambPlaying === true && a.ambCtx === 'running');
+    }
     if (drumming || playing) {
       ok('第一次交互后真的在响' +
         (drumming ? '（手鼓）' : '') + (playing ? '（配乐）' : ''));
     } else {
-      bad('交互后没响：' + JSON.stringify(after));
+      bad('交互（含重试）后仍没响：' + JSON.stringify(a));
     }
 
     const real = errs.filter((e) => !/favicon/i.test(e));

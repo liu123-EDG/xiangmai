@@ -29,7 +29,13 @@ const ctx = bootChapter({
   emberGain: 0.22,
 });
 
-const theme = createTheme('../assets/mashrap/theme.mp3');
+/* 主题曲。
+   **路径别写错**：必须带 audio/ 这一层。
+   原来写的是 '../assets/mashrap/theme.mp3'（少了 audio），文件 404，
+   而被 loadUrl 的 catch 吞掉只留一句警告 —— 结果这一页在 http 和 file://
+   下**都没有音乐**，还查了半天（用户报过"第五章的音乐"）。
+   正确路径：../assets/audio/mashrap/theme.mp3 */
+const theme = createTheme('../assets/audio/mashrap/theme.mp3');
 theme.preload();
 
 /* 第一次交互就把配乐打开。能走到这一页说明门已经开了，

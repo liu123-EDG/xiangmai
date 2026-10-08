@@ -134,7 +134,22 @@ try {
           smallTargets: small.slice(0, 6),
           smallCount: small.length,
           fontSize: fs,
-          navVisible: [...document.querySelectorAll('.sitelinks a')].filter(a => a.getBoundingClientRect().width > 0).length,
+          /* 窄屏导航算两笔账：
+             ① 汉堡按钮在不在、能不能点（这才是窄屏的导航入口）
+             ② 展开之后里面有几个链接
+             原来只量 .sitelinks a 的宽度 —— 而窄屏下整个 #site-nav
+             是 display:none（收进汉堡菜单了），所以恒为 0，
+             一直报"导航只剩 0 格"。那不是 bug，是导航设计。 */
+          navBurger: (() => {
+            const b = document.querySelector('.navburger');
+            if (!b) return null;
+            const r = b.getBoundingClientRect();
+            return { w: Math.round(r.width), h: Math.round(r.height),
+                     vis: getComputedStyle(b).display !== 'none' };
+          })(),
+          navClosedLinks: [...document.querySelectorAll('.sitelinks a')]
+            .filter((a) => a.getBoundingClientRect().width > 0).length,
+          navTotalLinks: document.querySelectorAll('.sitelinks a').length,
         });
       })()`));
 
@@ -152,8 +167,19 @@ try {
       if (s.overflow) bad('出现横向溢出，页面会被拖动');
       else ok('无横向溢出');
 
-      if (s.navVisible >= 5) ok('导航可见 ' + s.navVisible + ' 格');
-      else bad('导航只剩 ' + s.navVisible + ' 格');
+      /* 窄屏导航：汉堡按钮要够大、可点；展开后要能看到全部链接。
+         只量"可见链接数"是错的 —— 窄屏下导航收在汉堡里（见上面的注释）。 */
+      if (s.navBurger && s.navBurger.vis) {
+        if (s.navBurger.w >= 40 && s.navBurger.h >= 40) {
+          ok('汉堡导航按钮 ' + s.navBurger.w + '×' + s.navBurger.h + '（够大能点）');
+        } else {
+          bad('汉堡按钮只有 ' + s.navBurger.w + '×' + s.navBurger.h + '，小于 40px');
+        }
+      } else {
+        bad('窄屏下找不到汉堡导航按钮');
+      }
+      if (s.navTotalLinks >= 5) ok('导航共 ' + s.navTotalLinks + ' 项（收起状态可见 ' + s.navClosedLinks + ' 项，正常）');
+      else bad('导航只有 ' + s.navTotalLinks + ' 项');
 
       if (s.fontSize && s.fontSize < 13) bad('正文字号 ' + s.fontSize + 'px，手机上偏小');
       else if (s.fontSize) ok('正文字号 ' + s.fontSize + 'px');
@@ -177,15 +203,36 @@ try {
 
       // 触屏滚动：模拟一次滑动，看页面是否真的滚了
       const scrolled = await evalJs(`(async () => {
+        /* **用 behavior:'instant'，不要用默认的 scrollTo。**
+           站里开了 html 的 scroll-behavior: smooth（styles.css:45），
+           所以 scrollTo 是**动画**，等 500ms 量到的 before 还在半路上，
+           会出现 "952 → 844" 这种"被拉回去了"的假失败（踩过）。
+           instant 才是一次到位。 */
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        await new Promise(r => setTimeout(r, 400));
         const before = window.scrollY;
         const hero = document.getElementById('hero') || document.querySelector('.chapter-hero');
-        window.scrollTo(0, (hero ? hero.offsetHeight : 600));
-        await new Promise(r => setTimeout(r, 900));
-        return JSON.stringify({ before, after: window.scrollY });
+        const target = Math.min(
+          (hero ? hero.offsetHeight : 600),
+          document.body.scrollHeight - window.innerHeight - 1);
+        window.scrollTo({ top: Math.max(1, target), behavior: 'instant' });
+        await new Promise(r => setTimeout(r, 700));
+        return JSON.stringify({
+          before, after: window.scrollY, target: Math.round(target),
+          pageH: document.body.scrollHeight,
+          viewH: window.innerHeight,
+          heroH: hero ? hero.offsetHeight : null,
+          maxScroll: document.body.scrollHeight - window.innerHeight,
+        });
       })()`);
       const sc = JSON.parse(scrolled);
-      if (sc.after > sc.before) ok('可滚动 ' + sc.before + ' → ' + sc.after);
-      else bad('滚动无效：' + scrolled);
+      if (sc.after > sc.before) {
+        ok('可滚动 ' + sc.before + ' → ' + sc.after + '（页面高 ' + sc.pageH + '）');
+      } else {
+        bad('滚动无效（' + page + '）：' + sc.before + ' → ' + sc.after +
+          '，目标 ' + sc.target + '，页面高 ' + sc.pageH + '，可滚上限 ' + sc.maxScroll +
+          (sc.maxScroll <= 1 ? ' ★ 页面根本不够高，滚不动' : ' ★ 被什么拉回去了'));
+      }
     }
   }
 

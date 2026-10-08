@@ -320,6 +320,17 @@ function __M1__() {
         不然"点完最后一下要立刻听到声音"会变成半秒空白。
      2) 一定要**自己 new 一个 AudioContext**，不能借用手鼓那个。
         两个独立的 context 在浏览器里会互相干扰（一个在跑，另一个不响）。
+
+   ---------------------------------------------------------------------------
+   **file:// 下走另一条路**（见文件末尾的 createThemeViaElement）
+   ---------------------------------------------------------------------------
+   双击 index.html 打开时，站点是 file:// 源，而：
+     · fetch()   → 被 CORS 挡掉（Failed to fetch）
+     · XHR       → 同
+     · <audio>   → **能加载**（实测时长 29.92s 正常读出）
+     · <audio> 接 createMediaElementSource → 被当作跨源，输出被静音（实测 rms=0）
+   所以本地打开时用 <audio> 元素自己播 —— 放弃精确淡入，换回**有声音**。
+   这条路上音量靠 element.volume，淡入用定时器推。
    ========================================================================== */
 
 /** 一个简易主题曲播放器
@@ -330,6 +341,11 @@ function __M1__() {
  *         两个独立的 context 会互相干扰（一个在跑、另一个不响），
  *         这是排查了很久才定位到的静音原因。 */
 function createTheme(url, opts = {}) {
+  /* file:// 源下 fetch 拿不到本地文件，Web Audio 那条路整个不通。
+     换 <audio> 元素实现 —— 接口一模一样，调用方不用改。 */
+  if (typeof location !== 'undefined' && location.protocol === 'file:') {
+    return createThemeViaElement(url, opts);
+  }
   let ctx = opts.ctx || null;
   let buffer = null;
   let curUrl = url;
@@ -557,6 +573,163 @@ function createTheme(url, opts = {}) {
 }
 
 /* ==========================================================================
+   弦脉 · file:// 下的主题曲播放（<audio> 元素版）
+   --------------------------------------------------------------------------
+   为什么单独写一个：
+     双击 index.html 打开时站点是 file:// 源。实测四条路只有一条通：
+       fetch()  → Failed to fetch（CORS）
+       XHR      → onerror
+       <audio>  → **通**，时长正常读出
+       <audio> + createMediaElementSource → 元素能播，但**输出被静音**
+                 （file:// 下元素算跨源，rms 实测 0）
+     所以本地打开时用 <audio> 自己播，**不接 Web Audio**。
+
+   取舍（明说）：
+     · 放弃：精确的交叉淡入、和手鼓共用一条总线、无缝循环（元素 loop 有极短间隙）
+     · 换回：**有声音**
+   对一个"离线运行"的作品来说，"双击能听见"比"淡入更精确"重要得多。
+
+   接口与原版**完全一致** —— 调用方一行都不用改。
+   ========================================================================== */
+function createThemeViaElement(url, opts = {}) {
+  let curUrl = url;
+  let audio = null;
+  let want = false;
+  let volume = 0.55;
+  let fadeTimer = 0;
+  let pendingUrl = null;
+
+  const cap = (v) => Math.max(0, Math.min(1, v));
+
+  /** 取（或建）承载音频的元素。opts.ctx 在这一版里用不上，忽略。 */
+  const ensure = () => {
+    if (audio) return audio;
+    audio = new Audio();
+    audio.preload = 'auto';
+    audio.loop = true;
+    audio.volume = 0;
+    audio.addEventListener('error', () => {
+      if (window.console) {
+        console.warn('[弦脉] file:// 下音频加载失败 ' + curUrl +
+          '（本地打开时元素加载一般可用；若仍失败，用 node tools/serve.mjs 起本地服务器）');
+      }
+    });
+    audio.addEventListener('ended', () => { if (want && audio) audio.play().catch(() => {}); });
+    return audio;
+  };
+
+  /** 用定时器做音量渐变 —— element.volume 没有 setTargetAtTime。 */
+  const fadeTo = (target, sec) => {
+    if (!audio) return;
+    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = 0; }
+    const from = audio.volume;
+    const dur = Math.max(0.05, sec || 0) * 1000;
+    const t0 = Date.now();
+    if (dur <= 60) { audio.volume = cap(target); return; }
+    fadeTimer = setInterval(() => {
+      if (!audio) { clearInterval(fadeTimer); fadeTimer = 0; return; }
+      const p = Math.min(1, (Date.now() - t0) / dur);
+      audio.volume = cap(from + (target - from) * p);
+      if (p >= 1) { clearInterval(fadeTimer); fadeTimer = 0; }
+    }, 40);
+  };
+
+  const start = (fadeSec) => {
+    want = true;
+    const a = ensure();
+    /* 什么时候要显式 load()：
+         · 还没有源（第一次起播）
+         · 有源但 readyState 还是 0 —— 说明元素压根没去取数据
+       第二种是真踩过的坑：preload() 会先把 src 设上但不触发加载，
+       然后 start() 看到"已经有源"就跳过 load，元素永远停在 readyState 0，
+       表现就是"点了没声、时长读成 0"（第五章）。 */
+    if (!a.getAttribute('src') || a.readyState === 0) {
+      a.src = curUrl;
+      a.load();
+    }
+    const fade = fadeSec === undefined ? 2.2 : fadeSec;
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {});     // 没手势时会被拒，交给调用方再试
+    fadeTo(volume, fade);
+    return true;
+  };
+
+  const stop = (fadeSec) => {
+    want = false;
+    if (!audio) return;
+    fadeTo(0.0001, fadeSec === undefined ? 1.0 : fadeSec);
+    const a = audio;
+    setTimeout(() => { if (!want && a) { try { a.pause(); } catch { /* 已停 */ } } },
+      Math.max(80, (fadeSec === undefined ? 1.0 : fadeSec) * 1000 + 60));
+  };
+
+  const setVolume = (v) => {
+    volume = cap(v);
+    if (audio && !audio.paused) fadeTo(volume, 0.4);
+    return volume;
+  };
+
+  /** 换曲：元素直接换 src。先淡出再换，避免"咔"的一声。 */
+  const crossfadeTo = (next, fadeSec) => {
+    if (!next || next === curUrl) return Promise.resolve(false);
+    const fade = fadeSec === undefined ? 1.2 : fadeSec;
+    pendingUrl = next;
+    fadeTo(0.0001, fade);
+    return new Promise((res) => {
+      setTimeout(() => {
+        curUrl = next;
+        pendingUrl = null;
+        const a = ensure();
+        a.src = curUrl;
+        a.load();
+        if (want) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+        fadeTo(want ? volume : 0.0001, fade);
+        res(true);
+      }, Math.max(80, fade * 1000 + 60));
+    });
+  };
+
+  return {
+    start, stop, setVolume, crossfadeTo,
+    /* 这一版没有 AudioContext —— 报 'element'，别假装有。
+       自检看到它就知道走的是本地那条路。 */
+    state: () => ({
+      ready: !!(audio && audio.readyState >= 1),
+      playing: !!(audio && !audio.paused && want),
+      waiting: false,
+      url: curUrl,
+      cached: 0,
+      ctxState: 'element',
+      gain: audio ? +audio.volume.toFixed(4) : -1,
+      volume,
+      duration: audio && isFinite(audio.duration) ? +audio.duration.toFixed(2) : 0,
+      /* 这几个是给自检用的：证明播放头真的在走，而不是"我觉得应该响了"。
+         （元素不挂在 DOM 上，所以查不到，只能从这里读。） */
+      readyState: audio ? audio.readyState : -1,
+      networkState: audio ? audio.networkState : -1,
+      actualSrc: audio && audio.src ? audio.src.split(String.fromCharCode(47)).slice(-4).join(String.fromCharCode(47)) : null,
+      errCode: audio && audio.error ? audio.error.code : null,
+      currentTime: audio && isFinite(audio.currentTime) ? +audio.currentTime.toFixed(2) : 0,
+      viaElement: true,
+    }),
+    useContext: () => {},                    // 这一版用不到，留着不报错
+    wake: (fadeSec) => { if (want) start(fadeSec); },
+    loadUrl: (u) => { curUrl = u || curUrl; const a = ensure(); a.src = curUrl; return Promise.resolve(null); },
+    resume: () => Promise.resolve(),
+    /* 预加载：建元素、设源，但**不主动 load**。
+       真正的加载交给 start() —— 那里会判断 readyState 再决定要不要 load。
+       这里若也 load，会和 start 抢，出现"刚加载又从头来"。 */
+    preload: () => { ensure(); return Promise.resolve(null); },
+    get playing() { return !!(audio && !audio.paused && want); },
+    get waiting() { return false; },
+    get ready() { return !!(audio && audio.readyState >= 1); },
+    get url() { return curUrl; },
+    get duration() { return audio && isFinite(audio.duration) ? audio.duration : 0; },
+    get pending() { return pendingUrl; },
+  };
+}
+
+/* ==========================================================================
    自动播放：挂在第一次用户交互上
    --------------------------------------------------------------------------
    浏览器不允许"无交互自动播放"。所以做法是：**监听第一次手势**
@@ -625,6 +798,13 @@ function autoPlayOnGesture(opts) {
   const evs = ['pointerdown', 'touchstart', 'keydown', 'wheel', 'scroll'];
   const detach = () => evs.forEach((e) => window.removeEventListener(e, on));
   evs.forEach((e) => window.addEventListener(e, on, { passive: true }));
+  /* 自检用把手：外部能就此确认"手势监听到底绑上没有"。
+     排查第五章"第一次手势不响"时加上的，留着有用 —— 很小，且只在 window 上挂一个对象。 */
+  window.__XM_APG__ = {
+    attached: evs.slice(), detached: false,
+    get armed() { return armed; },
+    theme: !!theme, seq: !!seq,
+  };
 
   /* 自动开之后，声音按钮**必须由这一页的音乐接管**。
      之前只写了"关掉就不再自动开"，按钮仍挂在别处（比如手鼓）——

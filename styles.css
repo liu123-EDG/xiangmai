@@ -745,8 +745,10 @@ body[data-stage="0"] .figure__num { color: var(--bone-faint); }
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  width: 42px; height: 34px;
-  padding: 0 9px;
+  /* 44×44 是触控命中区的通行下限（Apple HIG 44pt、Material 48dp）。
+     原来 42×34 —— 高度差 6px，手机上不好按（被 mobile-test 抓出来）。 */
+  width: 44px; height: 44px;
+  padding: 0 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(222, 214, 200, 0.16);
   border-radius: 2px;
