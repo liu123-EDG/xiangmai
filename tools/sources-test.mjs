@@ -175,13 +175,17 @@ try {
   } else {
     ok('作品信息块在：' + cp.title);
     console.log('       ' + cp.lines.join(' ｜ '));
-    if (cp.lines.length === 3) ok('三行元信息（赛事 / 团队 / 运行方式）');
-    else bad('元信息行数 = ' + cp.lines.length);
+    if (cp.lines.length === 2) ok('两行元信息（赛事与赛道 / 运行方式）');
+    else bad('元信息行数 = ' + cp.lines.length + '，应为 2');
     if (cp.lines.some((l) => /离线运行/.test(l)) && cp.lines.some((l) => /JavaScript/.test(l))) {
       ok('写明离线运行与技术栈');
     } else bad('没写运行方式 / 技术栈');
-    if (cp.lines.some((l) => /待填/.test(l))) ok('待填字段留了占位（赛事、团队那几项）');
-    else bad('待填字段没有占位 —— 作者会漏填');
+    /* 赛事与赛道已由作者提供；团队与指导老师**明确不写**（作者要求）。
+       所以这里只查赛事名在不在，不再要求「待填」占位。 */
+    if (cp.lines.some((l) => /全国大学生数字编辑创新大赛/.test(l))) ok('赛事与赛道已填上');
+    else bad('赛事名称缺失');
+    if (!cp.lines.some((l) => /待填|指导老师/.test(l))) ok('没有残留的占位文字');
+    else bad('还留着占位文字：' + cp.lines.filter((l) => /待填|指导老师/.test(l)).join(' / '));
     if (cp.stars === 0) ok('作品信息块里没有字面 markdown 星号');
     else bad('作品信息块里有 ' + cp.stars + ' 处字面星号');
   }
