@@ -1,0 +1,253 @@
+/* ==========================================================================
+   弦脉 · 八族分页
+   --------------------------------------------------------------------------
+   「八个风格」怎么落的：**一套骨架，八种气质。**
+   每族的色相由 body[data-ethnic] 对应的 --eh 驱动（heritage-page.js 写的），
+   标题下划线、字段标签、正文里的小标记、来源线与返回键全部跟着走。
+
+   为什么不全套换皮（每族一套完全不同的排版）：
+     八套排版就是八份要维护的代码，而且读者会迷路 ——
+     这一节是"横向比较八个民族"，骨架一致才比得出来。
+     气质靠色相与细节差开，不靠换结构。
+
+   色相来自 heritage-data.js 的 hue，和附录旋律图上那个音符同源 ——
+   所以从旋律图点进来，颜色是接得上的。
+   ========================================================================== */
+
+.heritage-page {
+  --eh-accent: hsl(var(--eh, 36) 46% 58%);
+  --eh-soft:   hsl(var(--eh, 36) 40% 62% / 0.30);
+  --eh-faint:  hsl(var(--eh, 36) 36% 60% / 0.12);
+  --eh-bright: hsl(var(--eh, 36) 54% 70%);
+}
+
+.ethnic {
+  width: min(58rem, 92vw);
+  margin: 0 auto;
+  padding: clamp(5rem, 14vh, 8rem) 0 clamp(3rem, 8vh, 5rem);
+}
+
+/* ---------------------------------------------------------------- 开头 */
+
+.h-hero { margin-bottom: clamp(2.4rem, 6vh, 3.6rem); }
+
+.h-kicker {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.24em;
+  color: var(--eh-accent);
+}
+/* 标题下那道线跟着族色走 —— 整页最显眼的"这一族是谁"的信号 */
+.h-kicker::after {
+  content: '';
+  display: block;
+  width: 2.4rem; height: 1px;
+  margin-top: 0.7rem;
+  background: var(--eh-accent);
+  opacity: 0.7;
+}
+
+.h-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  color: #f6ecd8;
+}
+
+.h-ug {
+  margin: 0 0 1.4rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.72rem, 1.2vw, 0.84rem);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--eh-soft);
+}
+
+.h-lead {
+  margin: 0 0 1.3rem;
+  max-width: 40em;
+  font-family: var(--font-sans);
+  font-size: clamp(0.95rem, 1.5vw, 1.08rem);
+  line-height: 2.15;
+  color: rgba(222, 214, 200, 0.82);
+}
+.h-q { font-style: normal; color: var(--eh-bright); }
+
+/* 收录状态：一枚小标签，一眼看出这一页有多少料 */
+.h-badge {
+  display: inline-block;
+  margin: 0;
+  padding: 0.32rem 0.85rem;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+.h-badge--on {
+  border: 1px solid var(--eh-soft);
+  color: var(--eh-accent);
+}
+.h-badge--off {
+  border: 1px dashed rgba(196, 198, 206, 0.4);
+  color: rgba(198, 200, 208, 0.75);
+}
+
+/* ------------------------------------------------------- 未收录的说明 */
+
+.h-notice {
+  margin: 0 0 clamp(2.2rem, 5vh, 3rem);
+  padding: clamp(1.1rem, 2.6vw, 1.6rem);
+  border: 1px dashed rgba(196, 198, 206, 0.32);
+  border-radius: 3px;
+  background: rgba(20, 20, 22, 0.5);
+}
+.h-notice__t {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  letter-spacing: 0.06em;
+  color: #e8e2d6;
+}
+.h-notice__b {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 2.05;
+  color: rgba(222, 214, 200, 0.68);
+}
+.h-notice__b:last-child { margin-bottom: 0; }
+.h-notice__b b { color: #f2e4c4; font-weight: 500; }
+.h-notice a { color: var(--eh-accent); }
+
+/* ---------------------------------------------------------------- 字段 */
+
+.h-block { margin: 0 0 clamp(2.2rem, 5vh, 3rem); }
+
+.h-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 1px;
+  background: rgba(222, 214, 200, 0.10);
+  border: 1px solid rgba(222, 214, 200, 0.10);
+}
+.h-field {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: clamp(0.8rem, 1.8vw, 1.1rem);
+  background: rgba(12, 11, 10, 0.72);
+}
+.h-field__k {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--eh-accent);
+  opacity: 0.85;
+}
+.h-field__v {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.85;
+  color: rgba(222, 214, 200, 0.85);
+}
+
+/* ---------------------------------------------------------------- 正文 */
+
+.h-h2 {
+  margin: 0 0 1.1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--eh-faint);
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: #f6ecd8;
+}
+/* 标题左边一个小色块 —— 不占地方，但让每一节都带上族色 */
+.h-h2::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 0.9em;
+  margin-right: 0.7rem;
+  vertical-align: -0.08em;
+  background: var(--eh-accent);
+}
+.h-block--body .h-h2 { border-bottom-color: var(--eh-soft); }
+
+.h-p {
+  margin: 0 0 1.2rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.88rem, 1.35vw, 0.97rem);
+  line-height: 2.2;
+  color: rgba(222, 214, 200, 0.74);
+}
+
+.h-src {
+  margin: 0 0 0.8rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--eh-soft);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 2;
+  color: rgba(222, 214, 200, 0.72);
+}
+.h-fine {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.42);
+}
+
+.h-sub {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: rgba(222, 214, 200, 0.55);
+}
+.h-related {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  margin: 0 0 0.9rem; padding: 0; list-style: none;
+}
+.h-related li {
+  padding: 0.28rem 0.75rem;
+  border: 1px solid rgba(222, 214, 200, 0.16);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  color: rgba(222, 214, 200, 0.6);
+}
+
+/* ---------------------------------------------------------------- 返回 */
+
+.h-back {
+  margin-top: clamp(2rem, 5vh, 3rem);
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--eh-faint);
+}
+.h-back a {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  color: var(--eh-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color .4s var(--ease-slow), color .4s var(--ease-slow);
+}
+.h-back a:hover, .h-back a:focus-visible {
+  color: var(--eh-bright);
+  border-bottom-color: currentColor;
+  outline: none;
+}
+
+/* ------------------------------------------------------------ 窄屏 */
+
+@media (max-width: 640px) {
+  .ethnic { padding-top: clamp(4rem, 11vh, 6rem); }
+  .h-grid { grid-template-columns: 1fr; }
+}

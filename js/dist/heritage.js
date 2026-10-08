@@ -5,13 +5,10 @@
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
-     js/lib/muqam-data.js  → MUQAM, ringPos, ORIGIN, AMANNISA, STRUCTURE, NUMBERS, RESCUE, TODAY, PRACTICE, HEADLINE_STATS
-     js/lib/wheel.js  → buildWheel, bindWheelScroll
-     js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage
-     js/lib/melody.js  → buildMelody, bindMelodyScroll
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
-     js/lib/sources.js  → buildSources
-     js/pages/fulu.js
+     js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage
+     js/lib/heritage-page.js  → buildHeritagePage
+     js/pages/heritage.js
 */
 (function () {
 "use strict";
@@ -27,9 +24,6 @@ __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
 __XM[8] = {};
-__XM[9] = {};
-__XM[10] = {};
-__XM[11] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -2252,898 +2246,8 @@ __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
-/* ── js/lib/muqam-data.js ── */
-function __M5__() {
-/* ==========================================================================
-   弦脉 · 十二木卡姆
-   --------------------------------------------------------------------------
-   十二套木卡姆，每套都是一个完整的套曲循环。这里的字段按"能不能被验证"
-   分层：
-
-     name / ug   名称与维吾尔语拉丁转写 —— 公开资料
-     region      流传地域 —— 公开资料
-     char        音乐性格，用于视觉与交互上区分彼此
-     note        一句话说明，保守叙述，不编造具体史实
-
-   需要补充更详细内容（曲目、传承人、音频）时，往对应条目里加字段即可，
-   页面会自动带上。**不确定的内容不要写进来** —— 这个项目里宁缺勿造。
-   ========================================================================== */
-
-const MUQAM = [
-  { id: 'rak',     name: '拉克',     ug: 'Rak',        region: '喀什 · 莎车',   char: '庄重', hue: 12,  note: '十二套之首，气质最庄重，常被视作整套木卡姆的门面。' },
-  { id: 'chebiyat', name: '且比亚特', ug: 'Chebiyat',  region: '喀什 · 莎车',   char: '明朗', hue: 28,  note: '情绪明朗开阔，穹乃额曼部分旋律线条舒展。' },
-  { id: 'muxawrak', name: '木夏吾莱克', ug: 'Muxawrak', region: '喀什 · 和田',  char: '热烈', hue: 42,  note: '节奏推进感强，达斯坦段落叙事性突出。' },
-  { id: 'chahargah', name: '恰尔尕',   ug: 'Chahargah', region: '喀什 · 莎车',  char: '苍劲', hue: 8,   note: '音域跨度大，散板序唱部分尤为苍劲。' },
-  { id: 'panjigah', name: '潘吉尕',    ug: 'Panjigah',  region: '喀什 · 莎车',  char: '深邃', hue: 200, note: '调式色彩偏暗，听感深邃，考验演唱者的气息控制。' },
-  { id: 'uzhal',   name: '乌孜哈勒',   ug: 'Uzhal',     region: '喀什 · 莎车',  char: '婉转', hue: 168, note: '旋律婉转，腔弯细腻，是口传细节最吃功夫的一套。' },
-  { id: 'aqam',    name: '艾介姆',     ug: 'Ajam',      region: '喀什 · 莎车',  char: '舒展', hue: 36,  note: '气息舒展，麦西热甫段落歌舞性强烈。' },
-  { id: 'osechak', name: '乌夏克',     ug: 'Oshaq',     region: '喀什 · 莎车',  char: '明亮', hue: 48,  note: '明亮上扬，常被选作舞台演出的段落。' },
-  { id: 'bayat',   name: '巴雅特',     ug: 'Bayat',     region: '喀什 · 莎车',  char: '沉郁', hue: 218, note: '沉郁内敛，古典诗歌唱词占比高。' },
-  { id: 'nawa',    name: '纳瓦',       ug: 'Nawa',      region: '喀什 · 莎车',  char: '柔美', hue: 152, note: '柔美流畅，器乐间奏部分常被单独演奏。' },
-  { id: 'sigar',   name: '斯尕',       ug: 'Sigar',     region: '喀什 · 莎车',  char: '紧凑', hue: 20,  note: '结构紧凑，节拍转换频繁。' },
-  { id: 'iraq',    name: '伊拉克',     ug: 'Iraq',      region: '喀什 · 莎车',  char: '高亢', hue: 320, note: '高亢激越，常作为整套木卡姆的收束。' },
-];
-
-/** 环上第 i 个节点的位置（从正上方起顺时针） */
-function ringPos(i, cx, cy, r) {
-  const a = (i / MUQAM.length) * Math.PI * 2 - Math.PI / 2;
-  return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
-}
-
-/* ==========================================================================
-   第二章「穹乃额曼」的内容
-   --------------------------------------------------------------------------
-   全部来自项目方提供的历史与当代资料。呈现在页面上时保持原意，
-   只做断句与排版上的压缩。
-   ========================================================================== */
-
-const ORIGIN = [
-  {
-    era: '汉唐',
-    title: '西域大曲',
-    lines: [
-      '源头可追溯至汉唐时期流传于西域的《龟兹乐》《疏勒乐》《高昌乐》。',
-      '有观点认为，张骞通西域时带回中原的「摩诃兜勒」是木卡姆的原始形态——其曲式已包含歌曲、解曲、舞曲，与木卡姆的套曲结构一脉相承。',
-    ],
-    tag: '龟兹乐被视为木卡姆形成发展的第一个中心地',
-  },
-  {
-    era: '10世纪',
-    title: '博亚万',
-    lines: [
-      '木卡姆的雏形萌发于维吾尔族先民的「博亚万」——旷野之歌。',
-      '此后经过几个世纪的演变，逐渐从民间散曲走向成套。',
-    ],
-    tag: '旷野之歌',
-  },
-  {
-    era: '16世纪',
-    title: '叶尔羌汗国',
-    lines: [
-      '木卡姆迎来决定性转折。宫廷乐师将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成规范化的古典套曲体系。',
-      '最初整理为 16 部，后精简为 12 套——「十二木卡姆」由此得名。',
-    ],
-    tag: '从 16 部到 12 套',
-    emphasis: true,
-  },
-];
-
-const AMANNISA = {
-  name: '阿曼尼莎汗',
-  role: '叶尔羌河畔樵夫的女儿',
-  lines: [
-    '她本是叶尔羌河畔樵夫的女儿，因超凡的音乐与诗歌才华被国王拉失德娶入宫廷。',
-    '在她的倡导下，宫廷乐师喀迪尔汗（柯迪尔）将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成了规范化的古典套曲体系。',
-    '最初整理为 16 部，后精简为 12 套。',
-  ],
-  kicker: '这次转折与一位传奇女性密不可分',
-};
-
-const STRUCTURE = [
-  {
-    idx: '一',
-    name: '穹乃额曼',
-    sub: '大曲',
-    body: '是开篇，由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
-    role: '开篇',
-    mood: '舒缓 → 明朗',
-  },
-  {
-    idx: '二',
-    name: '达斯坦',
-    sub: '叙事诗',
-    body: '承接大曲，带有鲜明的叙事特征。歌词与民间故事、爱情传说、人生感怀相联系，演唱段落之间穿插器乐曲。',
-    role: '承接',
-    mood: '叙事 · 铺陈',
-  },
-  {
-    idx: '三',
-    name: '麦西热甫',
-    sub: '歌舞曲',
-    body: '是终章，节奏鲜明，气氛逐步高涨，展现群体欢聚时的生命活力。',
-    role: '终章',
-    mood: '高涨 · 欢腾',
-  },
-];
-
-const NUMBERS = [
-  { v: '170', unit: '多首', label: '歌曲' },
-  { v: '70',  unit: '多首', label: '器乐曲' },
-  { v: '20',  unit: '多小时', label: '完整演唱一遍' },
-];
-
-const RESCUE = {
-  kicker: '从濒危到重生',
-  intro: '到 20 世纪 40 年代，能完整演唱十二木卡姆的艺人已屈指可数。当时全新疆只有老艺人吐尔迪·阿洪一人能凭记忆完整演唱全套，且年事已高。他不识字，所有曲目全靠口传心授。',
-  /** 两个人的对照：语言不通、背景迥异，合作充满波折 */
-  friction: [
-    {
-      a: '万桐书记谱需要「听一句记一句」',
-      b: '吐尔迪·阿洪唱歌习惯一气呵成',
-    },
-    {
-      a: '万桐书用钢丝录音机录音',
-      b: '吐尔迪·阿洪不相信「铁疙瘩能把歌声装进去」',
-    },
-    {
-      a: '万桐书追求记谱的准确性',
-      b: '吐尔迪·阿洪每次都即兴发挥，唱得不完全一样',
-    },
-  ],
-  outcome: '经过近六年的艰辛工作，1960 年，记录了 340 余首古典叙诵歌曲、民间叙事组歌、舞曲、即兴乐曲的《十二木卡姆》正式出版。',
-  verdict: '这次抢救，让十二木卡姆从消亡边缘被拉了回来。',
-  years: '近六年 · 1950—1960',
-};
-
-const TODAY = {
-  kicker: '当代传承形态',
-  lead: '今天的十二木卡姆传承呈现出清晰的「双轨」特征。',
-  tracks: [
-    {
-      tag: '轨道一',
-      name: '扎根乡土的活态传承',
-      lines: [
-        '在莎车县木卡姆文化传承中心，像玉苏普·托合提这样的非遗代表性传承人有近 50 人，年龄最大的 70 多岁，最小的仅 20 岁。',
-        '当地通过每月发放生活补贴、每日举办文艺演出等举措，让传承人能够以此为业。',
-      ],
-      stats: [
-        { v: '近50', label: '代表性传承人' },
-        { v: '70→20', label: '年龄跨度（岁）' },
-      ],
-    },
-    {
-      tag: '轨道二',
-      name: '进入教育体系的专业化培养',
-      lines: [
-        '新疆艺术学院自 1996 年起设立木卡姆专业学历教育，已培养出 250 余名专业人才分赴各院团工作，部分已成为一级演员。',
-        '各地每年举办传承人培训班，二十年来累计培训超过 2000 人次。',
-      ],
-      stats: [
-        { v: '1996', label: '设立专业学历教育' },
-        { v: '250+', label: '专业人才' },
-        { v: '2000+', label: '累计培训人次' },
-      ],
-    },
-  ],
-};
-
-const PRACTICE = {
-  kicker: '当代运用实例',
-  lead: '十二木卡姆不再仅仅是被「保护」的对象，它正在被主动地「使用」——作为舞台艺术的核心内容、作为流行音乐的创作素材、作为连接不同代际观众的情感媒介。',
-  cases: [
-    {
-      org: '艾热',
-      title: '把木卡姆「说」进说唱',
-      body: '新疆喀什说唱歌手艾热在创作中持续融入木卡姆元素。他选用维吾尔族代表性弦乐器艾捷克作为说唱编曲底色，用较为激昂高亢的演唱方式诠释十二木卡姆艺术，与说唱音乐无缝嫁接。《千里万里》被网友评价为「可以上春晚的水准」，并被世界杯官方账号选用作为推广视频 BGM。',
-      tags: ['说唱', '艾捷克', '跨语种传播'],
-    },
-    {
-      org: '刀郎',
-      title: '用流行乐「翻译」木卡姆的结构',
-      body: '刀郎为电影《万桐书》创作的主题曲《命运的赛勒克》提供了反向思路：以木卡姆音乐特征为基础，在流行律动中加入复合节拍，融合热瓦普、弹布尔等传统乐器，通过实录民族乐器保留木卡姆的「四分中立音」律制听感，并运用木卡姆式吟唱与 rap 呼应。这首歌的创作目的是向万桐书等抢救木卡姆的学者致敬。',
-      tags: ['电影主题曲', '复合节拍', '四分中立音'],
-    },
-    {
-      org: '2024 央视春晚',
-      title: '大型舞台呈现',
-      body: '喀什分会场的歌舞乐综合表演《我的爱献给祖国母亲》，选用十二木卡姆中《且比亚特木卡姆》乐曲重新填词编曲，动用 500 多人团队（300 多位舞蹈演员、90 多位乐手、80 多位演唱者）在喀什古城完成户外大型实景表演。乐手中既有白发苍苍的民间传承人，也有稚气纯真的小学生。',
-      tags: ['实景演出', '500+ 人', '代际同台'],
-      stats: [
-        { v: '300+', label: '舞蹈演员' },
-        { v: '90+', label: '乐手' },
-        { v: '80+', label: '演唱者' },
-      ],
-    },
-    {
-      org: '创新剧目',
-      title: '持续涌现',
-      body: '原创芭蕾舞剧《寻找木卡姆》以芭蕾语汇重新诠释木卡姆；融合 AI 数字人等技术的歌剧《木卡姆恋歌——万桐书》以现代审美演绎传承故事。木卡姆传统乐器还与古琴、箜篌进行跨界合奏，碰撞出跨越民族的艺术火花。',
-      tags: ['芭蕾', 'AI 数字人', '跨界合奏'],
-    },
-  ],
-  closing: '从「抢救」到「活用」的转变，是它传承至今最具生命力的形态。',
-};
-
-/** 页面顶部的关键数字，用于开场 */
-const HEADLINE_STATS = [
-  { v: '16', unit: '世纪', label: '叶尔羌汗国完成经典化' },
-  { v: '12', unit: '套', label: '每套三大部分' },
-  { v: '20', unit: '小时', label: '完整演唱一遍' },
-];
-
-__ns = __XM[5];
-__ns.mount_MUQAM = function () { return MUQAM; };
-__ns.mount_ringPos = function () { return ringPos; };
-__ns.mount_ORIGIN = function () { return ORIGIN; };
-__ns.mount_AMANNISA = function () { return AMANNISA; };
-__ns.mount_STRUCTURE = function () { return STRUCTURE; };
-__ns.mount_NUMBERS = function () { return NUMBERS; };
-__ns.mount_RESCUE = function () { return RESCUE; };
-__ns.mount_TODAY = function () { return TODAY; };
-__ns.mount_PRACTICE = function () { return PRACTICE; };
-__ns.mount_HEADLINE_STATS = function () { return HEADLINE_STATS; };
-}
-
-/* ── js/lib/wheel.js ── */
-function __M6__() {
-var MUQAM = __XM[5]["MUQAM"];
-var ringPos = __XM[5]["ringPos"];
-
-/* ==========================================================================
-   弦脉 · 十二木卡姆轮盘
-   --------------------------------------------------------------------------
-   用十二点几何表示十二套木卡姆，而不是一个音符符号。
-
-   理由不是审美偏好：十二木卡姆本身就是"十二个套曲循环"这件事，
-   用十二等分的环形结构表示，是准确；而音符是外来记谱体系的符号，
-   放在一个口传心授的传统上是文化逻辑错位。
-
-   几何取自维吾尔木雕与花窗里常见的十二角星。十二个节点就是十二个入口。
-
-   可访问性：每个节点是真正的 <a>，能 Tab、能回车、有 aria-label。
-   ========================================================================== */
-
-
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-const VB = 720;            // viewBox 边长
-const CX = 360, CY = 360;
-const R_NODE = 232;        // 节点半径
-const R_RING = 196;        // 装饰环
-
-const el = (tag, attrs) => {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  return n;
-};
-
-/**
- * 在容器里生成十二木卡姆轮盘。
- * @param {HTMLElement} host
- * @param {object} [opts]
- * @param {string} [opts.hrefBase='../muqam/'] 各分页面的路径前缀
- * @param {(id:string)=>void} [opts.onPick]    点击回调（不传则直接跳转）
- */
-function buildWheel(host, opts = {}) {
-  if (!host) return null;
-  const hrefBase = opts.hrefBase || '../muqam/';
-
-  const svg = el('svg', {
-    class: 'wheel',
-    viewBox: `0 0 ${VB} ${VB}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'list',
-    'aria-label': '十二木卡姆，每一点对应一套，可进入对应页面',
-  });
-
-  /* ---- 底纹：三层同心环 + 十二角星 ---- */
-  const deco = el('g', { class: 'wheel__deco', 'aria-hidden': 'true' });
-
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: R_RING, class: 'wheel__ring' }));
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: R_RING - 13, class: 'wheel__ring wheel__ring--thin' }));
-  deco.appendChild(el('circle', { cx: CX, cy: CY, r: 58, class: 'wheel__ring wheel__ring--thin' }));
-
-  // 十二角星：两组六角，交错叠成
-  for (const rot of [0, 30]) {
-    const pts = [];
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 - Math.PI / 2 + (rot * Math.PI) / 180;
-      pts.push((CX + Math.cos(a) * R_RING).toFixed(1) + ',' + (CY + Math.sin(a) * R_RING).toFixed(1));
-    }
-    deco.appendChild(el('polygon', { points: pts.join(' '), class: 'wheel__star' }));
-  }
-
-  // 十二根辐条
-  for (let i = 0; i < MUQAM.length; i++) {
-    const p1 = ringPos(i, CX, CY, 58);
-    const p2 = ringPos(i, CX, CY, R_RING - 13);
-    deco.appendChild(el('line', {
-      x1: p1.x.toFixed(1), y1: p1.y.toFixed(1),
-      x2: p2.x.toFixed(1), y2: p2.y.toFixed(1),
-      class: 'wheel__spoke',
-    }));
-  }
-
-  const rotating = el('g', { class: 'wheel__rotor' });
-  rotating.appendChild(deco);
-  svg.appendChild(rotating);
-
-  /* ---- 中心：标题 ---- */
-  const core = el('g', { class: 'wheel__core' });
-  const t1 = el('text', { x: CX, y: CY - 6, class: 'wheel__core-num' });
-  t1.textContent = '12';
-  const t2 = el('text', { x: CX, y: CY + 24, class: 'wheel__core-label' });
-  t2.textContent = '套木卡姆';
-  core.appendChild(t1);
-  core.appendChild(t2);
-  svg.appendChild(core);
-
-  /* ---- 十二个节点 ---- */
-  const nodes = el('g', { class: 'wheel__nodes' });
-  const items = [];
-
-  MUQAM.forEach((m, i) => {
-    const p = ringPos(i, CX, CY, R_NODE);
-    const g = el('a', {
-      class: 'wnode',
-      href: hrefBase + m.id + '/index.html',
-      role: 'listitem',
-      'data-id': m.id,
-      'aria-label': '第' + (i + 1) + '套 · ' + m.name + '（' + m.ug + '）· ' + m.region + ' · ' + m.char,
-    });
-
-    // 每个节点用自己的色相，来自它所属的那一段性格
-    g.style.setProperty('--h', String(m.hue));
-
-    g.appendChild(el('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: 22, class: 'wnode__halo' }));
-    g.appendChild(el('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: 6, class: 'wnode__dot' }));
-
-    // 编号：贴在圆心一侧
-    const numA = ringPos(i, CX, CY, R_NODE - 34);
-    const tnum = el('text', {
-      x: numA.x.toFixed(1), y: numA.y.toFixed(1), class: 'wnode__num',
-    });
-    tnum.textContent = String(i + 1).padStart(2, '0');
-    g.appendChild(tnum);
-
-    // 名称：贴在圆外一侧，沿半径向外排
-    const outA = ringPos(i, CX, CY, R_NODE + 34);
-    const tname = el('text', {
-      x: outA.x.toFixed(1), y: outA.y.toFixed(1), class: 'wnode__name',
-      'text-anchor': Math.abs(outA.x - CX) < 30 ? 'middle' : (outA.x > CX ? 'start' : 'end'),
-    });
-    tname.textContent = m.name;
-    g.appendChild(tname);
-
-    const tug = el('text', {
-      x: outA.x.toFixed(1), y: (outA.y + 19).toFixed(1), class: 'wnode__ug',
-      'text-anchor': Math.abs(outA.x - CX) < 30 ? 'middle' : (outA.x > CX ? 'start' : 'end'),
-    });
-    tug.textContent = m.ug;
-    g.appendChild(tug);
-
-    g.addEventListener('click', (e) => {
-      if (!opts.onPick) return;      // 没给回调就让它正常跳转
-      e.preventDefault();
-      opts.onPick(m.id);
-    });
-    // 悬停/聚焦时把信息推给外部（右下角的读数）
-    const report = () => { if (opts.onHover) opts.onHover(m, i); };
-    g.addEventListener('mouseenter', report);
-    g.addEventListener('focus', report);
-
-    nodes.appendChild(g);
-    items.push({ data: m, el: g, x: p.x, y: p.y });
-  });
-
-  svg.appendChild(nodes);
-  host.appendChild(svg);
-
-  return { svg, items, rotating };
-}
-
-/* ==========================================================================
-   配合滚动的入场：轮盘随滚动进度慢慢转、慢慢亮
-   ========================================================================== */
-function bindWheelScroll(section, wheel, reduced) {
-  if (!wheel || reduced) return () => {};
-  let ticking = false;
-  const update = () => {
-    ticking = false;
-    const r = section.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // 0 = 刚进视口，1 = 完全离开上方
-    const p = Math.min(1, Math.max(0, (vh - r.top) / (vh + r.height)));
-
-    // 转动：整段滚动过程中转约 24 度，慢到"几乎察觉不到但在动"
-    wheel.rotating.style.transform = 'rotate(' + (p * 24 - 12).toFixed(2) + 'deg)';
-    wheel.rotating.style.transformOrigin = '50% 50%';
-
-    // 亮度：进入视口中央时最亮
-    const focus = 1 - Math.abs(p - 0.5) * 1.5;
-    wheel.svg.style.setProperty('--wheel-focus', Math.max(0.25, focus).toFixed(3));
-  };
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  update();
-  return () => {
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('resize', onScroll);
-  };
-}
-
-__ns = __XM[6];
-__ns.mount_buildWheel = function () { return buildWheel; };
-__ns.mount_bindWheelScroll = function () { return bindWheelScroll; };
-}
-
-/* ── js/lib/heritage-data.js ── */
-function __M7__() {
-/* ==========================================================================
-   弦脉 · 各民族音乐非遗
-   --------------------------------------------------------------------------
-   旋律图上的八个入口。每一条对应一个分页面：../heritage/<id>/index.html
-
-   字段说明：
-     id      路由名，决定分页面目录
-     name    中文名
-     ug      拉丁 / 罗马转写（便于检索）
-     group   民族
-     kind    形态类型
-     pitch   在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
-     hue     音符配色色相（数字，空格分隔的 hsl 用）
-     note    一句话说明
-
-   2026 扩展：作者提供了七个民族的资料（docs/extracted/ 下是抽出的纯文本），
-   这里把**与该族音乐相关的那一段**整理进来，并逐条标出处。
-
-   **两条纪律**（和「参考来源」那一节一致）：
-     ① 只写资料里有的。措辞尽量贴着原文，不改写、不补充想象。
-     ② 资料里没有的那一族，`collected: false` 明说"尚未收录"，
-        不用相近内容凑数 —— 一个敢说自己缺什么的档案，比什么都敢写的可信。
-   ========================================================================== */
-
-const HERITAGE = [
-  {
-    id: 'zhuang-tianqin', name: '天琴艺术', ug: 'Tianqin',
-    group: '壮族', kind: '器乐 · 弹唱', pitch: 3, hue: 36,
-    collected: true,
-    level: '国家级非物质文化遗产',
-    region: '广西崇左一带（中越边境）',
-    form: '弹、唱、舞一体',
-    instrument: '天琴（壮语称「鼎叮」）',
-    note: '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
-    body: [
-      '流传于崇左边境，弹、唱、舞一体。',
-      '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
-    ],
-    source: '作者提供的《壮族.docx》',
-    /* 同族还有这些，但不属于"天琴艺术"这一条 —— 留着，别混进来 */
-    related: ['壮锦织造技艺', '壮族铜鼓铸造技艺 / 铜鼓习俗', '靖西壮族绣球制作技艺'],
-  },
-  {
-    id: 'mongol-morinhuur', name: '马头琴', ug: 'Morin Khuur',
-    group: '蒙古族', kind: '器乐', pitch: 5, hue: 152,
-    collected: true,
-    level: '国家级非物质文化遗产',
-    region: '蒙古族草原牧区',
-    form: '弓弦乐器',
-    instrument: '马头琴',
-    note: '琴头雕刻精致马头，琴声低沉浑厚、辽阔悠扬，贯穿蒙古族节庆、祭祀、日常生活。',
-    body: [
-      '蒙古族标志性传统弓弦乐器，琴头雕刻精致马头，造型古朴大气。',
-      '琴声低沉浑厚、辽阔悠扬，既能演绎《万马奔腾》的激昂壮阔，也能弹奏《鸿雁》的温柔绵长。',
-      '马头琴贯穿蒙古族节庆、祭祀、日常生活，是草原文化的声音象征。',
-    ],
-    source: '作者提供的《蒙古族文化.docx》',
-    related: ['蒙古呼麦', '那达慕大会'],
-  },
-  {
-    id: 'dong-dage', name: '侗族大歌', ug: 'Kam Grand Choir',
-    group: '侗族', kind: '多声部合唱', pitch: 8, hue: 200,
-    /* 这一族的资料作者还没给。**不编** —— 页面上明说"尚未收录"。 */
-    collected: false,
-    level: '世界非物质文化遗产',
-    region: '',
-    form: '无伴奏、无指挥的多声部合唱',
-    instrument: '',
-    note: '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
-    body: [
-      '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
-    ],
-    source: '作者提供的《少数民族文化.docx》—— 仅一句概述，尚不足以成页',
-    related: [],
-  },
-  {
-    id: 'manchu-xinchengxi', name: '新城戏', ug: 'Xincheng Opera',
-    group: '满族', kind: '戏曲', pitch: 6, hue: 320,
-    collected: true,
-    level: '国家级非物质文化遗产',
-    region: '吉林松原',
-    form: '戏曲剧种',
-    instrument: '八角鼓',
-    note: '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
-    body: [
-      '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
-      '行当齐全，表演融入满族舞蹈，剧目多取材满族历史与民间故事，唱腔独特，是当代满族戏曲代表。',
-    ],
-    source: '作者提供的《满族.docx》',
-    related: ['新宾满族剪纸', '中式服装制作技艺（满族旗袍制作技艺）'],
-  },
-  {
-    id: 'miao-guge', name: '苗族古歌', ug: 'Hxak Lul',
-    group: '苗族', kind: '史诗 · 叙事歌', pitch: 11, hue: 12,
-    collected: true,
-    level: '国家级非物质文化遗产',
-    region: '苗族聚居区',
-    form: '口头史诗',
-    instrument: '',
-    note: '上万行长篇史诗，没有文字，全靠歌师口头传唱，被称作苗族的「无字百科全书」。',
-    body: [
-      '上万行长篇史诗，没有文字，全靠歌师口头传唱。',
-      '内容讲述开天辟地、人类诞生、苗族祖先长途迁徙的故事，被称作苗族的「无字百科全书」，常在祭祀、节庆时演唱。',
-    ],
-    source: '作者提供的《苗族文化.docx》',
-    related: ['苗族银饰锻制技艺', '苗绣（苗族刺绣）'],
-  },
-  {
-    id: 'yi-shan-ge', name: '山歌小调', ug: 'Yi Folk Songs',
-    group: '彝族', kind: '民歌', pitch: 9, hue: 42,
-    collected: true,
-    level: '国家级非物质文化遗产（随彝剧一并列入）',
-    region: '云南楚雄一带',
-    form: '民歌 —— 彝剧的声腔根基之一',
-    instrument: '',
-    note: '彝剧以彝族民间曲调为根基，融合毕摩祭祀音乐与彝族山歌小调，唱腔质朴高亢。',
-    body: [
-      '彝剧诞生于云南楚雄，以彝族民间曲调为根基，融合毕摩祭祀音乐、彝族山歌小调，是彝族独有的少数民族戏曲剧种。',
-      '山歌小调是彝剧声腔的根基之一 —— 它本身活在日常里，被戏曲收拢、固定下来，才成了可传承的形态。',
-      '彝剧角色行当完备，表演融入左脚舞等彝族传统舞蹈，剧目取材彝族神话传说、民间故事，唱腔质朴高亢。',
-    ],
-    source: '作者提供的《彝族文化.docx》',
-    related: ['彝族剪纸', '彝族服饰制作技艺'],
-  },
-  {
-    id: 'dai-zhangha', name: '章哈', ug: 'Zhangha',
-    group: '傣族', kind: '说唱', pitch: 4, hue: 168,
-    collected: true,
-    level: '国家级非物质文化遗产',
-    region: '云南西双版纳、德宏的傣族村寨',
-    form: '口头说唱',
-    instrument: '傣玎',
-    note: '没有固定书面剧本，依靠章哈歌手口头代代传承，被称为傣族的「口头百科全书」。',
-    body: [
-      '傣族传统口头说唱艺术，没有固定书面剧本，依靠章哈歌手口头代代传承。',
-      '内容包含创世神话、民间爱情故事、历史传说，常在泼水节、赕佛、村寨节庆活动中演唱。',
-      '伴奏使用傣玎乐器，唱腔婉转舒缓，被称为傣族的「口头百科全书」。',
-    ],
-    source: '作者提供的《傣族文化.docx》',
-    related: ['傣族慢轮制陶技艺', '傣族织锦技艺', '傣族孔雀舞'],
-  },
-  {
-    id: 'tibetan-gesar', name: '格萨尔', ug: 'Gesar',
-    group: '藏族', kind: '史诗说唱', pitch: 13, hue: 218,
-    /* 作者这一批资料里没有藏族的。**不编。**
-       但站内另有已核实的来源（见 source），所以这一页不是空的。 */
-    collected: false,
-    level: '国家级非物质文化遗产（代表性传承人 2009 年入选）',
-    region: '西藏那曲等地',
-    form: '史诗说唱',
-    instrument: '',
-    note: '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计，能唱几十部。',
-    body: [
-      '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计。',
-      '西藏那曲的桑珠能唱 60 多部《格萨尔》，2009 年入选国家级非物质文化遗产代表性传承人。',
-    ],
-    source: '这一批资料里没有藏族的。站内另有来源 —— 见附录「参考来源」一节（桑珠 · 西藏那曲）。',
-    related: [],
-  },
-];
-
-/** 分页面路径 */
-function heritageHref(id) {
-  return '../heritage/' + id + '/index.html';
-}
-
-/** 按 id 取一条 */
-function heritageById(id) {
-  return HERITAGE.find((h) => h.id === id) || null;
-}
-
-/** 已经收录了资料的 */
-function collectedHeritage() {
-  return HERITAGE.filter((h) => h.collected);
-}
-
-__ns = __XM[7];
-__ns.mount_HERITAGE = function () { return HERITAGE; };
-__ns.mount_heritageHref = function () { return heritageHref; };
-__ns.mount_heritageById = function () { return heritageById; };
-__ns.mount_collectedHeritage = function () { return collectedHeritage; };
-}
-
-/* ── js/lib/melody.js ── */
-function __M8__() {
-var HERITAGE = __XM[7]["HERITAGE"];
-var heritageHref = __XM[7]["heritageHref"];
-
-/* ==========================================================================
-   弦脉 · 旋律入口图
-   --------------------------------------------------------------------------
-   一串旋律的形状，八个民族的音乐非遗各占一个音。
-
-   画法直接采用乐谱语言：五线谱、音符头、符干、高音谱号。
-   音符的位置就是它的音高 —— 所以这张图既是导航，也是一条真正读得出来的旋律线。
-
-   交互：
-     · 每个音符是一个 <a>，能点、能 Tab、能新标签打开
-     · 悬停/聚焦：音符亮起，下方读数显示那一项的说明
-     · 随滚动：旋律线被"吹奏"出来，一个游标沿曲线前进
-   ========================================================================== */
-
-
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-const VB = { w: 1160, h: 380 };
-
-/* 五线谱几何：线距 15，五条线 */
-const STAFF = { x0: 74, x1: 1110, gap: 15, top: 120 };
-STAFF.bottom = STAFF.top + STAFF.gap * 4;           // 下加一线位置（pitch = 1）
-
-/* 音符横向起点 */
-const NOTE_X0 = 232;
-const NOTE_DX = 118;
-const HEAD_RX = 11.5;
-const HEAD_RY = 8.4;
-
-const el = (tag, attrs) => {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  return n;
-};
-
-/** pitch → y。1 在下加一线，每加 1 上升半格（半个线距） */
-const pitchY = (pitch) => STAFF.bottom - (pitch - 1) * (STAFF.gap / 2);
-
-/**
- * Catmull-Rom → 三次贝塞尔，把节点连成平滑旋律线
- */
-function smoothPath(pts) {
-  if (pts.length < 2) return '';
-  let d = 'M ' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ' C ' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) +
-         ', ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) +
-         ', ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
-  }
-  return d;
-}
-
-/**
- * 生成旋律入口图。
- * @param {HTMLElement} host
- * @param {object} [opts]
- * @param {(m:object,i:number)=>void} [opts.onHover]
- * @param {(id:string)=>void} [opts.onPick]  不传则直接跳转
- */
-function buildMelody(host, opts = {}) {
-  if (!host) return null;
-
-  const svg = el('svg', {
-    class: 'melody',
-    viewBox: `0 0 ${VB.w} ${VB.h}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'list',
-    'aria-label': '旋律入口：八个民族的音乐类非物质文化遗产，每个音符是一个入口',
-  });
-
-  /* ---- defs：旋律线的渐变（从起点到终点，暗示"被吹奏"的方向） ---- */
-  const defs = el('defs');
-  const grad = el('linearGradient', { id: 'melodyGrad', x1: '0', y1: '0', x2: '1', y2: '0' });
-  [['0%', '#c08a3e'], ['38%', '#e0b070'], ['72%', '#8fb0a4'], ['100%', '#6f9c8d']].forEach(([off, col]) => {
-    grad.appendChild(el('stop', { offset: off, 'stop-color': col }));
-  });
-  defs.appendChild(grad);
-  svg.appendChild(defs);
-
-  /* ---- 五线谱 ---- */
-  const staff = el('g', { class: 'melody__staff', 'aria-hidden': 'true' });
-  for (let i = 0; i < 5; i++) {
-    const y = STAFF.top + i * STAFF.gap;
-    staff.appendChild(el('line', {
-      x1: STAFF.x0, y1: y, x2: STAFF.x1, y2: y, class: 'melody__line',
-    }));
-  }
-  svg.appendChild(staff);
-
-  /* ---- 高音谱号：手绘路径，避免依赖字体 ---- */
-  const clef = el('path', {
-    class: 'melody__clef',
-    'aria-hidden': 'true',
-    d: 'M 108 176 C 96 168 90 156 94 146 C 98 136 110 132 118 138 ' +
-       'C 128 145 128 158 120 168 C 110 180 96 192 88 206 ' +
-       'C 78 224 80 244 94 254 C 108 264 126 258 132 244 ' +
-       'C 138 230 130 216 116 214 C 104 212 96 220 96 230',
-  });
-  svg.appendChild(clef);
-
-  /* ---- 拍号 ---- */
-  const ts = el('g', { class: 'melody__timesig', 'aria-hidden': 'true' });
-  const t1 = el('text', { x: 152, y: STAFF.top + 21 });
-  t1.textContent = '4';
-  const t2 = el('text', { x: 152, y: STAFF.top + 51 });
-  t2.textContent = '4';
-  ts.appendChild(t1); ts.appendChild(t2);
-  svg.appendChild(ts);
-
-  /* ---- 节点坐标 ---- */
-  const pts = HERITAGE.map((m, i) => ({
-    x: NOTE_X0 + i * NOTE_DX,
-    y: pitchY(m.pitch),
-    m, i,
-  }));
-
-  /* ---- 旋律线 ---- */
-  const dPath = smoothPath(pts);
-  const pathSleeve = el('path', { class: 'melody__sleeve', d: dPath, 'aria-hidden': 'true' });
-  const pathLine = el('path', { class: 'melody__curve', d: dPath, 'aria-hidden': 'true' });
-  svg.appendChild(pathSleeve);
-  svg.appendChild(pathLine);
-
-  const totalLen = pathLine.getTotalLength ? pathLine.getTotalLength() : 1200;
-
-  /* ---- 游标：随滚动沿曲线前进 ---- */
-  const playhead = el('g', { class: 'melody__playhead', 'aria-hidden': 'true' });
-  playhead.appendChild(el('circle', { r: 13, class: 'melody__pulse' }));
-  playhead.appendChild(el('circle', { r: 4.2, class: 'melody__dot' }));
-  svg.appendChild(playhead);
-
-  /* ---- 八个音符 ---- */
-  const nodes = el('g', { class: 'melody__notes' });
-  const items = [];
-
-  pts.forEach((p) => {
-    const m = p.m;
-    const g = el('a', {
-      class: 'mnote',
-      href: heritageHref(m.id),
-      role: 'listitem',
-      'data-id': m.id,
-      'aria-label': m.name + '（' + m.group + ' · ' + m.kind + '）· ' + m.region + '，进入分页面',
-    });
-    g.style.setProperty('--h', String(m.hue));
-
-    // 命中区：比音符本身大，方便点
-    g.appendChild(el('rect', {
-      x: p.x - NOTE_DX / 2 + 8, y: STAFF.top - 46,
-      width: NOTE_DX - 16, height: STAFF.gap * 4 + 92,
-      class: 'mnote__hit',
-    }));
-
-    // 符干 + 符尾（做成八分音符，看起来才是"旋律"而不是一排豆子）
-    g.appendChild(el('line', {
-      x1: p.x + HEAD_RX - 1.5, y1: p.y - 2,
-      x2: p.x + HEAD_RX - 1.5, y2: p.y - 52,
-      class: 'mnote__stem',
-    }));
-    g.appendChild(el('path', {
-      d: 'M ' + (p.x + HEAD_RX - 1.5) + ' ' + (p.y - 52) +
-         ' c 13 5, 21 13, 20 25 c 3 -15, -6 -25, -20 -30 z',
-      class: 'mnote__flag',
-    }));
-
-    // 音符头：椭圆稍作旋转，像真的谱面
-    g.appendChild(el('ellipse', {
-      cx: p.x, cy: p.y, rx: HEAD_RX, ry: HEAD_RY,
-      transform: 'rotate(-20 ' + p.x + ' ' + p.y + ')',
-      class: 'mnote__head',
-    }));
-
-    // 内芯亮点：悬停时亮起，像被按下的音
-    g.appendChild(el('circle', { cx: p.x, cy: p.y, r: 2.4, class: 'mnote__core' }));
-
-    // 名称：谱表下方
-    const tx = p.x;
-    const nm = el('text', { x: tx, y: VB.h - 68, class: 'mnote__name' });
-    nm.textContent = m.name;
-    const gp = el('text', { x: tx, y: VB.h - 44, class: 'mnote__group' });
-    gp.textContent = m.group;
-    const kd = el('text', { x: tx, y: VB.h - 22, class: 'mnote__kind' });
-    kd.textContent = m.kind;
-    g.appendChild(nm); g.appendChild(gp); g.appendChild(kd);
-
-    g.addEventListener('click', (e) => {
-      if (!opts.onPick) return;
-      e.preventDefault();
-      opts.onPick(m.id);
-    });
-    const report = () => { if (opts.onHover) opts.onHover(m, p.i); };
-    g.addEventListener('mouseenter', report);
-    g.addEventListener('focus', report);
-
-    nodes.appendChild(g);
-    items.push({ data: m, el: g, x: p.x, y: p.y });
-  });
-
-  svg.appendChild(nodes);
-  host.appendChild(svg);
-
-  return { svg, items, pathLine, playhead, totalLen };
-}
-
-/**
- * 随滚动"吹奏"这条旋律：线被画出来，游标沿曲线前进。
- * @param {HTMLElement} section
- * @param {object} melody  buildMelody 的返回值
- * @param {boolean} reduced
- */
-function bindMelodyScroll(section, melody, reduced) {
-  if (!melody || reduced) {
-    // 减弱动效：直接给完整曲线，不做逐段显示
-    melody.pathLine.style.strokeDasharray = 'none';
-    melody.playhead.style.opacity = '0';
-    return () => {};
-  }
-
-  const { pathLine, playhead, totalLen } = melody;
-  playhead.style.opacity = '0';
-  let ticking = false;
-
-  const update = () => {
-    ticking = false;
-    const r = section.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // 0 = 刚进视口底部，1 = 完全离开上方
-    const raw = (vh - r.top) / (vh + r.height);
-    const p = Math.min(1, Math.max(0, raw));
-    // 在进入视口中央之前就把旋律吹完，别等滚出去
-    const play = Math.min(1, Math.max(0, (p - 0.12) / 0.56));
-
-    pathLine.style.strokeDasharray = totalLen + ' ' + totalLen;
-    pathLine.style.strokeDashoffset = (totalLen * (1 - play)).toFixed(1);
-
-    if (playhead.getTotalLength) {
-      const pt = pathLine.getPointAtLength(totalLen * play);
-      playhead.setAttribute('transform', 'translate(' + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ')');
-    }
-    playhead.style.opacity = play > 0.01 && play < 0.995 ? '1' : (play >= 0.995 ? '0.35' : '0');
-    melody.svg.style.setProperty('--melody-play', play.toFixed(3));
-  };
-
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  update();
-  return () => {
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('resize', onScroll);
-  };
-}
-
-__ns = __XM[8];
-__ns.mount_buildMelody = function () { return buildMelody; };
-__ns.mount_bindMelodyScroll = function () { return bindMelodyScroll; };
-}
-
 /* ── js/lib/theme.js ── */
-function __M9__() {
+function __M5__() {
 /* ==========================================================================
    弦脉 · 主题曲播放
    --------------------------------------------------------------------------
@@ -3698,409 +2802,400 @@ const unlock = {
   },
 };
 
-__ns = __XM[9];
+__ns = __XM[5];
 __ns.mount_createTheme = function () { return createTheme; };
 __ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
-/* ── js/lib/sources.js ── */
-function __M10__() {
+/* ── js/lib/heritage-data.js ── */
+function __M6__() {
 /* ==========================================================================
-   弦脉 · 参考来源
+   弦脉 · 各民族音乐非遗
    --------------------------------------------------------------------------
-   放在附录最后。
+   旋律图上的八个入口。每一条对应一个分页面：../heritage/<id>/index.html
 
-   为什么要单独做一节，而不是页脚列几行：
-     · 竞赛作品要交代来源（学术规范）
-     · 更要紧的是：**把"我们没查到"也写出来**
-       一个敢承认自己缺什么的档案，比一个什么都敢写的档案可信。
-       这一节里"尚未核实"那张表不是缺陷，是这一节的重点。
+   字段说明：
+     id      路由名，决定分页面目录
+     name    中文名
+     ug      拉丁 / 罗马转写（便于检索）
+     group   民族
+     kind    形态类型
+     pitch   在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
+     hue     音符配色色相（数字，空格分隔的 hsl 用）
+     note    一句话说明
 
-   两条纪律：
-     ① **来源只写核实过的。** 每一条都在 tools/check-sources.mjs 里
-        跑过一遍，确认链接活着。政府网站改版频繁，死链比不写更糟。
-     ② **没来源的内容单列出来。** 不混在"已引用"里充数。
+   2026 扩展：作者提供了七个民族的资料（docs/extracted/ 下是抽出的纯文本），
+   这里把**与该族音乐相关的那一段**整理进来，并逐条标出处。
+
+   **两条纪律**（和「参考来源」那一节一致）：
+     ① 只写资料里有的。措辞尽量贴着原文，不改写、不补充想象。
+     ② 资料里没有的那一族，`collected: false` 明说"尚未收录"，
+        不用相近内容凑数 —— 一个敢说自己缺什么的档案，比什么都敢写的可信。
    ========================================================================== */
 
-/* ---- 已核实的来源 ----
-   url 全部经 tools/check-sources.mjs 验证为 200。 */
-const SOURCES = [
+const HERITAGE = [
   {
-    group: '木卡姆 · 名录与沿革',
-    items: [
-      {
-        t: 'UNESCO 人类非物质文化遗产代表作名录 · 新疆维吾尔木卡姆艺术',
-        note: '2005 年宣布为"人类口头和非物质遗产代表作"，名录编号 00109。',
-        url: 'https://ich.unesco.org/en/RL/uyghur-muqam-of-xinjiang-00109',
-        org: '联合国教科文组织',
-      },
-      {
-        t: '中国新疆维吾尔木卡姆艺术和蒙古族长调民歌列入代表作颁证仪式',
-        note: '2005 年 11 月，文化部发布的颁证仪式报道。',
-        url: 'https://www.mct.gov.cn/whzx/tpxw/200511/t20051128_828249.htm',
-        org: '中华人民共和国文化和旅游部',
-      },
-      {
-        t: '木卡姆的二十年',
-        note: '列入名录之后的保护与传承情况回顾。',
-        url: 'https://www.ihchina.cn/news_1_details/31487.html',
-        org: '中国非物质文化遗产网 · 中国非物质文化遗产数字博物馆',
-      },
-      {
-        t: '国家级非物质文化遗产代表性项目及传承人检索',
-        note: '查证某一项目、某一位传承人是否列入国家级名录的**权威入口**。用真名核对，比转述可靠。',
-        url: 'https://www.ihchina.cn/',
-        org: '中国非物质文化遗产网',
-      },
+    id: 'zhuang-tianqin', name: '天琴艺术', ug: 'Tianqin',
+    group: '壮族', kind: '器乐 · 弹唱', pitch: 3, hue: 36,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '广西崇左一带（中越边境）',
+    form: '弹、唱、舞一体',
+    instrument: '天琴（壮语称「鼎叮」）',
+    note: '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
+    body: [
+      '流传于崇左边境，弹、唱、舞一体。',
+      '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
     ],
+    source: '作者提供的《壮族.docx》',
+    /* 同族还有这些，但不属于"天琴艺术"这一条 —— 留着，别混进来 */
+    related: ['壮锦织造技艺', '壮族铜鼓铸造技艺 / 铜鼓习俗', '靖西壮族绣球制作技艺'],
   },
   {
-    group: '传承人 · 桑珠（藏族 · 格萨尔）',
-    items: [
-      {
-        t: '桑珠：说唱一生《格萨尔王传》',
-        note: '说唱艺人生平与传承经历的报道。',
-        url: 'https://www.xzxw.com/fy/2015-05/14/content_1551027.html',
-        org: '西藏新闻网',
-      },
-      {
-        t: '西藏八十六岁老人说唱《格萨尔王传》两千多小时',
-        note: '与"能唱 60 多部"这一量级相互印证。',
-        url: 'http://www.chinanews.com.cn/gn/news/2009/06-17/1738148.shtml',
-        org: '中国新闻网',
-      },
-      {
-        t: '西藏有 52 名国家级非物质文化遗产代表性传承人',
-        note: '2009 年公布名单时的报道，可用于核对传承人认定的年份。',
-        url: 'http://tibet.cctv.com/20090616/102134.shtml',
-        org: '中央电视台 · 西藏频道',
-      },
+    id: 'mongol-morinhuur', name: '马头琴', ug: 'Morin Khuur',
+    group: '蒙古族', kind: '器乐', pitch: 5, hue: 152,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '蒙古族草原牧区',
+    form: '弓弦乐器',
+    instrument: '马头琴',
+    note: '琴头雕刻精致马头，琴声低沉浑厚、辽阔悠扬，贯穿蒙古族节庆、祭祀、日常生活。',
+    body: [
+      '蒙古族标志性传统弓弦乐器，琴头雕刻精致马头，造型古朴大气。',
+      '琴声低沉浑厚、辽阔悠扬，既能演绎《万马奔腾》的激昂壮阔，也能弹奏《鸿雁》的温柔绵长。',
+      '马头琴贯穿蒙古族节庆、祭祀、日常生活，是草原文化的声音象征。',
     ],
+    source: '作者提供的《蒙古族文化.docx》',
+    related: ['蒙古呼麦', '那达慕大会'],
   },
   {
-    group: '传承人 · 玉苏普·托合提（维吾尔族 · 十二木卡姆）',
-    items: [
-      {
-        t: '在"十二木卡姆故乡"莎车 聆听"世纪之音"',
-        note: '莎车县木卡姆传承与演出的采访报道。',
-        url: 'https://city.cri.cn/2024-08-30/7aa6eed2-ef4a-dc63-91ad-707ee05cd8fc.html',
-        org: '国际在线（中央广播电视总台）',
-      },
+    id: 'dong-dage', name: '侗族大歌', ug: 'Kam Grand Choir',
+    group: '侗族', kind: '多声部合唱', pitch: 8, hue: 200,
+    /* 这一族的资料作者还没给。**不编** —— 页面上明说"尚未收录"。 */
+    collected: false,
+    level: '世界非物质文化遗产',
+    region: '',
+    form: '无伴奏、无指挥的多声部合唱',
+    instrument: '',
+    note: '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
+    body: [
+      '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
     ],
+    source: '作者提供的《少数民族文化.docx》—— 仅一句概述，尚不足以成页',
+    related: [],
+  },
+  {
+    id: 'manchu-xinchengxi', name: '新城戏', ug: 'Xincheng Opera',
+    group: '满族', kind: '戏曲', pitch: 6, hue: 320,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '吉林松原',
+    form: '戏曲剧种',
+    instrument: '八角鼓',
+    note: '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+    body: [
+      '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+      '行当齐全，表演融入满族舞蹈，剧目多取材满族历史与民间故事，唱腔独特，是当代满族戏曲代表。',
+    ],
+    source: '作者提供的《满族.docx》',
+    related: ['新宾满族剪纸', '中式服装制作技艺（满族旗袍制作技艺）'],
+  },
+  {
+    id: 'miao-guge', name: '苗族古歌', ug: 'Hxak Lul',
+    group: '苗族', kind: '史诗 · 叙事歌', pitch: 11, hue: 12,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '苗族聚居区',
+    form: '口头史诗',
+    instrument: '',
+    note: '上万行长篇史诗，没有文字，全靠歌师口头传唱，被称作苗族的「无字百科全书」。',
+    body: [
+      '上万行长篇史诗，没有文字，全靠歌师口头传唱。',
+      '内容讲述开天辟地、人类诞生、苗族祖先长途迁徙的故事，被称作苗族的「无字百科全书」，常在祭祀、节庆时演唱。',
+    ],
+    source: '作者提供的《苗族文化.docx》',
+    related: ['苗族银饰锻制技艺', '苗绣（苗族刺绣）'],
+  },
+  {
+    id: 'yi-shan-ge', name: '山歌小调', ug: 'Yi Folk Songs',
+    group: '彝族', kind: '民歌', pitch: 9, hue: 42,
+    collected: true,
+    level: '国家级非物质文化遗产（随彝剧一并列入）',
+    region: '云南楚雄一带',
+    form: '民歌 —— 彝剧的声腔根基之一',
+    instrument: '',
+    note: '彝剧以彝族民间曲调为根基，融合毕摩祭祀音乐与彝族山歌小调，唱腔质朴高亢。',
+    body: [
+      '彝剧诞生于云南楚雄，以彝族民间曲调为根基，融合毕摩祭祀音乐、彝族山歌小调，是彝族独有的少数民族戏曲剧种。',
+      '山歌小调是彝剧声腔的根基之一 —— 它本身活在日常里，被戏曲收拢、固定下来，才成了可传承的形态。',
+      '彝剧角色行当完备，表演融入左脚舞等彝族传统舞蹈，剧目取材彝族神话传说、民间故事，唱腔质朴高亢。',
+    ],
+    source: '作者提供的《彝族文化.docx》',
+    related: ['彝族剪纸', '彝族服饰制作技艺'],
+  },
+  {
+    id: 'dai-zhangha', name: '章哈', ug: 'Zhangha',
+    group: '傣族', kind: '说唱', pitch: 4, hue: 168,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '云南西双版纳、德宏的傣族村寨',
+    form: '口头说唱',
+    instrument: '傣玎',
+    note: '没有固定书面剧本，依靠章哈歌手口头代代传承，被称为傣族的「口头百科全书」。',
+    body: [
+      '傣族传统口头说唱艺术，没有固定书面剧本，依靠章哈歌手口头代代传承。',
+      '内容包含创世神话、民间爱情故事、历史传说，常在泼水节、赕佛、村寨节庆活动中演唱。',
+      '伴奏使用傣玎乐器，唱腔婉转舒缓，被称为傣族的「口头百科全书」。',
+    ],
+    source: '作者提供的《傣族文化.docx》',
+    related: ['傣族慢轮制陶技艺', '傣族织锦技艺', '傣族孔雀舞'],
+  },
+  {
+    id: 'tibetan-gesar', name: '格萨尔', ug: 'Gesar',
+    group: '藏族', kind: '史诗说唱', pitch: 13, hue: 218,
+    /* 作者这一批资料里没有藏族的。**不编。**
+       但站内另有已核实的来源（见 source），所以这一页不是空的。 */
+    collected: false,
+    level: '国家级非物质文化遗产（代表性传承人 2009 年入选）',
+    region: '西藏那曲等地',
+    form: '史诗说唱',
+    instrument: '',
+    note: '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计，能唱几十部。',
+    body: [
+      '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计。',
+      '西藏那曲的桑珠能唱 60 多部《格萨尔》，2009 年入选国家级非物质文化遗产代表性传承人。',
+    ],
+    source: '这一批资料里没有藏族的。站内另有来源 —— 见附录「参考来源」一节（桑珠 · 西藏那曲）。',
+    related: [],
   },
 ];
 
-/* ---- 尚未核实的部分 ----
-   这一张表是这一节的重点：把"我们知道自己缺什么"摆出来。
-   每一条都对应页面上的具体内容，不是泛泛而谈。 */
-const PENDING = [
-  {
-    what: '十二木卡姆的段落构成、乐器、调式与唱词',
-    where: '第二 / 三 / 四章正文',
-    state: '依据项目组提供的文字材料整理，尚未取得可公开引用的原始出处。',
-  },
-  {
-    what: '八个民族的音乐形态说明',
-    where: '附录 · 一条旋律，八个音',
-    state: '仍在查证。八个条目中已核实者将补注来源，未核实者保持留空。',
-  },
-  {
-    what: '万桐书与吐尔迪·阿洪的录音记谱经过',
-    where: '第五章 · 历史与传承',
-    state: '待补权威出处（中国艺术研究院音乐研究所相关档案为宜）。',
-  },
-  {
-    what: '当代传承的四类案例细节',
-    where: '第五章 · 当代运用',
-    state: '待逐条补注来源。',
-  },
-  {
-    what: '两处关卡视频中的场景与人物',
-    where: '传承之路 · 雪原 / 戈壁',
-    state: '**视频为 AIGC 生成的概念影像，不是实拍记录。** 场景与人物均为虚构，不代表任何真实地点或真实人物。',
-  },
-  {
-    what: '概念片中的敦煌壁画段',
-    where: '入口页 / 序章',
-    state: '**同样为 AIGC 生成的概念影像**，用于呈现"从壁画到黑场"的视觉意象，不是文物影像。',
-  },
-];
+/** 分页面路径 */
+function heritageHref(id) {
+  return '../heritage/' + id + '/index.html';
+}
 
-/* ---- 编制方法 ----
-   写清楚"我们怎么做的"，比写"我们做了什么"更有用。 */
-const METHOD = [
-  ['来源优先级', '官方名录与政府发布 > 权威媒体 > 其他。凡是能用名录直接核对的（项目名、传承人名、认定年份），一律以名录为准，不用转述。'],
-  ['链接核实', '本页所有外链在交付前逐个访问确认可用。政府网站改版频繁，链接失效时请以站名与标题重新检索。'],
-  ['留空原则', '查不到可靠出处的条目**留空并注明**，不用推测填充。宁可少写一条，不写无法追溯的一条。'],
-  ['影像说明', '站内概念片与关卡视频为 AIGC 生成的概念影像，用于表达意象；站内不包含任何声称是实拍的记录影像。'],
-];
+/** 按 id 取一条 */
+function heritageById(id) {
+  return HERITAGE.find((h) => h.id === id) || null;
+}
+
+/** 已经收录了资料的 */
+function collectedHeritage() {
+  return HERITAGE.filter((h) => h.collected);
+}
+
+__ns = __XM[6];
+__ns.mount_HERITAGE = function () { return HERITAGE; };
+__ns.mount_heritageHref = function () { return heritageHref; };
+__ns.mount_heritageById = function () { return heritageById; };
+__ns.mount_collectedHeritage = function () { return collectedHeritage; };
+}
+
+/* ── js/lib/heritage-page.js ── */
+function __M7__() {
+/* ==========================================================================
+   弦脉 · 民族分页的渲染
+   --------------------------------------------------------------------------
+   八个入口（壮 / 蒙古 / 侗 / 满 / 苗 / 彝 / 傣 / 藏）共用这一份渲染逻辑，
+   页面 HTML 完全一样，只靠 <body data-ethnic="..."> 区分。
+
+   为什么八个页面不各写一份：
+     · 八份 HTML 就有八个地方要改，早晚改漏一个（这个项目已经栽过一次：
+       导航里一处漏改，底部链接直接打不开）
+     · 内容都在 heritage-data.js 里，页面只负责"长什么样"
+
+   **八个风格的落法**：用每族自己的色相 --eh 驱动整页的强调色 ——
+   标题下划线、字段标签、正文里的小标记、页脚线条，全部跟着走。
+   壮族偏金、傣族偏孔雀青、苗族偏朱、蒙古族偏草绿……同一套骨架，八种气质。
+
+   两条纪律（同「参考来源」那一节）：
+     ① 正文只写 heritage-data.js 里有的，这里不做任何补充。
+     ② 未收录的那两族**明说未收录**，并且不用相近内容凑数。
+   ========================================================================== */
 
 const $ = (s, r) => (r || document).querySelector(s);
 
 function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) =>
+  return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-/** 把 **强调** 转成 <b>，其余转义 —— 内容里我写了几处星号强调 */
+/** 把正文里的「」引号包起来的部分加一点强调 —— 只动样式，不动文字 */
 function rich(s) {
-  return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  return esc(s).replace(/「([^」]+)」/g, '<em class="h-q">「$1」</em>');
 }
 
-function buildSources(opts = {}) {
-  const host = $('#sources-host');
-  if (!host) return null;
+/**
+ * @param {object} opts
+ * @param {object} opts.item  heritage-data.js 里的一条
+ * @param {HTMLElement} opts.host
+ */
+function buildHeritagePage(opts) {
+  const item = opts.item;
+  const host = opts.host;
+  if (!item || !host) return null;
 
-  const count = SOURCES.reduce((a, g) => a + g.items.length, 0);
+  /* 每族的色相驱动整页强调色。
+     hsl 用空格分隔写法（--h 那套约定，见 styles/chapter.css）。 */
+  const root = document.documentElement;
+  root.style.setProperty('--eh', String(item.hue));
+  document.body.dataset.ethnic = item.id;
+  document.body.dataset.collected = item.collected ? '1' : '0';
 
-  const groups = SOURCES.map((g) => {
-    const items = g.items.map((it) => (
-      '<li class="src__item">' +
-        '<a class="src__t" href="' + esc(it.url) + '" target="_blank" rel="noopener noreferrer">' +
-          esc(it.t) +
-          '<span class="src__out" aria-hidden="true">↗</span>' +
-        '</a>' +
-        (it.note ? '<p class="src__note">' + rich(it.note) + '</p>' : '') +
-        '<p class="src__org">' + esc(it.org) + '</p>' +
-        '<p class="src__url">' + esc(it.url) + '</p>' +
-      '</li>'
-    )).join('');
-    return '<section class="src__group">' +
-      '<h3 class="src__gtitle">' + esc(g.group) + '</h3>' +
-      '<ol class="src__list">' + items + '</ol>' +
-    '</section>';
-  }).join('');
+  const fields = [
+    ['等级', item.level],
+    ['流传', item.region],
+    ['形态', item.form],
+    ['乐器', item.instrument],
+  ].filter(([, v]) => v);
 
-  const pending = PENDING.map((p) => (
-    '<tr>' +
-      '<th scope="row">' + rich(p.what) + '</th>' +
-      '<td class="src__where">' + esc(p.where) + '</td>' +
-      '<td>' + rich(p.state) + '</td>' +
-    '</tr>'
-  )).join('');
+  const bodyHtml = (item.body || []).map((p) => '<p class="h-p">' + rich(p) + '</p>').join('');
 
-  const method = METHOD.map(([k, v]) => (
-    '<div class="src__m"><dt>' + esc(k) + '</dt><dd>' + rich(v) + '</dd></div>'
-  )).join('');
+  const relatedHtml = (item.related && item.related.length)
+    ? '<section class="h-block">' +
+        '<h3 class="h-sub">同族还有这些（不在这一条里）</h3>' +
+        '<ul class="h-related">' +
+          item.related.map((r) => '<li>' + esc(r) + '</li>').join('') +
+        '</ul>' +
+        '<p class="h-fine">列在这里只是为了说明「这一族不止这一项」，它们各自另有条目。</p>' +
+      '</section>'
+    : '';
+
+  /* 未收录的那两族：明说，并给出原因（原因写在数据的 source 里）。
+     不摆"敬请期待"那种空话 —— 它和"我们还没查到"是两回事。 */
+  const noticeHtml = item.collected ? '' :
+    '<aside class="h-notice">' +
+      '<p class="h-notice__t">这一页尚未收录</p>' +
+      '<p class="h-notice__b">' + rich(item.source || '') + '</p>' +
+      '<p class="h-notice__b">下面这些是站内已有的、能追溯到来源的内容；' +
+      '剩余部分等查到可靠出处再补。' +
+      '<b>不用相近内容凑数</b>——一个敢说自己缺什么的档案，比什么都敢写的可信。</p>' +
+    '</aside>';
 
   host.innerHTML =
-    '<p class="src__lead">' +
-      /* 注意：模板里塞进去的文字都要过 rich() ——
-         不然 **强调** 会原样显示成星号（踩过，截图里看得见）。 */
-      rich('这一站的内容分两类：**能追溯到来源的**，和**还追溯不到的**。' +
-           '两类都列在下面。' +
-           '把后者写出来不是自曝其短 —— 一个敢说自己缺什么的档案，' +
-           '比一个什么都敢写的档案可信。') +
-    '</p>' +
+    '<header class="h-hero">' +
+      '<p class="h-kicker">' + esc(item.group) + ' · ' + esc(item.kind) + '</p>' +
+      '<h1 class="h-title">' + esc(item.name) + '</h1>' +
+      '<p class="h-ug">' + esc(item.ug) + '</p>' +
+      '<p class="h-lead">' + rich(item.note) + '</p>' +
+      (item.collected
+        ? '<p class="h-badge h-badge--on">已收录 · ' + esc(item.source) + '</p>'
+        : '<p class="h-badge h-badge--off">未收录 · 见下方说明</p>') +
+    '</header>' +
 
-    '<div class="src__stat">' +
-      '<span><b>' + count + '</b> 条已核实来源</span>' +
-      '<span><b>' + PENDING.length + '</b> 条尚未核实</span>' +
-    '</div>' +
+    noticeHtml +
 
-    groups +
-
-    '<section class="src__group src__group--pending">' +
-      '<h3 class="src__gtitle">尚未核实 · 这些内容还没有可靠出处</h3>' +
-      '<p class="src__pendlead">' +
-        rich('下表逐条对应站内具体内容。其中**影像两条最要紧**：' +
-             '站内的概念片与关卡视频是 AIGC 生成的概念影像，' +
-             '不是实拍记录，这一点必须说清楚，不能让人误以为是现场记录。') +
-      '</p>' +
-      '<div class="src__tablewrap">' +
-        '<table class="src__table">' +
-          '<caption class="sr-only">尚未核实的内容清单</caption>' +
-          '<thead><tr><th scope="col">内容</th><th scope="col">位置</th><th scope="col">状态</th></tr></thead>' +
-          '<tbody>' + pending + '</tbody>' +
-        '</table>' +
+    '<section class="h-block">' +
+      '<div class="h-grid">' +
+        fields.map(([k, v]) =>
+          '<div class="h-field">' +
+            '<span class="h-field__k">' + esc(k) + '</span>' +
+            '<span class="h-field__v">' + esc(v) + '</span>' +
+          '</div>').join('') +
       '</div>' +
     '</section>' +
 
-    '<section class="src__group">' +
-      '<h3 class="src__gtitle">编制说明</h3>' +
-      '<dl class="src__method">' + method + '</dl>' +
-    '</section>';
+    '<section class="h-block h-block--body">' +
+      '<h2 class="h-h2">它是什么</h2>' +
+      bodyHtml +
+    '</section>' +
 
-  return { count, pending: PENDING.length, groups: SOURCES.length };
+    '<section class="h-block">' +
+      '<h2 class="h-h2">来源</h2>' +
+      '<p class="h-src">' + esc(item.source) + '</p>' +
+      '<p class="h-fine">本页文字取自上述材料，未作补充。' +
+      '站内「参考来源」一节列了已核实与尚未核实的内容。</p>' +
+    '</section>' +
+
+    relatedHtml +
+
+    '<nav class="h-back"><a href="../fulu/index.html#melody-act">← 回到旋律图</a></nav>';
+
+  // 自检用
+  window.__XM_HERITAGE__ = {
+    id: item.id, collected: item.collected,
+    state: () => ({
+      id: item.id, hue: item.hue,
+      bodyParas: (item.body || []).length,
+      notice: !item.collected,
+      fields: fields.length,
+      related: (item.related || []).length,
+    }),
+  };
+
+  return window.__XM_HERITAGE__;
 }
 
-__ns = __XM[10];
-__ns.mount_buildSources = function () { return buildSources; };
+__ns = __XM[7];
+__ns.mount_buildHeritagePage = function () { return buildHeritagePage; };
 }
 
-/* ── js/pages/fulu.js ── */
-function __M11__() {
+/* ── js/pages/heritage.js ── */
+function __M8__() {
 var bootChapter = __XM[4]["bootChapter"];
-var buildWheel = __XM[6]["buildWheel"];
-var bindWheelScroll = __XM[6]["bindWheelScroll"];
-var buildMelody = __XM[8]["buildMelody"];
-var bindMelodyScroll = __XM[8]["bindMelodyScroll"];
-var MUQAM = __XM[5]["MUQAM"];
-var HERITAGE = __XM[7]["HERITAGE"];
-var heritageHref = __XM[7]["heritageHref"];
-var unlock = __XM[9]["unlock"];
-var createTheme = __XM[9]["createTheme"];
-var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
-var buildSources = __XM[10]["buildSources"];
+var createTheme = __XM[5]["createTheme"];
+var autoPlayOnGesture = __XM[5]["autoPlayOnGesture"];
+var heritageById = __XM[6]["heritageById"];
+var HERITAGE = __XM[6]["HERITAGE"];
+var buildHeritagePage = __XM[7]["buildHeritagePage"];
 
-/* 附录 · 形制比较 —— 十二套木卡姆轮盘 + 八个民族的旋律入口 */
+/* ==========================================================================
+   弦脉 · 民族分页的入口（八个页面共用）
+   --------------------------------------------------------------------------
+   页面 HTML 完全一样，靠 <body data-ethnic="壮族的 id"> 区分是哪一族。
+
+   为什么共用一份：
+     八份 HTML 就有八个地方要改，早晚改漏一个 ——
+     这个项目已经栽过一次（导航里一处漏改，底部链接直接打不开）。
+     内容都在 heritage-data.js，页面只负责"长什么样"。
+
+   声音：这一页**只有配乐，没有手鼓**。
+   和第三章、第五章同理 —— 有自己配乐的页面必须 drums:false，
+   否则声音按钮会接在鼓上，按"开"听到的是序章那套鼓点（踩过）。
+   ========================================================================== */
 
 
 
 
 
+/* 哪一族：从 body 上读。读不到就退回第一族 —— 不留白屏。 */
+const id = document.body.dataset.ethnic || HERITAGE[0].id;
+const item = heritageById(id);
 
+const ctx = bootChapter({
+  active: 'fulu',            // 顶栏高亮挂在附录那一格（这八页是附录伸出来的）
+  drums: false,
+  /* 这几页正文不长，地火再压一档 —— 和第五章同一个理由：
+     文字压在火上读着累。 */
+  emberGain: 0.3,
+});
 
+if (item) {
+  document.title = item.group + ' · ' + item.name + '｜八音 · 弦脉';
+  buildHeritagePage({ item, host: document.getElementById('ethnic') });
+} else {
+  const host = document.getElementById('ethnic');
+  if (host) {
+    host.innerHTML = '<p class="h-notice__t">没有这一族</p>' +
+      '<p class="h-notice__b">地址里的民族标识不认识。' +
+      '<a href="../fulu/index.html#melody-act">回到旋律图</a>挑一个吧。</p>';
+  }
+}
 
-/* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
-   所以 sound:false —— 免得鼓点和主题曲抢。 */
-const ctx = bootChapter({ active: 'fulu', sound: false });
-const { REDUCED } = ctx;
-const $ = (s) => document.querySelector(s);
-
-const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+/* 配乐：复用附录那首主题曲（站内只有三首 mp3，不复用就得再加文件）。
+   **路径是三层 ../**：这一页在 heritage/<id>/ 下，比别的章节还深一层。
+   写成两层会 404 —— 而且 createTheme 的 catch 会把它吞成一句 warning，
+   页面看着正常、就是没声（这个坑在第五章踩过一次，八页自检又抓了一次）。 */
+const theme = createTheme('../../assets/audio/mashrap/theme.mp3');
+theme.setVolume(0.26);       // 比第五章更轻 —— 这一页是读文字，不是看场面
 theme.preload();
-autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+autoPlayOnGesture({ theme, seq: null, fade: 2.4 });
 
 // 自检用
 window.__XM_THEME__ = theme;
-
-/* ------------------------------------------------------------------ 门
-   其他民族的页面要先把麦西热甫那场圆圈玩完才开。
-   没解锁时点任一入口，就把人送回第四章的互动，并说明原因。
-
-   这是引导，不是安全机制 —— 目的是让人按设计的顺序走一遍。 */
-const GATE = {
-  href: '../mashrap/index.html#mq-act',
-  msg: '先把第四章那场麦西热甫跳完（把圈子点满），这里才开。',
-};
-
-/** 给未解锁的元素加统一的"锁着"视觉 */
-function applyLock(root) {
-  if (!root) return;
-  root.classList.add('is-locked');
-  root.setAttribute('aria-disabled', 'true');
-}
-
-function gate(onBlocked) {
-  if (unlock.done) return;
-  // 进入页面时就把视觉改掉
-  document.querySelectorAll('.wnode, .mnote').forEach(applyLock);
-  // 点任何一个都被拦下
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest && e.target.closest('.wnode, .mnote');
-    if (!a) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (onBlocked) onBlocked();
-  }, true);
-}
-
-/* ---- 十二套木卡姆 ---- */
-const wHost = $('#wheel-host');
-const wReadout = $('#wheel-readout');
-if (wHost) {
-  const wheel = buildWheel(wHost, {
-    hrefBase: '../muqam/',
-    onPick: (id) => {
-      // 分页面还没做：给反馈而不是跳 404。建好后删掉这段即可正常跳转。
-      const m = MUQAM.find((x) => x.id === id);
-      if (m && wReadout) {
-        wReadout.innerHTML = '<b>' + m.name + ' · ' + m.ug + '</b>' +
-          m.region + '　<em>' + m.char + '</em><br>' + m.note +
-          '<br><span style="color:var(--bone-faint)">这一套的分页面还在制作中。</span>';
-      }
-    },
-    onHover: (m) => {
-      if (!wReadout) return;
-      wReadout.innerHTML = '<b>' + m.name + ' · ' + m.ug + '</b>' +
-        m.region + '　<em>' + m.char + '</em><br>' + m.note;
-    },
-  });
-  bindWheelScroll($('#wheel-act'), wheel, REDUCED);
-}
-
-/* ---- 八个民族的旋律入口 ----
-   点音符的两种去处：
-     · 已经做了关卡的 → 进 game/ 玩那一关（选对给"活着"、选错给"失传"）
-     · 还没做的       → 不出关卡，明说"还在制作中"，不假装有内容
-
-   维吾尔族不在八音之列（那八个是壮/蒙/侗/满/苗/彝/傣/藏），
-   它的十二木卡姆是这一站的正题，所以关卡挂在藏族那个音符上：
-   点藏族进的是格萨尔，点附录里的木卡姆入口进的是另一关。
-
-   实际上：藏族音符 → ?level=gesar。木卡姆那一关从第五章/附录的
-   木卡姆入口进（见下面 wheel 那段）。 */
-/* 音符点进去去哪。
-   原来只有藏族能走（它有"传承之路"那关），其余七族被 preventDefault 拦住、
-   只显示一句"关卡在制作中" —— 而八族分页现在已经建出来了
-   （heritage/<id>/index.html，见 tools/gen-heritage.mjs）。
-
-   所以现在的规则是：
-     · 有关卡的那一族 → 直接进关卡（藏族 · 格萨尔），关卡比读页面更值得先看
-     · 其余 → 进那一族的档案页
-   两条都会跳走，不再有"点了没反应"的情况。 */
-const LEVEL_BY_HERITAGE = {
-  'tibetan-gesar': 'gesar',
-};
-
-const mHost = $('#melody-host');
-const mReadout = $('#melody-readout');
-if (mHost) {
-  // 字段缺了就跳过，不显示空行 —— note 留空待补时不至于出现空白
-  const line = (m) => '<b>' + m.name + (m.ug ? ' · ' + m.ug : '') + '</b>' +
-    (m.group || '') + (m.kind ? '　<em>' + m.kind + '</em>' : '') +
-    (m.note ? '<br>' + m.note : '') +
-    (m.collected === false
-      ? '<br><span style="color:var(--bone-faint)">这一族的资料尚未收录，页面会说明缺什么</span>'
-      : '');
-
-  const melody = buildMelody(mHost, {
-    onPick: (id) => {
-      const level = LEVEL_BY_HERITAGE[id];
-      if (level) { location.href = '../game/index.html?level=' + level; return; }
-      const m = HERITAGE.find((x) => x.id === id);
-      if (m) { location.href = heritageHref(id); return; }
-      if (mReadout) mReadout.innerHTML = '找不到这一条。';
-    },
-    onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
-  });
-  bindMelodyScroll($('#melody-act'), melody, REDUCED);
-}
-
-/* ---- 上锁与解锁提示 ----
-   未解锁：给所有入口加"锁着"的视觉，点任何一处都把人送回第四章的互动。
-   已解锁：不动，正常走。 */
-const gateNote = document.getElementById('gate-note');
-if (!unlock.done) {
-  gate(() => {
-    if (gateNote) {
-      gateNote.innerHTML = '<b>还没开门</b>' + GATE.msg +
-        '<br><a href="' + GATE.href + '">去第四章 · 麦西热甫 →</a>';
-      gateNote.classList.add('is-on');
-      gateNote.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'center' });
-    } else {
-      location.href = GATE.href;
-    }
-  });
-  // 提示条里的链接要能点（gate 是捕获阶段拦的，得让它放行）
-  if (gateNote) {
-    gateNote.addEventListener('click', (e) => {
-      if (e.target.tagName === 'A') e.stopPropagation();
-    }, true);
-  }
-} else if (gateNote) {
-  gateNote.remove();
-}
-
-/* ---- 参考来源 ----
-   放在这一页最后。分"已核实"与"尚未核实"两块。
-   所有外链都经 tools/check-sources.mjs 逐条访问确认过 ——
-   政府网站改版频繁，死链比不写来源更糟。
-   外链页面**不属于 gate 管**，所以不参与上锁。 */
-const sources = buildSources();
-window.__XM_SOURCES__ = sources;
+window.__XM_CTX__ = ctx;
 }
 
 /* js/lib/materials.js */
@@ -4148,66 +3243,39 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/muqam-data.js */
+/* js/lib/theme.js */
 try {
   __ns = __XM[5];
   __M5__();
   for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/muqam-data.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/wheel.js */
+/* js/lib/heritage-data.js */
 try {
   __ns = __XM[6];
   __M6__();
   for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/wheel.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-data.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/heritage-data.js */
+/* js/lib/heritage-page.js */
 try {
   __ns = __XM[7];
   __M7__();
   for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-data.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-page.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/melody.js */
+/* js/pages/heritage.js */
 try {
   __ns = __XM[8];
   __M8__();
   for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/melody.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/theme.js */
-try {
-  __ns = __XM[9];
-  __M9__();
-  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/sources.js */
-try {
-  __ns = __XM[10];
-  __M10__();
-  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sources.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/pages/fulu.js */
-try {
-  __ns = __XM[11];
-  __M11__();
-  for (var k in __XM[11]) { if (k.indexOf("mount_") === 0) __XM[11][k.slice(6)] = __XM[11][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/fulu.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/heritage.js" + " :: " + (e && e.stack || e));
 }
 })();

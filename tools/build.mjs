@@ -42,6 +42,10 @@ const PAGES = [
   { entry: 'js/pages/mashrap.js', out: 'js/dist/mashrap.js' },
   { entry: 'js/pages/lishi.js', out: 'js/dist/lishi.js' },
   { entry: 'js/pages/fulu.js', out: 'js/dist/fulu.js' },
+  /* 八族分页共用一份入口 —— 页面 HTML 一样，靠 body[data-ethnic] 区分。
+     产物 js/dist/heritage.js，八个目录的 HTML 都引它。
+     （HTML 由 tools/gen-heritage.mjs 从数据生成，别手改。） */
+  { entry: 'js/pages/heritage.js', out: 'js/dist/heritage.js' },
 ];
 
 const IMPORT_RE = /^[ \t]*import\s+(?:([\s\S]*?)\s+from\s+)?['"]([^'"]+)['"][ \t]*;?[ \t]*$/gm;

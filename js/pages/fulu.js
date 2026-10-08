@@ -3,7 +3,7 @@ import { bootChapter } from '../lib/chapter.js';
 import { buildWheel, bindWheelScroll } from '../lib/wheel.js';
 import { buildMelody, bindMelodyScroll } from '../lib/melody.js';
 import { MUQAM } from '../lib/muqam-data.js';
-import { HERITAGE } from '../lib/heritage-data.js';
+import { HERITAGE, heritageHref } from '../lib/heritage-data.js';
 import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
 import { buildSources } from '../lib/sources.js';
 
@@ -86,12 +86,18 @@ if (wHost) {
 
    实际上：藏族音符 → ?level=gesar。木卡姆那一关从第五章/附录的
    木卡姆入口进（见下面 wheel 那段）。 */
+/* 音符点进去去哪。
+   原来只有藏族能走（它有"传承之路"那关），其余七族被 preventDefault 拦住、
+   只显示一句"关卡在制作中" —— 而八族分页现在已经建出来了
+   （heritage/<id>/index.html，见 tools/gen-heritage.mjs）。
+
+   所以现在的规则是：
+     · 有关卡的那一族 → 直接进关卡（藏族 · 格萨尔），关卡比读页面更值得先看
+     · 其余 → 进那一族的档案页
+   两条都会跳走，不再有"点了没反应"的情况。 */
 const LEVEL_BY_HERITAGE = {
   'tibetan-gesar': 'gesar',
 };
-/* 还没做关卡的，点进去给一句实话，别跳 404 */
-const PENDING_NOTE = '这一个民族的关卡还在制作中。' +
-  '已经能玩的是藏族（格萨尔）那一关。';
 
 const mHost = $('#melody-host');
 const mReadout = $('#melody-readout');
@@ -99,17 +105,18 @@ if (mHost) {
   // 字段缺了就跳过，不显示空行 —— note 留空待补时不至于出现空白
   const line = (m) => '<b>' + m.name + (m.ug ? ' · ' + m.ug : '') + '</b>' +
     (m.group || '') + (m.kind ? '　<em>' + m.kind + '</em>' : '') +
-    (m.note ? '<br>' + m.note : '');
+    (m.note ? '<br>' + m.note : '') +
+    (m.collected === false
+      ? '<br><span style="color:var(--bone-faint)">这一族的资料尚未收录，页面会说明缺什么</span>'
+      : '');
 
   const melody = buildMelody(mHost, {
     onPick: (id) => {
       const level = LEVEL_BY_HERITAGE[id];
       if (level) { location.href = '../game/index.html?level=' + level; return; }
       const m = HERITAGE.find((x) => x.id === id);
-      if (m && mReadout) {
-        mReadout.innerHTML = line(m) +
-          '<br><span style="color:var(--bone-faint)">' + PENDING_NOTE + '</span>';
-      }
+      if (m) { location.href = heritageHref(id); return; }
+      if (mReadout) mReadout.innerHTML = '找不到这一条。';
     },
     onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
   });

@@ -134,7 +134,30 @@ try {
     else bad('点藏族没进关卡，当前在 ' + url);
   }
 
+  /* ---- ②b 点**其余七族**的音符 → 应当跳去那一族的档案页 ----
+     这条是补的：八族分页建出来之前，onPick 里有 preventDefault，
+     点非藏族的音符**什么都不会发生**（只显示一句"关卡制作中"）。
+     页面建好了但进不去 —— 自检只看"音符在不在"是发现不了的。 */
+  const OTHERS = links.hrefs.filter((h) => h.id && h.id !== 'tibetan-gesar').slice(0, 3);
+  console.log('       抽查三族：' + OTHERS.map((o) => o.id).join('、'));
+  for (const o of OTHERS) {
+    await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/fulu/index.html` });
+    await sleep(1600);
+    await evalJs(`localStorage.setItem('xiangmai.unlocked.mashrap','1')`);
+    // 解锁后再开一次（gate 会拦点击）
+    await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/fulu/index.html` });
+    await sleep(2600);
+    await evalJs(`document.querySelector('.mnote[data-id="${o.id}"]').dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true }))`);
+    await sleep(2200);
+    const url = await evalJs('location.pathname');
+    if (url.indexOf('/heritage/' + o.id + '/') >= 0) ok('点 ' + o.id + ' → ' + url);
+    else bad('点 ' + o.id + ' 没进民族页，当前在 ' + url);
+  }
+
   /* ---- ③ 关卡页：玩的是对的那一幕 ---- */
+  await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/game/index.html?level=gesar` });
+  await sleep(3000);
   const g = JSON.parse(await evalJs(`(() => {
     const gm = window.__XM_GAME__;
     return JSON.stringify({

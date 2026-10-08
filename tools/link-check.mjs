@@ -50,8 +50,14 @@ for (const page of PAGES) {
     const url = m[1];
     // 跳过：锚点、协议外链、data:
     if (/^(#|https?:|mailto:|data:|javascript:)/.test(url)) continue;
-    // 运行时由 JS 生成的分页面目录（还没建，属设计内）
-    if (/^(\.\.\/)?(muqam|heritage)\//.test(url)) continue;
+    /* heritage/ 那八页原本不存在，所以这里跳过了。
+       2026：八页已经建出来（tools/gen-heritage.mjs 生成），
+       **不再跳过** —— 让这个检查真的去查它们。
+       但要注意：那八条链接是 JS 动态生成的（melody.js 里拼出来的），
+       静态 HTML 里扫不到，所以这个脚本管不着；
+       它们由 tools/heritage-test.mjs 逐页打开验证。
+       muqam/ 仍然跳过（那个目录一直没用上，属设计内）。 */
+    if (/^(\.\.\/)?muqam\//.test(url)) continue;
     if (seen.has(url)) continue;
     seen.add(url);
 

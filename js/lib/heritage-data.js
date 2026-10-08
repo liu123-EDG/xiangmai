@@ -4,31 +4,172 @@
    旋律图上的八个入口。每一条对应一个分页面：../heritage/<id>/index.html
 
    字段说明：
-     id     路由名，决定分页面目录
-     name   中文名
-     ug     拉丁 / 罗马转写（便于检索）
-     group  民族
-     kind   形态类型
-     pitch  在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
-     hue    音符配色色相
-     note   一句话说明 —— **留空待补，不编**
+     id      路由名，决定分页面目录
+     name    中文名
+     ug      拉丁 / 罗马转写（便于检索）
+     group   民族
+     kind    形态类型
+     pitch   在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
+     hue     音符配色色相（数字，空格分隔的 hsl 用）
+     note    一句话说明
 
-   你搜到资料后，把内容填进 note，或加任意新字段（region / level / 曲目 /
-   传承人 …），页面会自动带上。
+   2026 扩展：作者提供了七个民族的资料（docs/extracted/ 下是抽出的纯文本），
+   这里把**与该族音乐相关的那一段**整理进来，并逐条标出处。
+
+   **两条纪律**（和「参考来源」那一节一致）：
+     ① 只写资料里有的。措辞尽量贴着原文，不改写、不补充想象。
+     ② 资料里没有的那一族，`collected: false` 明说"尚未收录"，
+        不用相近内容凑数 —— 一个敢说自己缺什么的档案，比什么都敢写的可信。
    ========================================================================== */
 
 export const HERITAGE = [
-  { id: 'zhuang-tianqin',    name: '天琴艺术',   ug: 'Tianqin',       group: '壮族',   kind: '器乐 · 弹唱',  pitch: 3,  hue: 36,  note: '' },
-  { id: 'mongol-morinhuur',  name: '马头琴',     ug: 'Morin Khuur',   group: '蒙古族', kind: '器乐',        pitch: 5,  hue: 152, note: '' },
-  { id: 'dong-dage',         name: '侗族大歌',   ug: 'Kam Grand Choir', group: '侗族', kind: '多声部合唱',  pitch: 8,  hue: 200, note: '' },
-  { id: 'manchu-xinchengxi', name: '新城戏',     ug: 'Xincheng Opera', group: '满族',  kind: '戏曲',        pitch: 6,  hue: 320, note: '' },
-  { id: 'miao-guge',         name: '苗族古歌',   ug: 'Hxak Lul',      group: '苗族',   kind: '史诗 · 叙事歌', pitch: 11, hue: 12,  note: '' },
-  { id: 'yi-shan-ge',        name: '山歌小调',   ug: 'Yi Folk Songs', group: '彝族',   kind: '民歌',        pitch: 9,  hue: 42,  note: '' },
-  { id: 'dai-zhangha',       name: '章哈',       ug: 'Zhangha',       group: '傣族',   kind: '说唱',        pitch: 4,  hue: 168, note: '' },
-  { id: 'tibetan-gesar',     name: '格萨尔',     ug: 'Gesar',         group: '藏族',   kind: '史诗说唱',    pitch: 13, hue: 218, note: '' },
+  {
+    id: 'zhuang-tianqin', name: '天琴艺术', ug: 'Tianqin',
+    group: '壮族', kind: '器乐 · 弹唱', pitch: 3, hue: 36,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '广西崇左一带（中越边境）',
+    form: '弹、唱、舞一体',
+    instrument: '天琴（壮语称「鼎叮」）',
+    note: '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
+    body: [
+      '流传于崇左边境，弹、唱、舞一体。',
+      '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
+    ],
+    source: '作者提供的《壮族.docx》',
+    /* 同族还有这些，但不属于"天琴艺术"这一条 —— 留着，别混进来 */
+    related: ['壮锦织造技艺', '壮族铜鼓铸造技艺 / 铜鼓习俗', '靖西壮族绣球制作技艺'],
+  },
+  {
+    id: 'mongol-morinhuur', name: '马头琴', ug: 'Morin Khuur',
+    group: '蒙古族', kind: '器乐', pitch: 5, hue: 152,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '蒙古族草原牧区',
+    form: '弓弦乐器',
+    instrument: '马头琴',
+    note: '琴头雕刻精致马头，琴声低沉浑厚、辽阔悠扬，贯穿蒙古族节庆、祭祀、日常生活。',
+    body: [
+      '蒙古族标志性传统弓弦乐器，琴头雕刻精致马头，造型古朴大气。',
+      '琴声低沉浑厚、辽阔悠扬，既能演绎《万马奔腾》的激昂壮阔，也能弹奏《鸿雁》的温柔绵长。',
+      '马头琴贯穿蒙古族节庆、祭祀、日常生活，是草原文化的声音象征。',
+    ],
+    source: '作者提供的《蒙古族文化.docx》',
+    related: ['蒙古呼麦', '那达慕大会'],
+  },
+  {
+    id: 'dong-dage', name: '侗族大歌', ug: 'Kam Grand Choir',
+    group: '侗族', kind: '多声部合唱', pitch: 8, hue: 200,
+    /* 这一族的资料作者还没给。**不编** —— 页面上明说"尚未收录"。 */
+    collected: false,
+    level: '世界非物质文化遗产',
+    region: '',
+    form: '无伴奏、无指挥的多声部合唱',
+    instrument: '',
+    note: '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
+    body: [
+      '无伴奏、无指挥的多声部合唱，侗族人代代口传，被称作山林里的天籁之音。',
+    ],
+    source: '作者提供的《少数民族文化.docx》—— 仅一句概述，尚不足以成页',
+    related: [],
+  },
+  {
+    id: 'manchu-xinchengxi', name: '新城戏', ug: 'Xincheng Opera',
+    group: '满族', kind: '戏曲', pitch: 6, hue: 320,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '吉林松原',
+    form: '戏曲剧种',
+    instrument: '八角鼓',
+    note: '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+    body: [
+      '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+      '行当齐全，表演融入满族舞蹈，剧目多取材满族历史与民间故事，唱腔独特，是当代满族戏曲代表。',
+    ],
+    source: '作者提供的《满族.docx》',
+    related: ['新宾满族剪纸', '中式服装制作技艺（满族旗袍制作技艺）'],
+  },
+  {
+    id: 'miao-guge', name: '苗族古歌', ug: 'Hxak Lul',
+    group: '苗族', kind: '史诗 · 叙事歌', pitch: 11, hue: 12,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '苗族聚居区',
+    form: '口头史诗',
+    instrument: '',
+    note: '上万行长篇史诗，没有文字，全靠歌师口头传唱，被称作苗族的「无字百科全书」。',
+    body: [
+      '上万行长篇史诗，没有文字，全靠歌师口头传唱。',
+      '内容讲述开天辟地、人类诞生、苗族祖先长途迁徙的故事，被称作苗族的「无字百科全书」，常在祭祀、节庆时演唱。',
+    ],
+    source: '作者提供的《苗族文化.docx》',
+    related: ['苗族银饰锻制技艺', '苗绣（苗族刺绣）'],
+  },
+  {
+    id: 'yi-shan-ge', name: '山歌小调', ug: 'Yi Folk Songs',
+    group: '彝族', kind: '民歌', pitch: 9, hue: 42,
+    collected: true,
+    level: '国家级非物质文化遗产（随彝剧一并列入）',
+    region: '云南楚雄一带',
+    form: '民歌 —— 彝剧的声腔根基之一',
+    instrument: '',
+    note: '彝剧以彝族民间曲调为根基，融合毕摩祭祀音乐与彝族山歌小调，唱腔质朴高亢。',
+    body: [
+      '彝剧诞生于云南楚雄，以彝族民间曲调为根基，融合毕摩祭祀音乐、彝族山歌小调，是彝族独有的少数民族戏曲剧种。',
+      '山歌小调是彝剧声腔的根基之一 —— 它本身活在日常里，被戏曲收拢、固定下来，才成了可传承的形态。',
+      '彝剧角色行当完备，表演融入左脚舞等彝族传统舞蹈，剧目取材彝族神话传说、民间故事，唱腔质朴高亢。',
+    ],
+    source: '作者提供的《彝族文化.docx》',
+    related: ['彝族剪纸', '彝族服饰制作技艺'],
+  },
+  {
+    id: 'dai-zhangha', name: '章哈', ug: 'Zhangha',
+    group: '傣族', kind: '说唱', pitch: 4, hue: 168,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '云南西双版纳、德宏的傣族村寨',
+    form: '口头说唱',
+    instrument: '傣玎',
+    note: '没有固定书面剧本，依靠章哈歌手口头代代传承，被称为傣族的「口头百科全书」。',
+    body: [
+      '傣族传统口头说唱艺术，没有固定书面剧本，依靠章哈歌手口头代代传承。',
+      '内容包含创世神话、民间爱情故事、历史传说，常在泼水节、赕佛、村寨节庆活动中演唱。',
+      '伴奏使用傣玎乐器，唱腔婉转舒缓，被称为傣族的「口头百科全书」。',
+    ],
+    source: '作者提供的《傣族文化.docx》',
+    related: ['傣族慢轮制陶技艺', '傣族织锦技艺', '傣族孔雀舞'],
+  },
+  {
+    id: 'tibetan-gesar', name: '格萨尔', ug: 'Gesar',
+    group: '藏族', kind: '史诗说唱', pitch: 13, hue: 218,
+    /* 作者这一批资料里没有藏族的。**不编。**
+       但站内另有已核实的来源（见 source），所以这一页不是空的。 */
+    collected: false,
+    level: '国家级非物质文化遗产（代表性传承人 2009 年入选）',
+    region: '西藏那曲等地',
+    form: '史诗说唱',
+    instrument: '',
+    note: '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计，能唱几十部。',
+    body: [
+      '说唱艺人靠记忆演唱长篇史诗，篇幅以「部」计。',
+      '西藏那曲的桑珠能唱 60 多部《格萨尔》，2009 年入选国家级非物质文化遗产代表性传承人。',
+    ],
+    source: '这一批资料里没有藏族的。站内另有来源 —— 见附录「参考来源」一节（桑珠 · 西藏那曲）。',
+    related: [],
+  },
 ];
 
 /** 分页面路径 */
 export function heritageHref(id) {
   return '../heritage/' + id + '/index.html';
+}
+
+/** 按 id 取一条 */
+export function heritageById(id) {
+  return HERITAGE.find((h) => h.id === id) || null;
+}
+
+/** 已经收录了资料的 */
+export function collectedHeritage() {
+  return HERITAGE.filter((h) => h.collected);
 }
