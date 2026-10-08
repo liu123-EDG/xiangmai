@@ -54,7 +54,11 @@ const PAGES = [
   { path: 'qiongnaieman/index.html', nav: '穹乃额曼', need: { '开场': '.chapter-hero', '概念图': '.plate img', '正文节': '.act' } },
   { path: 'dastan/index.html', nav: '达斯坦', need: { '开场': '.chapter-hero', '正文节': '.act' } },
   { path: 'mashrap/index.html', nav: '麦西热甫', need: { '开场': '.chapter-hero', '正文节': '.act' } },
-  { path: 'lishi/index.html', nav: '历史与传承', need: { '时间轴': '.timeline', '对照表': '.duo', '案例': '.case' } },
+  /* 第五章的形式在 2026 改造过：竖排时间轴换成横向长轴、
+     竖排案例卡换成横滑带。检查项跟着换 ——
+     否则会一直报"时间轴缺失 .timeline"这种假失败。 */
+  { path: 'lishi/index.html', nav: '历史与传承',
+    need: { '横向长轴': '.tls', '对照表': '.duo', '案例横滑带': '.cases2' } },
   { path: 'fulu/index.html', nav: '形制比较', need: { '轮盘': '.wheel', '旋律': '.melody' } },
 ];
 

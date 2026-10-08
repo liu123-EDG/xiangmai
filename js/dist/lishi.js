@@ -6,6 +6,7 @@
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
+     js/lib/lishi-ui.js  → buildTimeline, buildSubtract, buildRecorder, buildRails, buildCases
      js/pages/lishi.js
 */
 (function () {
@@ -20,6 +21,7 @@ __XM[3] = {};
 __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
+__XM[7] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -791,7 +793,8 @@ class Renderer {
     this.muralGain = opts.muralGain === undefined ? 1 : opts.muralGain;
     this.maxPixels = opts.maxPixels || 2.6e6;
     this.heat = 0;
-    this.emberScale = 1.55;
+    this.emberScale = 1.55;      // 地火纹样的**粗细**（uv 缩放），不是亮度
+    this.emberGain = 1;          // 地火的**亮度**倍率。页面可调小（见 chapter.js）
     this.patternScale = 5.2;
     this.patternZoom = 1;
     this.center = [0.5, 0.5];
@@ -1105,7 +1108,12 @@ class Renderer {
       const u = this.uEmber.u;
       gl.uniform1f(u.u_time, st.time);
       gl.uniform2f(u.u_res, bw, bh);
-      gl.uniform1f(u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      /* emberGain 是**亮度**倍率，乘在 heat 上。
+         别拿 emberScale 当亮度用 —— 那个是纹样粗细（uv 的 u_scale），
+         调它只会让火纹变大变小，不会变暗（踩过：
+         把 emberGain 乘到 emberScale 上，页面上火一点没暗）。 */
+      gl.uniform1f(u.u_heat,
+        (st.heat === undefined ? this.heat : st.heat) * this.emberGain);
       gl.uniform1f(u.u_scale, this.emberScale);
       gl.uniform2f(u.u_center, this.center[0], this.center[1]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -2082,6 +2090,9 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  * @param {boolean} [opts.sound=true]  是否挂声音开关（页面上要有 #sound-toggle）
  * @param {number} [opts.soundBand=0]  声音默认放第几段的鼓
  * @param {boolean} [opts.heat=true]   是否启用随滚动上升的地火热度
+ * @param {number} [opts.emberGain]  地火纹样的强度倍率。不传=原样（1.0）。
+ *        给 0.35 之类的小值可以把背景压下去 —— 有大段正文的页面需要
+ *        （第五章"历史与传承"五行史实，压在火上读着累）。
  * @param {'chapter'|'pattern'} [opts.mode='chapter']  底层画面：地火 / 程序化纹样
  * @param {boolean} [opts.drums=true]  是否挂手鼓音序器。
  *        有自己配乐的页面要传 false —— 否则声音按钮会接在手鼓上，
@@ -2111,6 +2122,14 @@ function bootChapter(opts = {}) {
         wallGain: opts.wallGain === undefined ? 0.9 : opts.wallGain,
         muralGain: 0,
       });
+      /* 地火的**亮度**倍率。
+         序章那种"火在暗处翻"适合开场，但**五行史实压在火上是累的** ——
+         第五章用它把火压下去（用户："背景也有些给人无聊透着压抑"）。
+
+         注意：这调的是 renderer.emberGain（乘在 u_heat 上），
+         **不是 emberScale** —— 后者是纹样粗细，调它只会让火纹变大变小，
+         页面上一点没暗（踩过这个坑）。 */
+      if (opts.emberGain !== undefined) renderer.emberGain = opts.emberGain;
       // 用真实的 mode 当标记，别写死 —— 写死过一次，
       // 结果自检看到的是 'chapter' 而不是 'pattern'，查了半天。
       document.body.dataset.render = mode;
@@ -2607,38 +2626,668 @@ __ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
-/* ── js/pages/lishi.js ── */
+/* ── js/lib/lishi-ui.js ── */
 function __M6__() {
+/* ==========================================================================
+   弦脉 · 第五章的互动部件
+   --------------------------------------------------------------------------
+   第五章的问题不是"内容不好"，是**形式没跟着内容走**：
+   五段全是 kicker → 标题 → 正文 → 正文 → 配色块，结构一模一样，
+   滚起来就是同一屏重复五遍；而全章最厚的证据（近六年、340 余首）
+   和最亮的冲突（不识字的人不信铁疙瘩）都只是几行小字。
+
+   所以这里给四段各配一种**和内容对应的**形式：
+
+     一 · 渊源     横向时间长轴 —— 一千年拉成一条线，
+                   16 部 → 12 套的"减法"用刻度长短看出来
+     二 · 阿曼尼莎 16 → 12 的减法 —— 16 个方块逐个灭掉 4 个
+     三 · 抢救     手摇钢丝录音机 —— 能亲手摇，摇到哪一年就讲哪一年，
+                   转数累计对应"近六年、340 余首"
+     四 · 双轨     两条长度按**真实数据**来的轨
+
+   一条纪律：所有数字都来自页面原有的正文，**不新增任何史实**。
+   ========================================================================== */
+
+const el = (tag, cls, html) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (html !== undefined) n.innerHTML = html;
+  return n;
+};
+
+/* ---------------------------------------------------------------- 一 · 长轴 */
+
+/** 千年拉成一条横线。三个节点均匀分布，第三个（16世纪）最重。 */
+function buildTimeline(host, data) {
+  if (!host || !data || !data.length) return null;
+
+  const wrap = el('div', 'tls');
+  const line = el('div', 'tls__line');
+  const fill = el('div', 'tls__fill');
+  line.appendChild(fill);
+  wrap.appendChild(line);
+
+  const nodes = data.map((d, i) => {
+    const n = el('div', 'tls__node' + (d.emphasis ? ' is-heavy' : ''));
+    n.dataset.i = String(i);
+    n.appendChild(el('span', 'tls__dot'));
+    n.appendChild(el('span', 'tls__era', d.era));
+    wrap.appendChild(n);
+    return n;
+  });
+
+  const detail = el('div', 'tls__detail');
+  wrap.appendChild(detail);
+  host.appendChild(wrap);
+
+  let cur = -1;
+  function select(i, animate) {
+    if (i === cur) return;
+    cur = i;
+    const d = data[i];
+    nodes.forEach((n, k) => {
+      n.classList.toggle('is-on', k === i);
+      n.classList.toggle('is-past', k < i);
+    });
+    fill.style.width = (nodes.length <= 1 ? 100 : (i / (nodes.length - 1)) * 100) + '%';
+    detail.innerHTML =
+      '<h3 class="tls__title">' + d.title + '</h3>' +
+      '<p class="tls__body">' + d.body + '</p>' +
+      (d.tag ? '<span class="tls__tag">' + d.tag + '</span>' : '');
+    if (animate && !prefersReduced()) {
+      detail.animate(
+        [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 620, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    }
+  }
+
+  const prefersReduced = () =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  nodes.forEach((n, i) => {
+    n.addEventListener('click', () => select(i, true));
+    // 键盘可达：它是可以点的，就该能 Tab 到
+    n.tabIndex = 0;
+    n.setAttribute('role', 'button');
+    n.setAttribute('aria-label', data[i].era + ' ' + data[i].title);
+    n.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i, true); }
+    });
+  });
+
+  select(0, false);
+  /* 滚到这一段时自动推进到 16 世纪（最重的那一格），
+     让"它最后收拢成一套"这件事自己发生；用户也可以自己点。 */
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((e) => {
+      if (!e.isIntersecting) return;
+      const heavy = data.findIndex((d) => d.emphasis);
+      if (heavy >= 0) setTimeout(() => select(heavy, true), 900);
+      io.disconnect();
+    });
+  }, { threshold: 0.5 });
+  io.observe(wrap);
+
+  return { select, state: () => ({ cur, total: data.length }) };
+}
+
+/* ------------------------------------------------------------ 二 · 16 → 12 */
+
+/** 16 个方块，后 4 个被"剔除"——这是全章唯一一个看得见的动作。 */
+function buildSubtract(host, opts) {
+  if (!host) return null;
+  const from = opts.from, to = opts.to;
+  const drop = from - to;
+
+  const wrap = el('div', 'sub');
+  const grid = el('div', 'sub__grid');
+  const cells = [];
+  for (let i = 0; i < from; i++) {
+    const c = el('span', 'sub__cell');
+    // 要剔除的那几个排在后半段，视觉上像"被挑出去"
+    if (i >= from - drop) c.classList.add('sub__cell--drop');
+    grid.appendChild(c);
+    cells.push(c);
+  }
+  wrap.appendChild(grid);
+
+  const readout = el('div', 'sub__readout');
+  wrap.appendChild(readout);
+  host.appendChild(wrap);
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let done = false;
+
+  function run() {
+    if (done) return;
+    done = true;
+    cells.forEach((c, i) => {
+      if (i < from - drop) return;
+      const delay = (i - (from - drop)) * 140;
+      if (reduced) { c.classList.add('is-out'); return; }
+      setTimeout(() => c.classList.add('is-out'), 700 + delay);
+    });
+    setTimeout(() => {
+      readout.innerHTML =
+        '<span class="sub__n"><b>' + from + '</b>部</span>' +
+        '<span class="sub__arrow" aria-hidden="true">→</span>' +
+        '<span class="sub__n sub__n--to"><b>' + to + '</b>套</span>' +
+        '<span class="sub__cap">剔除 4 部，定名「十二木卡姆」</span>';
+      readout.classList.add('is-in');
+    }, reduced ? 0 : 700 + drop * 140 + 200);
+  }
+
+  readout.innerHTML =
+    '<span class="sub__n"><b>' + from + '</b>部</span>' +
+    '<span class="sub__cap">最初整理的规模</span>';
+
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((e) => { if (e.isIntersecting) { run(); io.disconnect(); } });
+  }, { threshold: 0.45 });
+  io.observe(wrap);
+
+  return { run, state: () => ({ done, from, to, dropped: drop }) };
+}
+
+/* --------------------------------------------------- 三 · 手摇钢丝录音机 */
+
+/* 六个年份的说明。数字全部来自页面原有正文：
+   40 年代只剩一人能完整演唱、1950 万桐书到新疆、
+   近六年工作、1960 出版、340 余首。**没有新增史实。** */
+const REEL_STOPS = [
+  { year: 1950, at: 0.00, head: '万桐书到新疆',
+    body: '音乐家万桐书受派前往新疆，与吐尔迪·阿洪相遇。两人语言不通、背景迥异。' },
+  { year: 1951, at: 0.14, head: '「听一句，记一句」',
+    body: '记谱要一句一句地拆，而老人唱歌习惯一气呵成。合作的第一个障碍在这里。' },
+  { year: 1952, at: 0.34, head: '他不信那个铁疙瘩',
+    body: '用钢丝录音机录。吐尔迪·阿洪不相信「铁疙瘩能把歌声装进去」。' },
+  { year: 1953, at: 0.54, head: '每次唱得都不一样',
+    body: '万桐书追求记谱的准确，老人却每次都即兴发挥 —— 这正是口传音乐的样子。' },
+  { year: 1955, at: 0.78, head: '一首一首地过',
+    body: '靠着一次次重来，全套曲目被一首一首地固定下来。' },
+  { year: 1960, at: 1.00, head: '《十二木卡姆》出版',
+    body: '记录 340 余首古典叙诵歌曲、民间叙事组歌、舞曲、即兴乐曲。抢救完成。' },
+];
+
+/**
+ * 一台能亲手摇的钢丝录音机。
+ * 拖动（或方向键）→ 钢丝盘转、年份走、累计转数涨、说明跟着换。
+ *
+ * 为什么做这个：这一段原来最厚（近六年、340 余首），却只是排比句。
+ * "他不相信铁疙瘩能把歌声装进去"这句话，配一台**你能亲手摇的机器**才有分量。
+ */
+function buildRecorder(host) {
+  if (!host) return null;
+
+  const wrap = el('div', 'rec');
+  wrap.innerHTML =
+    '<div class="rec__top">' +
+      '<div class="rec__reel" aria-hidden="true">' +
+        '<svg viewBox="0 0 120 120">' +
+          '<circle class="rec__rim" cx="60" cy="60" r="54"/>' +
+          '<circle class="rec__hub" cx="60" cy="60" r="13"/>' +
+          '<g class="rec__spokes">' +
+            '<line x1="60" y1="18" x2="60" y2="46"/>' +
+            '<line x1="60" y1="74" x2="60" y2="102"/>' +
+            '<line x1="18" y1="60" x2="46" y2="60"/>' +
+            '<line x1="74" y1="60" x2="102" y2="60"/>' +
+          '</g>' +
+        '</svg>' +
+      '</div>' +
+      '<div class="rec__meta">' +
+        '<span class="rec__year" id="rec-year">1950</span>' +
+        '<span class="rec__turns"><b id="rec-turns">0</b> 圈</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="rec__track" id="rec-track" role="slider" tabindex="0"' +
+      ' aria-label="拖动摇柄，沿着抢救的年份推进" aria-valuemin="0" aria-valuemax="6">' +
+      '<div class="rec__rail"></div>' +
+      '<div class="rec__fill" id="rec-fill"></div>' +
+      '<div class="rec__knob" id="rec-knob"><span></span></div>' +
+    '</div>' +
+    '<div class="rec__ticks" id="rec-ticks"></div>' +
+    '<div class="rec__panel" id="rec-panel"></div>' +
+    '<p class="rec__hint" id="rec-hint">拖动上面的摇柄 —— 这就是那台机器</p>';
+  host.appendChild(wrap);
+
+  const track = wrap.querySelector('#rec-track');
+  const fill = wrap.querySelector('#rec-fill');
+  const knob = wrap.querySelector('#rec-knob');
+  const yearEl = wrap.querySelector('#rec-year');
+  const turnsEl = wrap.querySelector('#rec-turns');
+  const panel = wrap.querySelector('#rec-panel');
+  const ticks = wrap.querySelector('#rec-ticks');
+  const hint = wrap.querySelector('#rec-hint');
+  const reel = wrap.querySelector('.rec__reel');
+
+  // 刻度
+  REEL_STOPS.forEach((s) => {
+    const t = el('span', 'rec__tick');
+    t.style.left = (s.at * 100) + '%';
+    t.innerHTML = '<i></i><b>' + s.year + '</b>';
+    ticks.appendChild(t);
+    t.dataset.at = String(s.at);
+  });
+  const tickEls = [...ticks.querySelectorAll('.rec__tick')];
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let p = 0;              // 0..1 进度
+  let traveled = 0;       // 累计走过的路程（算转数用）
+  let lastX = null;
+  let stopped = false;    // 用户一旦自己动过，就不再自动推进
+  let curStop = -1;
+
+  /* 转数：不是真实圈数，是"你摇了多远"的累积。
+     用路程换算成一个体面的数字 —— 目的是让手上有反馈，
+     不是伪造一个历史数据（面板上写的就是"圈"，对应摇柄的转动）。 */
+  const TURNS_PER_PX = 0.16;
+
+  function stopAt(v) {
+    let best = 0;
+    for (let i = 0; i < REEL_STOPS.length; i++) {
+      if (v >= REEL_STOPS[i].at - 0.001) best = i;
+    }
+    return best;
+  }
+
+  function render(animate) {
+    const i = stopAt(p);
+    fill.style.width = (p * 100) + '%';
+    knob.style.left = (p * 100) + '%';
+    turnsEl.textContent = String(Math.round(traveled * TURNS_PER_PX));
+    track.setAttribute('aria-valuenow', String(i + 1));
+    track.setAttribute('aria-valuetext', REEL_STOPS[i].year + ' ' + REEL_STOPS[i].head);
+
+    // 盘子在转：角度跟着进度走，进度越大转得越多
+    if (!reduced) {
+      reel.style.transform = 'rotate(' + (p * 540) + 'deg)';
+    }
+
+    tickEls.forEach((t, k) => {
+      t.classList.toggle('is-on', k === i);
+      t.classList.toggle('is-past', k < i);
+    });
+
+    if (i !== curStop) {
+      curStop = i;
+      const s = REEL_STOPS[i];
+      yearEl.textContent = String(s.year);
+      panel.innerHTML =
+        '<h3 class="rec__head">' + s.head + '</h3>' +
+        '<p class="rec__body">' + s.body + '</p>';
+      if (animate && !reduced) {
+        panel.animate(
+          [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 520, easing: 'cubic-bezier(.22,.61,.36,1)' });
+      }
+    }
+  }
+
+  function move(clientX, animate) {
+    const r = track.getBoundingClientRect();
+    const np = Math.max(0, Math.min(1, (clientX - r.left) / Math.max(1, r.width)));
+    if (lastX !== null) traveled += Math.abs(clientX - lastX);
+    lastX = clientX;
+    p = np;
+    stopped = true;
+    hint.classList.add('is-gone');
+    render(animate);
+  }
+
+  track.addEventListener('pointerdown', (e) => {
+    track.setPointerCapture(e.pointerId);
+    lastX = null;
+    move(e.clientX, false);
+    track.classList.add('is-grabbing');
+  });
+  track.addEventListener('pointermove', (e) => {
+    if (!track.hasPointerCapture(e.pointerId)) return;
+    move(e.clientX, false);
+  });
+  const release = (e) => {
+    if (track.hasPointerCapture(e.pointerId)) track.releasePointerCapture(e.pointerId);
+    track.classList.remove('is-grabbing');
+    lastX = null;
+    render(true);
+  };
+  track.addEventListener('pointerup', release);
+  track.addEventListener('pointercancel', release);
+
+  /* 键盘：方向键一档一档走。滑块必须能用键盘操作。 */
+  track.addEventListener('keydown', (e) => {
+    const i = stopAt(p);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      p = REEL_STOPS[Math.min(REEL_STOPS.length - 1, i + 1)].at;
+      traveled += 60; stopped = true; hint.classList.add('is-gone'); render(true);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      p = REEL_STOPS[Math.max(0, i - 1)].at;
+      stopped = true; hint.classList.add('is-gone'); render(true);
+    }
+  });
+
+  render(false);
+
+  /* 滚到这一段时自动摇一小段，让人知道这东西能拖；
+     用户一旦自己动手，自动推进就停。 */
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((e) => {
+      if (!e.isIntersecting || reduced) return;
+      io.disconnect();
+      let step = 0;
+      const timer = setInterval(() => {
+        if (stopped) { clearInterval(timer); return; }
+        step++;
+        p = Math.min(0.34, step * 0.045);
+        traveled += 14;
+        render(false);
+        hint.classList.remove('is-gone');
+        if (p >= 0.34) clearInterval(timer);
+      }, 90);
+    });
+  }, { threshold: 0.4 });
+  io.observe(wrap);
+
+  return {
+    set: (v) => { p = v; traveled += 200; stopped = true; render(true); },
+    state: () => ({
+      p: +p.toFixed(3), stop: stopAt(p),
+      year: REEL_STOPS[stopAt(p)].year,
+      turns: Math.round(traveled * TURNS_PER_PX),
+      stops: REEL_STOPS.length,
+    }),
+  };
+}
+
+/* ------------------------------------------------------------- 四 · 双轨 */
+
+/**
+ * 两条轨，长度按真实数据来。
+ * 数据都在正文里：乡土近 50 位代表性传承人；学院 250+ 专业人才、2000+ 培训人次。
+ * 用平方根压一下比例 —— 否则 50 对 250 会让第一条细得看不见。
+ */
+function buildRails(host, rails) {
+  if (!host) return null;
+  const wrap = el('div', 'rails');
+
+  const rows = rails.map((r) => {
+    const row = el('article', 'rail-row');
+    row.innerHTML =
+      '<div class="rail-row__head">' +
+        '<span class="rail-row__tag">' + r.tag + '</span>' +
+        '<h3 class="rail-row__name">' + r.name + '</h3>' +
+      '</div>' +
+      '<p class="rail-row__body">' + r.body + '</p>' +
+      '<div class="rail-row__bars">' +
+        r.bars.map((b) =>
+          '<div class="rail-bar">' +
+            '<div class="rail-bar__track"><span class="rail-bar__fill" ' +
+              'style="--w:' + b.pct + '%"></span></div>' +
+            '<div class="rail-bar__read">' +
+              '<b>' + b.value + '</b><span>' + b.label + '</span>' +
+            '</div>' +
+          '</div>').join('') +
+      '</div>';
+    wrap.appendChild(row);
+    return row;
+  });
+
+  host.appendChild(wrap);
+
+  /* 进视野时把条子拉出来 —— 长度是这一段的论点，得让人看见它长出来 */
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((e) => {
+      if (!e.isIntersecting) return;
+      rows.forEach((row, i) => setTimeout(() => row.classList.add('is-in'), i * 180));
+      io.disconnect();
+    });
+  }, { threshold: 0.3 });
+  io.observe(wrap);
+
+  return { state: () => ({ rows: rails.length }) };
+}
+
+/* ------------------------------------------------------- 五 · 横滑案例带 */
+
+/** 当代运用案例：横着排，滑到哪张哪张亮。像翻唱片。 */
+function buildCases(host, cases) {
+  if (!host) return null;
+
+  const wrap = el('div', 'cases2');
+  const rail = el('div', 'cases2__rail');
+  wrap.appendChild(rail);
+
+  const cards = cases.map((c, i) => {
+    const card = el('article', 'case2');
+    card.dataset.i = String(i);
+    card.innerHTML =
+      '<div class="case2__no">' + String(i + 1).padStart(2, '0') + '</div>' +
+      '<div class="case2__org">' + c.org + '</div>' +
+      '<h3 class="case2__title">' + c.title + '</h3>' +
+      '<p class="case2__body">' + c.body + '</p>' +
+      (c.stats ? '<ul class="case2__stats">' + c.stats.map((s) =>
+        '<li><b>' + s[0] + '</b><span>' + s[1] + '</span></li>').join('') + '</ul>' : '') +
+      '<ul class="case2__tags">' + c.tags.map((t) => '<li>' + t + '</li>').join('') + '</ul>';
+    rail.appendChild(card);
+    return card;
+  });
+
+  wrap.appendChild(el('p', 'cases2__hint', '横向滑动 · 或按 ← →'));
+
+  /* 左右按钮：键盘和鼠标都要能用，不能只靠横向滚动（触控板之外不好滑） */
+  const nav = el('div', 'cases2__nav');
+  const prev = el('button', 'cases2__btn', '←');
+  const next = el('button', 'cases2__btn', '→');
+  prev.type = 'button'; next.type = 'button';
+  prev.setAttribute('aria-label', '上一个案例');
+  next.setAttribute('aria-label', '下一个案例');
+  nav.appendChild(prev); nav.appendChild(next);
+  wrap.appendChild(nav);
+  host.appendChild(wrap);
+
+  let cur = 0;
+  function go(i) {
+    cur = Math.max(0, Math.min(cards.length - 1, i));
+    cards[cur].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    cards.forEach((c, k) => c.classList.toggle('is-on', k === cur));
+    prev.disabled = cur === 0;
+    next.disabled = cur === cards.length - 1;
+  }
+  prev.addEventListener('click', () => go(cur - 1));
+  next.addEventListener('click', () => go(cur + 1));
+
+  /* 横向滚动时同步高亮：滑到哪张哪张亮 */
+  let raf = 0;
+  rail.addEventListener('scroll', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const mid = rail.getBoundingClientRect().left + rail.clientWidth / 2;
+      let best = 0, bestD = Infinity;
+      cards.forEach((c, k) => {
+        const r = c.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < bestD) { bestD = d; best = k; }
+      });
+      go(best);
+    });
+  }, { passive: true });
+
+  go(0);
+  return { go, state: () => ({ cur, total: cards.length }) };
+}
+
+__ns = __XM[6];
+__ns.mount_buildTimeline = function () { return buildTimeline; };
+__ns.mount_buildSubtract = function () { return buildSubtract; };
+__ns.mount_buildRecorder = function () { return buildRecorder; };
+__ns.mount_buildRails = function () { return buildRails; };
+__ns.mount_buildCases = function () { return buildCases; };
+}
+
+/* ── js/pages/lishi.js ── */
+function __M7__() {
 var bootChapter = __XM[4]["bootChapter"];
 var createTheme = __XM[5]["createTheme"];
 var autoPlayOnGesture = __XM[5]["autoPlayOnGesture"];
+var buildTimeline = __XM[6]["buildTimeline"];
+var buildSubtract = __XM[6]["buildSubtract"];
+var buildRecorder = __XM[6]["buildRecorder"];
+var buildRails = __XM[6]["buildRails"];
+var buildCases = __XM[6]["buildCases"];
 
 /* 第五章 · 历史与传承 —— 来源、经典化、抢救、当代运用
    --------------------------------------------------------------------------
+   2026 改造：用户说"好无聊，只有文字，背景也有些给人无聊透着压抑"。
+   诊断：五段结构一模一样（kicker → 标题 → 正文 → 正文 → 配色块），
+   滚起来是同一屏重复五遍；三个图位还全是空的（"图注位"）。
+
+   改法：
+     · 背景压暗（emberGain 0.35）—— 五行史实压在火上读着累
+     · 删掉三个空图位 —— 没图就别占位
+     · 四段各换一种**和内容对应**的形式（见 js/lib/lishi-ui.js）
+
    这一页**只有背景音乐，没有手鼓**。
    用户明确说过："第五章不该有那个鼓点的，第五章没有背景音乐才对的，还是有"
    —— 意思是这里该是纯配乐。
-
    原来写的是 bootChapter({ soundBand: 0 })，没传 drums:false，
    于是 bootChapter 建了手鼓音序器，autoPlayOnGesture 又把它打开，
-   结果配乐里混着鼓点。
-
-   现在 drums:false：不建音序器，声音按钮交给 autoPlayOnGesture 接主题曲。
-   （第三章也是同一处境，那边已经这么改了。） */
+   结果配乐里混着鼓点。现在 drums:false。 */
 
 
 
-const ctx = bootChapter({ active: 'lishi', drums: false });
 
-const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+const ctx = bootChapter({
+  active: 'lishi',
+  drums: false,
+  /* 地火压到 0.22：序章那种"火在暗处翻"适合开场，
+     但这一页全是文字，背景抢戏就是"压抑"（用户原话）。
+     光调这个还不够 —— 更要紧的是卡片得是实心的，
+     否则纹样会透过卡片压到字上（见 styles/lishi.css 的 .case2）。 */
+  emberGain: 0.22,
+});
+
+const theme = createTheme('../assets/mashrap/theme.mp3');
 theme.preload();
 
 /* 第一次交互就把配乐打开。能走到这一页说明门已经开了，
    不该再让用户找开关。seq 传 null：这一页没有鼓。 */
 autoPlayOnGesture({ theme, seq: null, fade: 3.0 });
 
+/* ------------------------------------------------------------------ 部件 */
+
+/* 一 · 渊源：千年拉成一条横线。
+   文案沿用页面原有的三段，**一个字没加**。 */
+const TIMELINE = [
+  {
+    era: '汉唐',
+    title: '西域大曲',
+    body: '源头可追溯至汉唐时期流传于西域的《龟兹乐》《疏勒乐》《高昌乐》。' +
+      '学术界有一种观点认为，汉代张骞通西域时带回中原的「摩诃兜勒」是木卡姆的原始形态，' +
+      '其曲式结构已包含歌曲、解曲和舞曲，与木卡姆的套曲结构一脉相承。',
+    tag: '龟兹乐被视为木卡姆形成发展的第一个中心地',
+  },
+  {
+    era: '10世纪',
+    title: '博亚万 · 旷野之歌',
+    body: '木卡姆的雏形萌发于公元 10 世纪维吾尔族先民的「博亚万」（旷野之歌）。' +
+      '经过几个世纪的演变，逐渐从民间散曲走向成套。',
+    tag: '旷野之歌',
+  },
+  {
+    era: '16世纪',
+    title: '叶尔羌汗国 · 决定性转折',
+    body: '到 16 世纪叶尔羌汗国时期，木卡姆迎来了决定性的转折。' +
+      '宫廷乐师将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，' +
+      '首次形成了规范化的古典套曲体系。最初整理为 <strong>16 部</strong>，' +
+      '后精简为 <strong>12 套</strong> ——「十二木卡姆」由此得名。',
+    tag: '从 16 部到 12 套',
+    emphasis: true,
+  },
+];
+
+/* 四 · 双轨：数字全部来自正文。
+   条形长度用平方根压比例 —— 50 对 2000 直接按比例会让前者看不见。 */
+const scale = (v, max) => Math.round(Math.sqrt(v / max) * 100);
+
+const RAILS = [
+  {
+    tag: '轨道一',
+    name: '扎根乡土的活态传承',
+    body: '在莎车县木卡姆文化传承中心，像玉苏普·托合提这样的非遗代表性传承人有近 50 人，' +
+      '年龄最大的 70 多岁，最小的仅 20 岁。当地通过每月发放生活补贴、每日举办文艺演出等举措，' +
+      '让传承人能够以此为业。',
+    bars: [
+      { value: '近 50', label: '代表性传承人', pct: scale(50, 2000) },
+      { value: '70 → 20', label: '年龄跨度（岁）', pct: scale(50, 2000) },
+    ],
+  },
+  {
+    tag: '轨道二',
+    name: '进入教育体系的专业化培养',
+    body: '新疆艺术学院自 1996 年起设立木卡姆专业学历教育，' +
+      '已培养出 250 余名专业人才分赴各院团工作，部分已成为一级演员。' +
+      '各地每年举办传承人培训班，二十年来累计培训超过 2000 人次。',
+    bars: [
+      { value: '250+', label: '专业人才', pct: scale(250, 2000) },
+      { value: '2000+', label: '累计培训人次', pct: scale(2000, 2000) },
+    ],
+  },
+];
+
+/* 五 · 当代运用：四类案例，改用横滑带。文案沿用原有内容。 */
+const CASES = [
+  {
+    org: '艾热',
+    title: '把木卡姆「说」进说唱',
+    body: '新疆喀什说唱歌手艾热在创作中持续融入木卡姆元素。' +
+      '他选用维吾尔族代表性弦乐器<strong>艾捷克</strong>作为说唱编曲底色，' +
+      '用较为激昂高亢的演唱方式诠释十二木卡姆艺术，与说唱音乐无缝嫁接。' +
+      '《千里万里》被网友评价为「可以上春晚的水准」，并被世界杯官方账号选用作为推广视频 BGM。',
+    tags: ['说唱', '艾捷克', '跨语种传播'],
+  },
+  {
+    org: '刀郎',
+    title: '用流行乐「翻译」木卡姆的结构',
+    body: '刀郎为电影《万桐书》创作的主题曲《命运的赛勒克》，提供了一个反向思路。' +
+      '歌曲以木卡姆音乐特征为基础，在流行律动中加入<strong>复合节拍</strong>，' +
+      '融合热瓦普、弹布尔等传统乐器，通过实录民族乐器保留木卡姆的' +
+      '「<strong>四分中立音</strong>」律制听感，并运用木卡姆式吟唱与 rap 呼应。' +
+      '这首歌的创作目的是向万桐书等抢救木卡姆的学者致敬。',
+    tags: ['电影主题曲', '复合节拍', '四分中立音'],
+  },
+  {
+    org: '2024 央视春晚 · 喀什分会场',
+    title: '大型舞台呈现',
+    body: '歌舞乐综合表演《我的爱献给祖国母亲》，选用十二木卡姆中《且比亚特木卡姆》乐曲重新填词编曲，' +
+      '动用 500 多人团队在喀什古城完成户外大型实景表演。' +
+      '乐手中既有白发苍苍的民间传承人，也有稚气纯真的小学生。',
+    stats: [['300+', '舞蹈演员'], ['90+', '乐手'], ['80+', '演唱者']],
+    tags: ['实景演出', '代际同台'],
+  },
+  {
+    org: '创新剧目',
+    title: '持续涌现',
+    body: '原创芭蕾舞剧《寻找木卡姆》以芭蕾语汇重新诠释木卡姆；' +
+      '融合 AI 数字人等技术的歌剧《木卡姆恋歌——万桐书》以现代审美演绎传承故事。' +
+      '木卡姆传统乐器还与古琴、箜篌进行跨界合奏，碰撞出跨越民族的艺术火花。',
+    tags: ['芭蕾', 'AI 数字人', '跨界合奏'],
+  },
+];
+
+const parts = {
+  timeline: buildTimeline(document.getElementById('tls-host'), TIMELINE),
+  subtract: buildSubtract(document.getElementById('subtract-host'), { from: 16, to: 12 }),
+  recorder: buildRecorder(document.getElementById('recorder-host')),
+  rails: buildRails(document.getElementById('rails-host'), RAILS),
+  cases: buildCases(document.getElementById('cases-host'), CASES),
+};
+
 // 自检用
 window.__XM_THEME__ = theme;
+window.__XM_LISHI__ = parts;
 }
 
 /* js/lib/materials.js */
@@ -2695,11 +3344,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/lishi.js */
+/* js/lib/lishi-ui.js */
 try {
   __ns = __XM[6];
   __M6__();
   for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/lishi-ui.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/lishi.js */
+try {
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/lishi.js" + " :: " + (e && e.stack || e));
 }

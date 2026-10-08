@@ -1250,7 +1250,8 @@ class Renderer {
     this.muralGain = opts.muralGain === undefined ? 1 : opts.muralGain;
     this.maxPixels = opts.maxPixels || 2.6e6;
     this.heat = 0;
-    this.emberScale = 1.55;
+    this.emberScale = 1.55;      // 地火纹样的**粗细**（uv 缩放），不是亮度
+    this.emberGain = 1;          // 地火的**亮度**倍率。页面可调小（见 chapter.js）
     this.patternScale = 5.2;
     this.patternZoom = 1;
     this.center = [0.5, 0.5];
@@ -1564,7 +1565,12 @@ class Renderer {
       const u = this.uEmber.u;
       gl.uniform1f(u.u_time, st.time);
       gl.uniform2f(u.u_res, bw, bh);
-      gl.uniform1f(u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      /* emberGain 是**亮度**倍率，乘在 heat 上。
+         别拿 emberScale 当亮度用 —— 那个是纹样粗细（uv 的 u_scale），
+         调它只会让火纹变大变小，不会变暗（踩过：
+         把 emberGain 乘到 emberScale 上，页面上火一点没暗）。 */
+      gl.uniform1f(u.u_heat,
+        (st.heat === undefined ? this.heat : st.heat) * this.emberGain);
       gl.uniform1f(u.u_scale, this.emberScale);
       gl.uniform2f(u.u_center, this.center[0], this.center[1]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -2541,6 +2547,9 @@ const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  * @param {boolean} [opts.sound=true]  是否挂声音开关（页面上要有 #sound-toggle）
  * @param {number} [opts.soundBand=0]  声音默认放第几段的鼓
  * @param {boolean} [opts.heat=true]   是否启用随滚动上升的地火热度
+ * @param {number} [opts.emberGain]  地火纹样的强度倍率。不传=原样（1.0）。
+ *        给 0.35 之类的小值可以把背景压下去 —— 有大段正文的页面需要
+ *        （第五章"历史与传承"五行史实，压在火上读着累）。
  * @param {'chapter'|'pattern'} [opts.mode='chapter']  底层画面：地火 / 程序化纹样
  * @param {boolean} [opts.drums=true]  是否挂手鼓音序器。
  *        有自己配乐的页面要传 false —— 否则声音按钮会接在手鼓上，
@@ -2570,6 +2579,14 @@ function bootChapter(opts = {}) {
         wallGain: opts.wallGain === undefined ? 0.9 : opts.wallGain,
         muralGain: 0,
       });
+      /* 地火的**亮度**倍率。
+         序章那种"火在暗处翻"适合开场，但**五行史实压在火上是累的** ——
+         第五章用它把火压下去（用户："背景也有些给人无聊透着压抑"）。
+
+         注意：这调的是 renderer.emberGain（乘在 u_heat 上），
+         **不是 emberScale** —— 后者是纹样粗细，调它只会让火纹变大变小，
+         页面上一点没暗（踩过这个坑）。 */
+      if (opts.emberGain !== undefined) renderer.emberGain = opts.emberGain;
       // 用真实的 mode 当标记，别写死 —— 写死过一次，
       // 结果自检看到的是 'chapter' 而不是 'pattern'，查了半天。
       document.body.dataset.render = mode;

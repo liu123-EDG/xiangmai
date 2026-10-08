@@ -1,0 +1,568 @@
+/* ==========================================================================
+   弦脉 · 第五章的部件样式
+   --------------------------------------------------------------------------
+   这一章原来是"五行文字 + 三个空图位"，用户说"好无聊…背景也压抑"。
+   形式换成四种和内容对应的部件，样式全在这里。
+
+   两个约束：
+     ① 类名一律带前缀（tls__ / sub__ / rec__ / rail-row__ / case2__），
+        chapter.css 里已有 .act / .body / .case 这些通用名，撞上就麻烦
+     ② "压抑"是从两层来的：背景地火太抢 + 一整页只有一种明度。
+        所以这一章整体往**档案暖灰**走，正文段落给足行距，
+        关键数字用暖色顶出来 —— 让页面有明暗层次，不是一片黑
+   ========================================================================== */
+
+/* 这一章的底色：偏档案的暖灰，不是火场 */
+body.chapter[data-render] .act__inner { max-width: 62rem; }
+
+/* 页面上的强调句：给足呼吸 */
+.lishi-note {
+  margin: 1.4rem 0 2.2rem;
+  padding-left: 1.1rem;
+  border-left: 1px solid rgba(192, 138, 62, 0.35);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  line-height: 2.1;
+  color: rgba(222, 214, 200, 0.72);
+}
+.lishi-note b { color: #f2e4c4; font-weight: 500; }
+
+/* ==========================================================================
+   一 · 横向时间长轴
+   ========================================================================== */
+.tls { margin: clamp(2rem, 5vh, 3rem) 0 0; }
+
+.tls__line {
+  position: relative;
+  height: 1px;
+  background: rgba(222, 214, 200, 0.16);
+  margin: 0 0 clamp(2.6rem, 6vh, 3.4rem);
+}
+.tls__fill {
+  position: absolute; left: 0; top: -1px;
+  height: 3px; width: 0;
+  background: linear-gradient(90deg,
+    rgba(192, 138, 62, 0.25) 0%,
+    rgba(192, 138, 62, 0.85) 100%);
+  transition: width 1.1s var(--ease-slow);
+}
+
+/* 三个节点：横着摊在一条线上 */
+.tls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas: 'line line line' 'nodes nodes nodes' 'detail detail detail';
+}
+.tls__line { grid-area: line; }
+.tls__node {
+  grid-row: 2;
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  background: none; border: 0; padding: 0.4rem 0.6rem;
+  font: inherit; color: inherit;
+  transition: color .5s var(--ease-slow);
+}
+.tls__node:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(192, 138, 62, 0.6);
+  border-radius: 2px;
+}
+.tls__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(222, 214, 200, 0.28);
+  box-shadow: 0 0 0 0 rgba(192, 138, 62, 0);
+  transition: background .6s var(--ease-slow), box-shadow .6s var(--ease-slow),
+              transform .6s var(--ease-slow);
+  /* 点要正好落在线上 */
+  margin-top: calc(-0.4rem - 4px - 0.375rem);
+}
+.tls__era {
+  font-family: var(--font-serif);
+  font-size: clamp(0.95rem, 1.7vw, 1.15rem);
+  letter-spacing: 0.12em;
+  color: rgba(222, 214, 200, 0.45);
+  transition: color .6s var(--ease-slow);
+}
+.tls__node:hover .tls__era { color: rgba(222, 214, 200, 0.8); }
+.tls__node.is-past .tls__dot { background: rgba(192, 138, 62, 0.5); }
+.tls__node.is-past .tls__era { color: rgba(222, 214, 200, 0.62); }
+.tls__node.is-on .tls__dot {
+  background: var(--amber);
+  transform: scale(1.5);
+  box-shadow: 0 0 18px 2px rgba(192, 138, 62, 0.5);
+}
+.tls__node.is-on .tls__era { color: #f6ecd8; }
+.tls__node.is-heavy.is-on .tls__era {
+  text-shadow: 0 0 26px rgba(217, 178, 104, 0.45);
+}
+
+.tls__detail {
+  grid-area: detail;
+  margin-top: clamp(1.6rem, 4vh, 2.4rem);
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.08);
+  min-height: 11rem;
+}
+.tls__title {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #f6ecd8;
+}
+.tls__body {
+  margin: 0 0 1rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.88rem, 1.35vw, 0.96rem);
+  line-height: 2.15;
+  color: rgba(222, 214, 200, 0.72);
+}
+.tls__body strong { color: #f2e4c4; font-weight: 500; }
+.tls__tag {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid rgba(192, 138, 62, 0.35);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--amber);
+}
+
+/* ==========================================================================
+   二 · 16 → 12 的减法
+   ========================================================================== */
+.sub { margin: clamp(2rem, 5vh, 3rem) 0 0; }
+
+.sub__grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: clamp(0.35rem, 1.2vw, 0.7rem);
+  margin-bottom: 1.8rem;
+}
+.sub__cell {
+  /* 压扁成"块"而不是"瓷砖"：原来 1/1.35 的竖高比例，
+     一格 120×160，16 格铺满半屏，看着像贴瓷砖（踩过）。
+     现在是矮一点的色块，读起来像"一套里的几部"。 */
+  aspect-ratio: 1 / 0.42;
+  background: rgba(222, 214, 200, 0.10);
+  border: 1px solid rgba(222, 214, 200, 0.14);
+  transition: background .8s var(--ease-slow), border-color .8s var(--ease-slow),
+              opacity .8s var(--ease-slow), transform .8s var(--ease-slow);
+}
+.sub__cell--drop {
+  background: rgba(192, 138, 62, 0.16);
+  border-color: rgba(192, 138, 62, 0.42);
+}
+/* 被剔除的：塌下去、退到背景里 */
+.sub__cell.is-out {
+  opacity: 0.12;
+  transform: scaleY(0.35) translateY(22%);
+  background: rgba(222, 214, 200, 0.05);
+  border-color: rgba(222, 214, 200, 0.06);
+}
+
+.sub__readout {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.7rem 1.1rem;
+  font-family: var(--font-sans);
+  transition: opacity .8s var(--ease-slow);
+}
+.sub__n {
+  font-size: 0.86rem; letter-spacing: 0.14em;
+  color: rgba(222, 214, 200, 0.6);
+}
+.sub__n b {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 400; letter-spacing: 0;
+  color: rgba(222, 214, 200, 0.75);
+  margin-right: 0.12em;
+}
+.sub__readout.is-in .sub__n--to b {
+  color: var(--amber);
+  text-shadow: 0 0 30px rgba(192, 138, 62, 0.4);
+}
+.sub__arrow {
+  font-size: 1.2rem;
+  color: rgba(192, 138, 62, 0.8);
+}
+.sub__cap {
+  font-size: 0.8rem; letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.5);
+}
+
+/* ==========================================================================
+   三 · 手摇钢丝录音机
+   ========================================================================== */
+.rec {
+  margin: clamp(2rem, 5vh, 3rem) 0 0;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid rgba(222, 214, 200, 0.12);
+  border-radius: 4px;
+  /* 和案例卡同理：实体底，别让地火透过来说话（正文要读得清）。 */
+  background: rgba(12, 11, 9, 0.92);
+  backdrop-filter: blur(3px);
+  box-shadow: inset 0 1px 0 rgba(222, 214, 200, 0.06);
+}
+
+.rec__top {
+  display: flex; align-items: center; gap: clamp(1rem, 3vw, 2rem);
+  margin-bottom: 1.4rem;
+}
+.rec__reel {
+  flex: 0 0 auto;
+  width: clamp(74px, 13vw, 108px);
+  height: clamp(74px, 13vw, 108px);
+  transition: transform .12s linear;
+  will-change: transform;
+}
+.rec__reel svg { width: 100%; height: 100%; display: block; }
+.rec__rim { fill: none; stroke: rgba(222, 214, 200, 0.22); stroke-width: 2; }
+.rec__hub { fill: rgba(192, 138, 62, 0.55); }
+.rec__spokes line {
+  stroke: rgba(222, 214, 200, 0.30);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.rec__meta { display: flex; flex-direction: column; gap: 0.2rem; }
+.rec__year {
+  font-family: var(--font-serif);
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: #f6ecd8;
+  font-variant-numeric: tabular-nums;
+}
+.rec__turns {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  color: rgba(222, 214, 200, 0.45);
+}
+.rec__turns b {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--amber);
+  margin-right: 0.2em;
+}
+
+/* 摇柄轨道 */
+.rec__track {
+  position: relative;
+  height: 34px;
+  margin: 0 0 0.4rem;
+  cursor: grab;
+  touch-action: none;                /* 手机上拖动不要带着页面滚 */
+}
+.rec__track.is-grabbing { cursor: grabbing; }
+.rec__track:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(192, 138, 62, 0.6);
+  border-radius: 3px;
+}
+.rec__rail {
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: rgba(222, 214, 200, 0.18);
+  transform: translateY(-50%);
+}
+.rec__fill {
+  position: absolute; left: 0; top: 50%;
+  height: 2px; width: 0;
+  background: var(--amber);
+  transform: translateY(-50%);
+  opacity: 0.6;
+}
+.rec__knob {
+  position: absolute; top: 50%; left: 0;
+  width: 26px; height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  border: 1px solid rgba(192, 138, 62, 0.7);
+  background: rgba(18, 15, 12, 0.9);
+  display: grid; place-items: center;
+  transition: box-shadow .4s var(--ease-slow);
+}
+.rec__knob span {
+  width: 3px; height: 11px;
+  border-radius: 2px;
+  background: var(--amber);
+}
+.rec__track:hover .rec__knob,
+.rec__track.is-grabbing .rec__knob {
+  box-shadow: 0 0 20px 1px rgba(192, 138, 62, 0.5);
+}
+
+/* 年份刻度 */
+.rec__ticks {
+  position: relative;
+  height: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.rec__tick {
+  position: absolute; top: 0;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+}
+.rec__tick i {
+  width: 1px; height: 6px;
+  background: rgba(222, 214, 200, 0.22);
+  transition: background .5s var(--ease-slow), height .5s var(--ease-slow);
+}
+.rec__tick b {
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: rgba(222, 214, 200, 0.35);
+  white-space: nowrap;
+  transition: color .5s var(--ease-slow);
+}
+.rec__tick.is-past i { background: rgba(192, 138, 62, 0.45); }
+.rec__tick.is-past b { color: rgba(222, 214, 200, 0.5); }
+.rec__tick.is-on i { background: var(--amber); height: 11px; }
+.rec__tick.is-on b { color: #f6ecd8; }
+
+.rec__panel { min-height: 5.5rem; }
+.rec__head {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #f6ecd8;
+}
+.rec__body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.85rem, 1.3vw, 0.94rem);
+  line-height: 2.1;
+  color: rgba(222, 214, 200, 0.7);
+}
+.rec__hint {
+  margin: 1rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  opacity: 0.85;
+  transition: opacity .8s var(--ease-slow);
+}
+.rec__hint.is-gone { opacity: 0; }
+
+/* ==========================================================================
+   四 · 双轨
+   ========================================================================== */
+.rails { display: grid; gap: clamp(1.6rem, 4vh, 2.6rem); margin-top: clamp(1.6rem, 4vh, 2.4rem); }
+
+.rail-row {
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.12);
+}
+.rail-row__head { display: flex; align-items: baseline; gap: 0.9rem; margin-bottom: 0.8rem; }
+.rail-row__tag {
+  flex: 0 0 auto;
+  padding: 0.22rem 0.6rem;
+  border: 1px solid rgba(192, 138, 62, 0.40);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+}
+.rail-row__name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #f6ecd8;
+}
+.rail-row__body {
+  margin: 0 0 1.4rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.85rem, 1.3vw, 0.94rem);
+  line-height: 2.1;
+  color: rgba(222, 214, 200, 0.7);
+}
+.rail-row__body strong { color: #f2e4c4; font-weight: 500; }
+
+.rail-row__bars { display: grid; gap: 1rem; }
+.rail-bar { display: grid; gap: 0.5rem; }
+.rail-bar__track {
+  position: relative;
+  height: 3px;
+  background: rgba(222, 214, 200, 0.10);
+}
+.rail-bar__fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg,
+    rgba(192, 138, 62, 0.5) 0%, rgba(192, 138, 62, 0.95) 100%);
+  transition: width 1.5s var(--ease-slow);
+}
+.rail-row.is-in .rail-bar__fill { width: var(--w, 0%); }
+.rail-bar__read {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: rgba(222, 214, 200, 0.5);
+}
+.rail-bar__read b {
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #f2e4c4;
+}
+
+/* ==========================================================================
+   五 · 横滑案例带
+   ========================================================================== */
+.cases2 { position: relative; margin-top: clamp(1.6rem, 4vh, 2.4rem); }
+
+.cases2__rail {
+  display: flex;
+  gap: clamp(0.9rem, 2.4vw, 1.6rem);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.4rem 0 1.2rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(192, 138, 62, 0.4) transparent;
+}
+.cases2__rail::-webkit-scrollbar { height: 3px; }
+.cases2__rail::-webkit-scrollbar-thumb { background: rgba(192, 138, 62, 0.4); }
+.cases2__rail::-webkit-scrollbar-track { background: rgba(222, 214, 200, 0.06); }
+
+.case2 {
+  flex: 0 0 min(30rem, 82vw);
+  scroll-snap-align: center;
+  padding: clamp(1.1rem, 2.6vw, 1.7rem);
+  border: 1px solid rgba(222, 214, 200, 0.10);
+  border-radius: 3px;
+  /* **卡片必须是实心的。**
+     原来用 rgba(16,14,12,0.55) 半透明，背后那片亮橙色的地火直接透上来，
+     暗字压在亮橙上 —— 读起来极累（用户说的"压抑"有一半是这个）。
+     现在给到 0.94 并加模糊，卡片是一块能读的实体，纹样只在卡片之外流动。 */
+  background: rgba(14, 12, 10, 0.94);
+  backdrop-filter: blur(3px);
+  opacity: 0.45;
+  transition: opacity .7s var(--ease-slow), border-color .7s var(--ease-slow),
+              background .7s var(--ease-slow);
+}
+.case2.is-on {
+  opacity: 1;
+  border-color: rgba(192, 138, 62, 0.38);
+  background: rgba(22, 19, 16, 0.97);
+}
+.case2__no {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: rgba(192, 138, 62, 0.6);
+  margin-bottom: 0.9rem;
+}
+.case2__org {
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  color: var(--amber);
+  margin-bottom: 0.4rem;
+}
+.case2__title {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: #f6ecd8;
+}
+.case2__body {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.82rem, 1.25vw, 0.9rem);
+  line-height: 2.05;
+  color: rgba(222, 214, 200, 0.68);
+}
+.case2__body strong { color: #f2e4c4; font-weight: 500; }
+.case2__stats,
+.case2__tags {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem;
+  margin: 0 0 0.9rem; padding: 0; list-style: none;
+}
+.case2__stats li { display: flex; align-items: baseline; gap: 0.35rem; }
+.case2__stats b {
+  font-family: var(--font-serif);
+  font-size: 1.1rem; font-weight: 400;
+  color: #f2e4c4;
+}
+.case2__stats span {
+  font-family: var(--font-sans);
+  font-size: 0.7rem; letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.45);
+}
+.case2__tags li {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgba(222, 214, 200, 0.16);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.55);
+}
+
+.cases2__hint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: rgba(222, 214, 200, 0.35);
+}
+.cases2__nav {
+  position: absolute; right: 0; top: -3.2rem;
+  display: flex; gap: 0.5rem;
+}
+.cases2__btn {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 1px solid rgba(222, 214, 200, 0.18);
+  border-radius: 50%;
+  background: rgba(16, 14, 12, 0.6);
+  color: rgba(222, 214, 200, 0.75);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color .4s var(--ease-slow), color .4s var(--ease-slow),
+              opacity .4s var(--ease-slow);
+}
+.cases2__btn:hover:not(:disabled) {
+  border-color: rgba(192, 138, 62, 0.6);
+  color: #f6ecd8;
+}
+.cases2__btn:disabled { opacity: 0.3; cursor: default; }
+.cases2__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(192, 138, 62, 0.7);
+}
+
+/* ==========================================================================
+   窄屏
+   ========================================================================== */
+@media (max-width: 640px) {
+  .tls { grid-template-columns: repeat(3, 1fr); }
+  .tls__era { font-size: 0.82rem; letter-spacing: 0.04em; }
+  .sub__grid { grid-template-columns: repeat(4, 1fr); }
+  .rec__top { gap: 1rem; }
+  .cases2__nav { position: static; justify-content: flex-end; margin-top: 0.4rem; }
+  .case2 { flex-basis: 88vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tls__fill, .sub__cell, .rail-bar__fill, .rec__reel { transition: none; }
+}

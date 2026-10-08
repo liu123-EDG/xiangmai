@@ -73,7 +73,8 @@ export class Renderer {
     this.muralGain = opts.muralGain === undefined ? 1 : opts.muralGain;
     this.maxPixels = opts.maxPixels || 2.6e6;
     this.heat = 0;
-    this.emberScale = 1.55;
+    this.emberScale = 1.55;      // 地火纹样的**粗细**（uv 缩放），不是亮度
+    this.emberGain = 1;          // 地火的**亮度**倍率。页面可调小（见 chapter.js）
     this.patternScale = 5.2;
     this.patternZoom = 1;
     this.center = [0.5, 0.5];
@@ -387,7 +388,12 @@ export class Renderer {
       const u = this.uEmber.u;
       gl.uniform1f(u.u_time, st.time);
       gl.uniform2f(u.u_res, bw, bh);
-      gl.uniform1f(u.u_heat, st.heat === undefined ? this.heat : st.heat);
+      /* emberGain 是**亮度**倍率，乘在 heat 上。
+         别拿 emberScale 当亮度用 —— 那个是纹样粗细（uv 的 u_scale），
+         调它只会让火纹变大变小，不会变暗（踩过：
+         把 emberGain 乘到 emberScale 上，页面上火一点没暗）。 */
+      gl.uniform1f(u.u_heat,
+        (st.heat === undefined ? this.heat : st.heat) * this.emberGain);
       gl.uniform1f(u.u_scale, this.emberScale);
       gl.uniform2f(u.u_center, this.center[0], this.center[1]);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
