@@ -143,18 +143,37 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
   gap: clamp(0.35rem, 1.2vw, 0.7rem);
   margin-bottom: 1.8rem;
 }
+/* 格子要高到能装下名字 —— 原来只有一条窄边，写不进字。
+   同时它现在承担信息（十二套的名字），不再只是装饰。 */
 .sub__cell {
-  /* 压扁成"块"而不是"瓷砖"：原来 1/1.35 的竖高比例，
-     一格 120×160，16 格铺满半屏，看着像贴瓷砖（踩过）。
-     现在是矮一点的色块，读起来像"一套里的几部"。 */
-  aspect-ratio: 1 / 0.42;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: clamp(3.4rem, 7.5vh, 5.2rem);
+  padding: 0.3rem 0.2rem;
   background: rgba(222, 214, 200, 0.10);
   border: 1px solid rgba(222, 214, 200, 0.14);
   transition: background .8s var(--ease-slow), border-color .8s var(--ease-slow),
-              opacity .8s var(--ease-slow), transform .8s var(--ease-slow);
+              opacity .8s var(--ease-slow);
+}
+/* 留下来的那 12 个：写名字 */
+.sub__cell--kept {
+  background: rgba(222, 214, 200, 0.06);
+  border-color: rgba(192, 138, 62, 0.34);
+}
+.sub__cell-name {
+  font-family: var(--font-serif);
+  font-size: clamp(0.68rem, 1.15vw, 0.86rem);
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: rgba(242, 228, 196, 0.92);
+  /* 名字长的（木夏吾莱克）让它自己折行，不要溢出 */
+  word-break: break-all;
 }
 .sub__cell--drop {
-  background: rgba(192, 138, 62, 0.16);
+  background: rgba(222, 214, 200, 0.10);
   border-color: rgba(192, 138, 62, 0.42);
 }
 /* 被剔除的：**划掉，不是塌掉**。
@@ -165,7 +184,6 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
 .sub__cell.is-out {
   position: relative;
   opacity: 0.92;
-  transform: none;
   background: rgba(224, 226, 232, 0.03);
   border-color: rgba(158, 160, 168, 0.5);
   border-style: dashed;
@@ -180,6 +198,15 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
   transform: rotate(-19deg);
   transform-origin: center;
 }
+/* 被剔掉那 4 格里的破折号。
+   **不给名字** —— 史料里没有"16 部"的名录，编四个就是造假。
+   只留一个"这里本来有一部"的空位记号。 */
+.sub__cell-mark {
+  font-style: normal;
+  font-size: 0.9rem;
+  color: rgba(196, 198, 206, 0.45);
+}
+.sub__cell.is-out .sub__cell-mark { color: rgba(196, 198, 206, 0.62); }
 
 .sub__readout {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.7rem 1.1rem;

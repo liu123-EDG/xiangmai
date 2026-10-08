@@ -6,6 +6,7 @@
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
+     js/lib/muqam-data.js  → MUQAM, ringPos, ORIGIN, AMANNISA, STRUCTURE, NUMBERS, RESCUE, TODAY, PRACTICE, HEADLINE_STATS
      js/lib/lishi-ui.js  → buildTimeline, buildSubtract, buildRecorder, buildRails, buildCases
      js/pages/lishi.js
 */
@@ -22,6 +23,7 @@ __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
+__XM[8] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -2806,8 +2808,240 @@ __ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
-/* ── js/lib/lishi-ui.js ── */
+/* ── js/lib/muqam-data.js ── */
 function __M6__() {
+/* ==========================================================================
+   弦脉 · 十二木卡姆
+   --------------------------------------------------------------------------
+   十二套木卡姆，每套都是一个完整的套曲循环。这里的字段按"能不能被验证"
+   分层：
+
+     name / ug   名称与维吾尔语拉丁转写 —— 公开资料
+     region      流传地域 —— 公开资料
+     char        音乐性格，用于视觉与交互上区分彼此
+     note        一句话说明，保守叙述，不编造具体史实
+
+   需要补充更详细内容（曲目、传承人、音频）时，往对应条目里加字段即可，
+   页面会自动带上。**不确定的内容不要写进来** —— 这个项目里宁缺勿造。
+   ========================================================================== */
+
+const MUQAM = [
+  { id: 'rak',     name: '拉克',     ug: 'Rak',        region: '喀什 · 莎车',   char: '庄重', hue: 12,  note: '十二套之首，气质最庄重，常被视作整套木卡姆的门面。' },
+  { id: 'chebiyat', name: '且比亚特', ug: 'Chebiyat',  region: '喀什 · 莎车',   char: '明朗', hue: 28,  note: '情绪明朗开阔，穹乃额曼部分旋律线条舒展。' },
+  { id: 'muxawrak', name: '木夏吾莱克', ug: 'Muxawrak', region: '喀什 · 和田',  char: '热烈', hue: 42,  note: '节奏推进感强，达斯坦段落叙事性突出。' },
+  { id: 'chahargah', name: '恰尔尕',   ug: 'Chahargah', region: '喀什 · 莎车',  char: '苍劲', hue: 8,   note: '音域跨度大，散板序唱部分尤为苍劲。' },
+  { id: 'panjigah', name: '潘吉尕',    ug: 'Panjigah',  region: '喀什 · 莎车',  char: '深邃', hue: 200, note: '调式色彩偏暗，听感深邃，考验演唱者的气息控制。' },
+  { id: 'uzhal',   name: '乌孜哈勒',   ug: 'Uzhal',     region: '喀什 · 莎车',  char: '婉转', hue: 168, note: '旋律婉转，腔弯细腻，是口传细节最吃功夫的一套。' },
+  { id: 'aqam',    name: '艾介姆',     ug: 'Ajam',      region: '喀什 · 莎车',  char: '舒展', hue: 36,  note: '气息舒展，麦西热甫段落歌舞性强烈。' },
+  { id: 'osechak', name: '乌夏克',     ug: 'Oshaq',     region: '喀什 · 莎车',  char: '明亮', hue: 48,  note: '明亮上扬，常被选作舞台演出的段落。' },
+  { id: 'bayat',   name: '巴雅特',     ug: 'Bayat',     region: '喀什 · 莎车',  char: '沉郁', hue: 218, note: '沉郁内敛，古典诗歌唱词占比高。' },
+  { id: 'nawa',    name: '纳瓦',       ug: 'Nawa',      region: '喀什 · 莎车',  char: '柔美', hue: 152, note: '柔美流畅，器乐间奏部分常被单独演奏。' },
+  { id: 'sigar',   name: '斯尕',       ug: 'Sigar',     region: '喀什 · 莎车',  char: '紧凑', hue: 20,  note: '结构紧凑，节拍转换频繁。' },
+  { id: 'iraq',    name: '伊拉克',     ug: 'Iraq',      region: '喀什 · 莎车',  char: '高亢', hue: 320, note: '高亢激越，常作为整套木卡姆的收束。' },
+];
+
+/** 环上第 i 个节点的位置（从正上方起顺时针） */
+function ringPos(i, cx, cy, r) {
+  const a = (i / MUQAM.length) * Math.PI * 2 - Math.PI / 2;
+  return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a };
+}
+
+/* ==========================================================================
+   第二章「穹乃额曼」的内容
+   --------------------------------------------------------------------------
+   全部来自项目方提供的历史与当代资料。呈现在页面上时保持原意，
+   只做断句与排版上的压缩。
+   ========================================================================== */
+
+const ORIGIN = [
+  {
+    era: '汉唐',
+    title: '西域大曲',
+    lines: [
+      '源头可追溯至汉唐时期流传于西域的《龟兹乐》《疏勒乐》《高昌乐》。',
+      '有观点认为，张骞通西域时带回中原的「摩诃兜勒」是木卡姆的原始形态——其曲式已包含歌曲、解曲、舞曲，与木卡姆的套曲结构一脉相承。',
+    ],
+    tag: '龟兹乐被视为木卡姆形成发展的第一个中心地',
+  },
+  {
+    era: '10世纪',
+    title: '博亚万',
+    lines: [
+      '木卡姆的雏形萌发于维吾尔族先民的「博亚万」——旷野之歌。',
+      '此后经过几个世纪的演变，逐渐从民间散曲走向成套。',
+    ],
+    tag: '旷野之歌',
+  },
+  {
+    era: '16世纪',
+    title: '叶尔羌汗国',
+    lines: [
+      '木卡姆迎来决定性转折。宫廷乐师将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成规范化的古典套曲体系。',
+      '最初整理为 16 部，后精简为 12 套——「十二木卡姆」由此得名。',
+    ],
+    tag: '从 16 部到 12 套',
+    emphasis: true,
+  },
+];
+
+const AMANNISA = {
+  name: '阿曼尼莎汗',
+  role: '叶尔羌河畔樵夫的女儿',
+  lines: [
+    '她本是叶尔羌河畔樵夫的女儿，因超凡的音乐与诗歌才华被国王拉失德娶入宫廷。',
+    '在她的倡导下，宫廷乐师喀迪尔汗（柯迪尔）将散落民间的木卡姆收集整理，剔除陈旧晦涩的内容，首次形成了规范化的古典套曲体系。',
+    '最初整理为 16 部，后精简为 12 套。',
+  ],
+  kicker: '这次转折与一位传奇女性密不可分',
+};
+
+const STRUCTURE = [
+  {
+    idx: '一',
+    name: '穹乃额曼',
+    sub: '大曲',
+    body: '是开篇，由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
+    role: '开篇',
+    mood: '舒缓 → 明朗',
+  },
+  {
+    idx: '二',
+    name: '达斯坦',
+    sub: '叙事诗',
+    body: '承接大曲，带有鲜明的叙事特征。歌词与民间故事、爱情传说、人生感怀相联系，演唱段落之间穿插器乐曲。',
+    role: '承接',
+    mood: '叙事 · 铺陈',
+  },
+  {
+    idx: '三',
+    name: '麦西热甫',
+    sub: '歌舞曲',
+    body: '是终章，节奏鲜明，气氛逐步高涨，展现群体欢聚时的生命活力。',
+    role: '终章',
+    mood: '高涨 · 欢腾',
+  },
+];
+
+const NUMBERS = [
+  { v: '170', unit: '多首', label: '歌曲' },
+  { v: '70',  unit: '多首', label: '器乐曲' },
+  { v: '20',  unit: '多小时', label: '完整演唱一遍' },
+];
+
+const RESCUE = {
+  kicker: '从濒危到重生',
+  intro: '到 20 世纪 40 年代，能完整演唱十二木卡姆的艺人已屈指可数。当时全新疆只有老艺人吐尔迪·阿洪一人能凭记忆完整演唱全套，且年事已高。他不识字，所有曲目全靠口传心授。',
+  /** 两个人的对照：语言不通、背景迥异，合作充满波折 */
+  friction: [
+    {
+      a: '万桐书记谱需要「听一句记一句」',
+      b: '吐尔迪·阿洪唱歌习惯一气呵成',
+    },
+    {
+      a: '万桐书用钢丝录音机录音',
+      b: '吐尔迪·阿洪不相信「铁疙瘩能把歌声装进去」',
+    },
+    {
+      a: '万桐书追求记谱的准确性',
+      b: '吐尔迪·阿洪每次都即兴发挥，唱得不完全一样',
+    },
+  ],
+  outcome: '经过近六年的艰辛工作，1960 年，记录了 340 余首古典叙诵歌曲、民间叙事组歌、舞曲、即兴乐曲的《十二木卡姆》正式出版。',
+  verdict: '这次抢救，让十二木卡姆从消亡边缘被拉了回来。',
+  years: '近六年 · 1950—1960',
+};
+
+const TODAY = {
+  kicker: '当代传承形态',
+  lead: '今天的十二木卡姆传承呈现出清晰的「双轨」特征。',
+  tracks: [
+    {
+      tag: '轨道一',
+      name: '扎根乡土的活态传承',
+      lines: [
+        '在莎车县木卡姆文化传承中心，像玉苏普·托合提这样的非遗代表性传承人有近 50 人，年龄最大的 70 多岁，最小的仅 20 岁。',
+        '当地通过每月发放生活补贴、每日举办文艺演出等举措，让传承人能够以此为业。',
+      ],
+      stats: [
+        { v: '近50', label: '代表性传承人' },
+        { v: '70→20', label: '年龄跨度（岁）' },
+      ],
+    },
+    {
+      tag: '轨道二',
+      name: '进入教育体系的专业化培养',
+      lines: [
+        '新疆艺术学院自 1996 年起设立木卡姆专业学历教育，已培养出 250 余名专业人才分赴各院团工作，部分已成为一级演员。',
+        '各地每年举办传承人培训班，二十年来累计培训超过 2000 人次。',
+      ],
+      stats: [
+        { v: '1996', label: '设立专业学历教育' },
+        { v: '250+', label: '专业人才' },
+        { v: '2000+', label: '累计培训人次' },
+      ],
+    },
+  ],
+};
+
+const PRACTICE = {
+  kicker: '当代运用实例',
+  lead: '十二木卡姆不再仅仅是被「保护」的对象，它正在被主动地「使用」——作为舞台艺术的核心内容、作为流行音乐的创作素材、作为连接不同代际观众的情感媒介。',
+  cases: [
+    {
+      org: '艾热',
+      title: '把木卡姆「说」进说唱',
+      body: '新疆喀什说唱歌手艾热在创作中持续融入木卡姆元素。他选用维吾尔族代表性弦乐器艾捷克作为说唱编曲底色，用较为激昂高亢的演唱方式诠释十二木卡姆艺术，与说唱音乐无缝嫁接。《千里万里》被网友评价为「可以上春晚的水准」，并被世界杯官方账号选用作为推广视频 BGM。',
+      tags: ['说唱', '艾捷克', '跨语种传播'],
+    },
+    {
+      org: '刀郎',
+      title: '用流行乐「翻译」木卡姆的结构',
+      body: '刀郎为电影《万桐书》创作的主题曲《命运的赛勒克》提供了反向思路：以木卡姆音乐特征为基础，在流行律动中加入复合节拍，融合热瓦普、弹布尔等传统乐器，通过实录民族乐器保留木卡姆的「四分中立音」律制听感，并运用木卡姆式吟唱与 rap 呼应。这首歌的创作目的是向万桐书等抢救木卡姆的学者致敬。',
+      tags: ['电影主题曲', '复合节拍', '四分中立音'],
+    },
+    {
+      org: '2024 央视春晚',
+      title: '大型舞台呈现',
+      body: '喀什分会场的歌舞乐综合表演《我的爱献给祖国母亲》，选用十二木卡姆中《且比亚特木卡姆》乐曲重新填词编曲，动用 500 多人团队（300 多位舞蹈演员、90 多位乐手、80 多位演唱者）在喀什古城完成户外大型实景表演。乐手中既有白发苍苍的民间传承人，也有稚气纯真的小学生。',
+      tags: ['实景演出', '500+ 人', '代际同台'],
+      stats: [
+        { v: '300+', label: '舞蹈演员' },
+        { v: '90+', label: '乐手' },
+        { v: '80+', label: '演唱者' },
+      ],
+    },
+    {
+      org: '创新剧目',
+      title: '持续涌现',
+      body: '原创芭蕾舞剧《寻找木卡姆》以芭蕾语汇重新诠释木卡姆；融合 AI 数字人等技术的歌剧《木卡姆恋歌——万桐书》以现代审美演绎传承故事。木卡姆传统乐器还与古琴、箜篌进行跨界合奏，碰撞出跨越民族的艺术火花。',
+      tags: ['芭蕾', 'AI 数字人', '跨界合奏'],
+    },
+  ],
+  closing: '从「抢救」到「活用」的转变，是它传承至今最具生命力的形态。',
+};
+
+/** 页面顶部的关键数字，用于开场 */
+const HEADLINE_STATS = [
+  { v: '16', unit: '世纪', label: '叶尔羌汗国完成经典化' },
+  { v: '12', unit: '套', label: '每套三大部分' },
+  { v: '20', unit: '小时', label: '完整演唱一遍' },
+];
+
+__ns = __XM[6];
+__ns.mount_MUQAM = function () { return MUQAM; };
+__ns.mount_ringPos = function () { return ringPos; };
+__ns.mount_ORIGIN = function () { return ORIGIN; };
+__ns.mount_AMANNISA = function () { return AMANNISA; };
+__ns.mount_STRUCTURE = function () { return STRUCTURE; };
+__ns.mount_NUMBERS = function () { return NUMBERS; };
+__ns.mount_RESCUE = function () { return RESCUE; };
+__ns.mount_TODAY = function () { return TODAY; };
+__ns.mount_PRACTICE = function () { return PRACTICE; };
+__ns.mount_HEADLINE_STATS = function () { return HEADLINE_STATS; };
+}
+
+/* ── js/lib/lishi-ui.js ── */
+function __M7__() {
 /* ==========================================================================
    弦脉 · 第五章的互动部件
    --------------------------------------------------------------------------
@@ -2913,19 +3147,39 @@ function buildTimeline(host, data) {
 
 /* ------------------------------------------------------------ 二 · 16 → 12 */
 
-/** 16 个方块，后 4 个被"剔除"——这是全章唯一一个看得见的动作。 */
+/**
+ * 16 格，后 4 格被"剔除"—— 这是全章唯一一个看得见的动作。
+ *
+ * **留下来的 12 格要写名字。** 原来它们是 12 个空方块，
+ * 用户直接问"所以这12个就是空白？" —— 问得对：
+ * 十二套的名字站里本来就有（js/lib/muqam-data.js 的 MUQAM），
+ * 我却在页面上摆了 12 个空框。"12 套"是哪 12 套，本该是这一段的答案。
+ *
+ * 被剔掉那 4 格**不给名字** —— 史料里没有"16 部"的名录，
+ * 编四个名字就是造假。它们只留"被划掉"这个事实。
+ */
 function buildSubtract(host, opts) {
   if (!host) return null;
   const from = opts.from, to = opts.to;
   const drop = from - to;
+  const names = opts.names || [];
 
   const wrap = el('div', 'sub');
   const grid = el('div', 'sub__grid');
   const cells = [];
   for (let i = 0; i < from; i++) {
-    const c = el('span', 'sub__cell');
-    // 要剔除的那几个排在后半段，视觉上像"被挑出去"
-    if (i >= from - drop) c.classList.add('sub__cell--drop');
+    const kept = i < to;
+    const c = el('span', 'sub__cell' + (kept ? ' sub__cell--kept' : ' sub__cell--drop'));
+    if (kept) {
+      // 名字按顺序填进留下来的格子
+      const label = names[i];
+      if (label) {
+        c.appendChild(el('b', 'sub__cell-name', label));
+      }
+    } else {
+      // 被剔除的：只标"占位"，不编名字
+      c.appendChild(el('i', 'sub__cell-mark', '—'));
+    }
     grid.appendChild(c);
     cells.push(c);
   }
@@ -3299,7 +3553,7 @@ function buildCases(host, cases) {
   return { go, state: () => ({ cur, total: cards.length }) };
 }
 
-__ns = __XM[6];
+__ns = __XM[7];
 __ns.mount_buildTimeline = function () { return buildTimeline; };
 __ns.mount_buildSubtract = function () { return buildSubtract; };
 __ns.mount_buildRecorder = function () { return buildRecorder; };
@@ -3308,15 +3562,16 @@ __ns.mount_buildCases = function () { return buildCases; };
 }
 
 /* ── js/pages/lishi.js ── */
-function __M7__() {
+function __M8__() {
 var bootChapter = __XM[4]["bootChapter"];
 var createTheme = __XM[5]["createTheme"];
 var autoPlayOnGesture = __XM[5]["autoPlayOnGesture"];
-var buildTimeline = __XM[6]["buildTimeline"];
-var buildSubtract = __XM[6]["buildSubtract"];
-var buildRecorder = __XM[6]["buildRecorder"];
-var buildRails = __XM[6]["buildRails"];
-var buildCases = __XM[6]["buildCases"];
+var MUQAM = __XM[6]["MUQAM"];
+var buildTimeline = __XM[7]["buildTimeline"];
+var buildSubtract = __XM[7]["buildSubtract"];
+var buildRecorder = __XM[7]["buildRecorder"];
+var buildRails = __XM[7]["buildRails"];
+var buildCases = __XM[7]["buildCases"];
 
 /* 第五章 · 历史与传承 —— 来源、经典化、抢救、当代运用
    --------------------------------------------------------------------------
@@ -3335,6 +3590,7 @@ var buildCases = __XM[6]["buildCases"];
    原来写的是 bootChapter({ soundBand: 0 })，没传 drums:false，
    于是 bootChapter 建了手鼓音序器，autoPlayOnGesture 又把它打开，
    结果配乐里混着鼓点。现在 drums:false。 */
+
 
 
 
@@ -3465,7 +3721,14 @@ const CASES = [
 
 const parts = {
   timeline: buildTimeline(document.getElementById('tls-host'), TIMELINE),
-  subtract: buildSubtract(document.getElementById('subtract-host'), { from: 16, to: 12 }),
+  /* 十六格里的十二套要写名字。
+     **名字直接从 muqam-data.js 取，不另抄一份** ——
+     抄一份就有两个真相来源，改了一处忘了另一处。
+     附录的轮盘用的是同一份数据。 */
+  subtract: buildSubtract(document.getElementById('subtract-host'), {
+    from: 16, to: 12,
+    names: MUQAM.map((m) => m.name),
+  }),
   recorder: buildRecorder(document.getElementById('recorder-host')),
   rails: buildRails(document.getElementById('rails-host'), RAILS),
   cases: buildCases(document.getElementById('cases-host'), CASES),
@@ -3530,20 +3793,29 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/lishi-ui.js */
+/* js/lib/muqam-data.js */
 try {
   __ns = __XM[6];
   __M6__();
   for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/muqam-data.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/lishi-ui.js */
+try {
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/lishi-ui.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/lishi.js */
 try {
-  __ns = __XM[7];
-  __M7__();
-  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
+  __ns = __XM[8];
+  __M8__();
+  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/lishi.js" + " :: " + (e && e.stack || e));
 }

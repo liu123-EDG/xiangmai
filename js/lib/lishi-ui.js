@@ -103,19 +103,39 @@ export function buildTimeline(host, data) {
 
 /* ------------------------------------------------------------ 二 · 16 → 12 */
 
-/** 16 个方块，后 4 个被"剔除"——这是全章唯一一个看得见的动作。 */
+/**
+ * 16 格，后 4 格被"剔除"—— 这是全章唯一一个看得见的动作。
+ *
+ * **留下来的 12 格要写名字。** 原来它们是 12 个空方块，
+ * 用户直接问"所以这12个就是空白？" —— 问得对：
+ * 十二套的名字站里本来就有（js/lib/muqam-data.js 的 MUQAM），
+ * 我却在页面上摆了 12 个空框。"12 套"是哪 12 套，本该是这一段的答案。
+ *
+ * 被剔掉那 4 格**不给名字** —— 史料里没有"16 部"的名录，
+ * 编四个名字就是造假。它们只留"被划掉"这个事实。
+ */
 export function buildSubtract(host, opts) {
   if (!host) return null;
   const from = opts.from, to = opts.to;
   const drop = from - to;
+  const names = opts.names || [];
 
   const wrap = el('div', 'sub');
   const grid = el('div', 'sub__grid');
   const cells = [];
   for (let i = 0; i < from; i++) {
-    const c = el('span', 'sub__cell');
-    // 要剔除的那几个排在后半段，视觉上像"被挑出去"
-    if (i >= from - drop) c.classList.add('sub__cell--drop');
+    const kept = i < to;
+    const c = el('span', 'sub__cell' + (kept ? ' sub__cell--kept' : ' sub__cell--drop'));
+    if (kept) {
+      // 名字按顺序填进留下来的格子
+      const label = names[i];
+      if (label) {
+        c.appendChild(el('b', 'sub__cell-name', label));
+      }
+    } else {
+      // 被剔除的：只标"占位"，不编名字
+      c.appendChild(el('i', 'sub__cell-mark', '—'));
+    }
     grid.appendChild(c);
     cells.push(c);
   }

@@ -17,6 +17,7 @@
    结果配乐里混着鼓点。现在 drums:false。 */
 import { bootChapter } from '../lib/chapter.js';
 import { createTheme, autoPlayOnGesture } from '../lib/theme.js';
+import { MUQAM } from '../lib/muqam-data.js';
 import { buildTimeline, buildSubtract, buildRecorder, buildRails, buildCases } from '../lib/lishi-ui.js';
 
 const ctx = bootChapter({
@@ -145,7 +146,14 @@ const CASES = [
 
 const parts = {
   timeline: buildTimeline(document.getElementById('tls-host'), TIMELINE),
-  subtract: buildSubtract(document.getElementById('subtract-host'), { from: 16, to: 12 }),
+  /* 十六格里的十二套要写名字。
+     **名字直接从 muqam-data.js 取，不另抄一份** ——
+     抄一份就有两个真相来源，改了一处忘了另一处。
+     附录的轮盘用的是同一份数据。 */
+  subtract: buildSubtract(document.getElementById('subtract-host'), {
+    from: 16, to: 12,
+    names: MUQAM.map((m) => m.name),
+  }),
   recorder: buildRecorder(document.getElementById('recorder-host')),
   rails: buildRails(document.getElementById('rails-host'), RAILS),
   cases: buildCases(document.getElementById('cases-host'), CASES),
