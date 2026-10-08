@@ -164,6 +164,30 @@ try {
     if (!good) fails++;
   }
 
+  /* 右侧进度轴：四格要跟幕号一一对应。
+     原来只有三格，永远比幕号慢一格（滚到叙事时高亮的是苍劲）——
+     从用户截图里看出来的。 */
+  console.log('\n  右侧进度轴四格：');
+  const railN = await evalJs(`document.querySelectorAll('.rail__mark').length`);
+  console.log('      页面上的 railMarks 长度 = ' + railN + '（应为 4）');
+  if (railN === 4) ok('进度轴是四格，和四幕一一对应');
+  else bad('进度轴格数 = ' + railN + '，与四幕不符');
+  for (let i = 0; i < 4; i++) {
+    await evalJs('scrollTo(0,0)');
+    await sleep(900);
+    await evalJs(`document.querySelectorAll('.rail__mark')[${i}].click()`);
+    await sleep(2600);
+    const r = JSON.parse(await evalJs(`(() => {
+      const marks = [...document.querySelectorAll('.rail__mark')];
+      const act = marks.findIndex((m) => m.classList.contains('is-active'));
+      return JSON.stringify({ stage: document.body.dataset.stage, activeMark: act, total: marks.length });
+    })()`));
+    const good = Number(r.stage) === i && r.activeMark === i;
+    console.log('    ' + (good ? 'ok  ' : '✗   ') + '点第 ' + i + ' 格 → stage ' +
+      r.stage + '，高亮第 ' + r.activeMark + ' 格（共 ' + r.total + ' 格）');
+    if (!good) fails++;
+  }
+
   ws.close();
 } catch (e) { bad('中断：' + e.message); }
 finally { chrome.kill(); server.close(); await sleep(200); }

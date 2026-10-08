@@ -54,15 +54,21 @@
      这样六格的状态 —— 尤其是"附录"那一格的解锁锁定 —— 全站一致。 -->
 <header class="topbar"></header>
 
-<!-- 进度轴：三段刻度，可点击跳转 -->
+<!-- 进度轴：四格，对应四幕（结构 + 三段），可点击跳转。
+     **原来只有三格** —— 那是按"三段"设计的，而分幕是四幕
+     （第一幕"结构"，之后才是苍劲/叙事/欢腾）。
+     于是它永远比幕号慢一格：滚到"叙事"时高亮的是"苍劲"。
+     补上第一格之后两边一一对应。 -->
 <aside class="rail" aria-label="结构进度">
   <div class="rail__marks">
-    <button class="rail__mark" type="button" data-rail="0" style="--seg-h:34px;--rail-tone:#7d97a6"
-            aria-label="跳到第一段 穹乃额曼 · 苍劲"></button>
-    <button class="rail__mark" type="button" data-rail="1" style="--seg-h:22px;--rail-tone:#c08a3e"
-            aria-label="跳到第二段 达斯坦 · 叙事"></button>
-    <button class="rail__mark" type="button" data-rail="2" style="--seg-h:26px;--rail-tone:#4a8071"
-            aria-label="跳到第三段 麦西热甫 · 欢腾"></button>
+    <button class="rail__mark" type="button" data-rail="0" style="--seg-h:14px;--rail-tone:#cbbfa8"
+            aria-label="跳到第一幕 结构"></button>
+    <button class="rail__mark" type="button" data-rail="1" style="--seg-h:34px;--rail-tone:#7d97a6"
+            aria-label="跳到第二幕 穹乃额曼 · 苍劲"></button>
+    <button class="rail__mark" type="button" data-rail="2" style="--seg-h:22px;--rail-tone:#c08a3e"
+            aria-label="跳到第三幕 达斯坦 · 叙事"></button>
+    <button class="rail__mark" type="button" data-rail="3" style="--seg-h:26px;--rail-tone:#4a8071"
+            aria-label="跳到第四幕 麦西热甫 · 欢腾"></button>
   </div>
   <span class="rail__label" aria-hidden="true">结构</span>
 </aside>

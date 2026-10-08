@@ -95,9 +95,14 @@ function renderBandState(band) {
     el.classList.toggle('is-lit', i < litCount);
     el.classList.toggle('is-active', i < litCount && i === litCount - 1);
   });
+  /* 右侧进度轴：**一格对应一幕**，四格四幕。
+     高亮的是"第几幕"（band），不是"第几段"（litCount）——
+     因为第 0 格是"结构"那一幕，那时候一段都还没点亮。
+     原来写的是 i === litCount - 1：滚到叙事（band 2）时
+     高亮的是第 1 格（苍劲），永远比幕号慢一格（用户截图里看出来的）。 */
   railMarks.forEach((m, i) => {
     m.classList.toggle('is-lit', i < litCount);
-    m.classList.toggle('is-active', i === litCount - 1);
+    m.classList.toggle('is-active', i === band);
   });
   words.forEach((w, i) => {
     const lit = i < litCount;
@@ -235,12 +240,15 @@ function jumpTo(stage) {
 /* ----------------------------------------------------------------- 交互 */
 
 function bindInteractions() {
-  /* 右侧进度轴的三格。
-     **也要用 jumpToBand** —— 原来用 jumpTo(i + 1)，
-     那套锚点 anchors[1] = 0.16 落在第二段里，
-     点第一格会跳到第二段（和情绪词同一个 bug）。 */
+  /* 右侧进度轴的四格：**一格对应一幕**，点了跳到那一幕。
+     第 0 格是"结构"（还没点亮任何一段），所以直接传 0；
+     第 1~3 格是苍劲/叙事/欢腾，走 jumpToBand。
+     （进度轴原来只有三格，比幕号慢一格 —— 已改成四格。） */
   railMarks.forEach((m, i) => {
-    m.addEventListener('click', () => scroller.jumpToBand(i));
+    m.addEventListener('click', () => {
+      if (i === 0) scroller.jumpTo(0);   // 回到开头 = 结构那一幕
+      else scroller.jumpToBand(i - 1);
+    });
   });
 
   /* 三个情绪词：**点哪一幕就滚到哪一幕**，能来回点。
