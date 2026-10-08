@@ -157,12 +157,28 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
   background: rgba(192, 138, 62, 0.16);
   border-color: rgba(192, 138, 62, 0.42);
 }
-/* 被剔除的：塌下去、退到背景里 */
+/* 被剔除的：**划掉，不是塌掉**。
+   原来用 opacity 0.12 + scaleY 0.35 塌下去，结果几乎看不见 ——
+   页面看着就是"12 个方块"，而不是"16 个里剔掉了 4 个"（用户直接指出来了：
+   "怎么是12个空白"）。
+   删掉的东西要**留着痕迹**，才能看出这是一次减法。 */
 .sub__cell.is-out {
-  opacity: 0.12;
-  transform: scaleY(0.35) translateY(22%);
-  background: rgba(222, 214, 200, 0.05);
-  border-color: rgba(222, 214, 200, 0.06);
+  position: relative;
+  opacity: 0.92;
+  transform: none;
+  background: rgba(224, 226, 232, 0.03);
+  border-color: rgba(158, 160, 168, 0.5);
+  border-style: dashed;
+}
+/* 斜着划一道：一眼看出"这个不要了" */
+.sub__cell.is-out::after {
+  content: '';
+  position: absolute;
+  left: -6%; right: -6%; top: 50%;
+  height: 1px;
+  background: rgba(196, 198, 206, 0.75);
+  transform: rotate(-19deg);
+  transform-origin: center;
 }
 
 .sub__readout {
