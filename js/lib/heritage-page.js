@@ -25,9 +25,14 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-/** 把正文里的「」引号包起来的部分加一点强调 —— 只动样式，不动文字 */
+/** 把正文里的「」引号加一点强调，并把 **粗体** 转成 <b>。
+    只动样式，不动文字。
+    **粗体这条是补的**：原来只处理「」，于是 caveat 里写的 `**应避免…**`
+    原样显示成了星号（彝族那页踩过，和 sources.js 是同一个坑）。 */
 function rich(s) {
-  return esc(s).replace(/「([^」]+)」/g, '<em class="h-q">「$1」</em>');
+  return esc(s)
+    .replace(/「([^」]+)」/g, '<em class="h-q">「$1」</em>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
 }
 
 /**
@@ -56,6 +61,28 @@ export function buildHeritagePage(opts) {
 
   const bodyHtml = (item.body || []).map((p) => '<p class="h-p">' + rich(p) + '</p>').join('');
 
+  /* 资料里明确指出的口径问题。
+     单独一块、放在正文之前 —— 读者按错的口径去理解，
+     比读到空字段更糟（苗族古歌"不是一般意义上的歌曲"就是这种）。 */
+  const caveatHtml = item.caveat
+    ? '<aside class="h-caveat">' +
+        '<span class="h-caveat__tag">读之前先知道</span>' +
+        '<p class="h-caveat__b">' + rich(item.caveat) + '</p>' +
+      '</aside>'
+    : '';
+
+  /* 来源列表。带链接的做成外链（新标签、noopener），
+     没链接的（比如"作者提供的某 docx"）就只是文字。 */
+  const sources = item.sources || (item.source ? [[item.source, '']] : []);
+  const sourcesHtml = sources.length
+    ? '<ul class="h-srcs">' + sources.map(([name, url]) =>
+        '<li>' + (url
+          ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' +
+              esc(name) + '<span class="h-out" aria-hidden="true">↗</span></a>'
+          : '<span>' + esc(name) + '</span>') +
+        '</li>').join('') + '</ul>'
+    : '<p class="h-src">（这一条尚未标注来源）</p>';
+
   const relatedHtml = (item.related && item.related.length)
     ? '<section class="h-block">' +
         '<h3 class="h-sub">同族还有这些（不在这一条里）</h3>' +
@@ -66,12 +93,13 @@ export function buildHeritagePage(opts) {
       '</section>'
     : '';
 
-  /* 未收录的那两族：明说，并给出原因（原因写在数据的 source 里）。
-     不摆"敬请期待"那种空话 —— 它和"我们还没查到"是两回事。 */
+  /* 未收录的族（现在八族都收录了，这段留着 —— 以后加新族时还用得上）：
+     明说，并给出原因。不摆"敬请期待"那种空话 ——
+     它和"我们还没查到"是两回事。 */
   const noticeHtml = item.collected ? '' :
     '<aside class="h-notice">' +
       '<p class="h-notice__t">这一页尚未收录</p>' +
-      '<p class="h-notice__b">' + rich(item.source || '') + '</p>' +
+      '<p class="h-notice__b">' + rich(sources.map(([n]) => n).join('；') || '暂无资料') + '</p>' +
       '<p class="h-notice__b">下面这些是站内已有的、能追溯到来源的内容；' +
       '剩余部分等查到可靠出处再补。' +
       '<b>不用相近内容凑数</b>——一个敢说自己缺什么的档案，比什么都敢写的可信。</p>' +
@@ -84,11 +112,12 @@ export function buildHeritagePage(opts) {
       '<p class="h-ug">' + esc(item.ug) + '</p>' +
       '<p class="h-lead">' + rich(item.note) + '</p>' +
       (item.collected
-        ? '<p class="h-badge h-badge--on">已收录 · ' + esc(item.source) + '</p>'
+        ? '<p class="h-badge h-badge--on">已收录 · ' + sources.length + ' 项来源</p>'
         : '<p class="h-badge h-badge--off">未收录 · 见下方说明</p>') +
     '</header>' +
 
     noticeHtml +
+    caveatHtml +
 
     '<section class="h-block">' +
       '<div class="h-grid">' +
@@ -107,7 +136,7 @@ export function buildHeritagePage(opts) {
 
     '<section class="h-block">' +
       '<h2 class="h-h2">来源</h2>' +
-      '<p class="h-src">' + esc(item.source) + '</p>' +
+      sourcesHtml +
       '<p class="h-fine">本页文字取自上述材料，未作补充。' +
       '站内「参考来源」一节列了已核实与尚未核实的内容。</p>' +
     '</section>' +
@@ -125,6 +154,9 @@ export function buildHeritagePage(opts) {
       notice: !item.collected,
       fields: fields.length,
       related: (item.related || []).length,
+      sources: sources.length,
+      linkedSources: sources.filter(([, u]) => u).length,
+      caveat: !!item.caveat,
     }),
   };
 

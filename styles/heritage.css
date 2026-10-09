@@ -193,6 +193,68 @@
   line-height: 2;
   color: rgba(222, 214, 200, 0.72);
 }
+
+/* 来源列表：带链接的可点，外链在新标签打开 */
+.h-srcs {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.h-srcs li {
+  position: relative;
+  padding: 0.55rem 0 0.55rem 1.1rem;
+  border-bottom: 1px solid rgba(222, 214, 200, 0.06);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  line-height: 1.9;
+  color: rgba(222, 214, 200, 0.72);
+}
+.h-srcs li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 1.15rem;
+  width: 4px; height: 4px;
+  background: var(--eh-accent);
+  opacity: 0.7;
+}
+.h-srcs a {
+  color: rgba(242, 228, 196, 0.9);
+  text-decoration: none;
+  border-bottom: 1px solid var(--eh-soft);
+  transition: color .4s var(--ease-slow), border-color .4s var(--ease-slow);
+}
+.h-srcs a:hover, .h-srcs a:focus-visible {
+  color: #fff6e2;
+  border-bottom-color: var(--eh-accent);
+  outline: none;
+}
+.h-out { margin-left: 0.35em; font-size: 0.8em; color: var(--eh-accent); opacity: 0.75; }
+
+/* 「读之前先知道」：资料里指出的口径问题。
+   放在正文之前，用左侧族色竖条 + 轻微底色，但不做成警告框 ——
+   它不是错误提示，是阅读前提。 */
+.h-caveat {
+  margin: 0 0 clamp(2rem, 4.5vh, 2.6rem);
+  padding: 0.95rem 1.2rem;
+  border-left: 2px solid var(--eh-accent);
+  background: var(--eh-faint);
+}
+.h-caveat__tag {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--eh-accent);
+}
+.h-caveat__b {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 2.05;
+  color: rgba(232, 226, 214, 0.86);
+}
+.h-caveat__b b { color: var(--eh-bright); font-weight: 500; }
 .h-fine {
   margin: 0;
   font-family: var(--font-sans);

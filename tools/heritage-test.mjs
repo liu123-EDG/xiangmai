@@ -83,7 +83,7 @@ try {
     { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 
   console.log('\n[八族分页自检]\n');
-  console.log('  族        名称        收录  标题   正文段  字段  同族  色相  说明');
+  console.log('  族      名称        结果  正文  栏目  来源  链接  口径  色相');
 
   const seenHues = new Set();
 
@@ -95,26 +95,23 @@ try {
     const r = JSON.parse(await evalJs(`(() => {
       const h = window.__XM_HERITAGE__;
       const q = (s) => document.querySelector(s);
-      const accent = getComputedStyle(document.body).getPropertyValue('--eh-accent').trim();
-      const titleEl = q('.h-title');
-      // 标题上算出来的颜色，用来证明"族色真的落到页面上了"
-      const kickerColor = q('.h-kicker') ? getComputedStyle(q('.h-kicker')).color : null;
       return JSON.stringify({
         has: !!h,
         st: h ? h.state() : null,
-        title: titleEl ? titleEl.textContent.trim() : '',
+        title: q('.h-title') ? q('.h-title').textContent.trim() : '',
         paras: document.querySelectorAll('.h-p').length,
         fields: document.querySelectorAll('.h-field').length,
         related: document.querySelectorAll('.h-related li').length,
-        src: q('.h-src') ? q('.h-src').textContent.trim().slice(0, 20) : '',
+        srcs: document.querySelectorAll('.h-srcs li').length,
+        srcLinks: document.querySelectorAll('.h-srcs a').length,
+        badLink: [...document.querySelectorAll('.h-srcs a')]
+          .filter((a) => !/^https?:/.test(a.getAttribute('href') || '')).length,
+        caveat: !!q('.h-caveat'),
         notice: !!q('.h-notice'),
-        badge: q('.h-badge') ? q('.h-badge').textContent.trim().slice(0, 8) : '',
+        badge: q('.h-badge') ? q('.h-badge').textContent.trim().slice(0, 12) : '',
         back: !!q('.h-back a'),
-        accent,
-        kickerColor,
         bodyLen: (q('.ethnic') ? q('.ethnic').innerText : '').replace(/\\s/g, '').length,
         bootErr: (window.__XM_BOOT_ERR__ || []).length,
-        render: document.body.dataset.render,
       });
     })()`));
 
@@ -124,27 +121,47 @@ try {
     const wantParas = (item.body || []).length;
     const wantFields = ['level', 'region', 'form', 'instrument']
       .filter((k) => item[k]).length;
+    const wantSrc = (item.sources || []).length;
+    const wantLinks = (item.sources || []).filter(([, u]) => u).length;
 
     const problems = [];
     if (!r.title) problems.push('标题是空的');
     else if (r.title !== item.name) problems.push('标题不对：' + r.title);
-    /* **内容判据**：正文段数要够、字段要够、来源要在 */
+    /* **内容判据** */
     if (r.paras !== wantParas) problems.push('正文 ' + r.paras + ' 段，应为 ' + wantParas);
     if (r.fields !== wantFields) problems.push('字段 ' + r.fields + ' 个，应为 ' + wantFields);
-    if (!r.src) problems.push('没有来源行');
+    if (r.srcs !== wantSrc) problems.push('来源 ' + r.srcs + ' 条，应为 ' + wantSrc);
+    if (r.srcLinks !== wantLinks) problems.push('带链接的来源 ' + r.srcLinks + ' 条，应为 ' + wantLinks);
+    if (r.badLink) problems.push('有来源链接不是 http(s)：' + r.badLink + ' 条');
+    if (!!item.caveat !== r.caveat) {
+      problems.push(item.caveat ? '口径提醒没显示' : '多出一个口径提醒');
+    }
     if (!r.back) problems.push('没有返回旋律图的链接');
-    if (r.bodyLen < 120) problems.push('页面文字太少（' + r.bodyLen + ' 字），像空页');
+    if (r.bodyLen < 150) problems.push('页面文字太少（' + r.bodyLen + ' 字），像空页');
     if (r.bootErr) problems.push('启动错误 ' + r.bootErr + ' 条');
-    /* **诚实判据**：未收录的必须显示说明，已收录的不该显示 */
-    if (!collected && !r.notice) problems.push('未收录却没显示「尚未收录」说明');
+    if (!collected && !r.notice) problems.push('未收录却没显示说明');
     if (collected && r.notice) problems.push('已收录却挂着未收录说明');
 
     const flag = problems.length ? '✗' : 'ok';
-    console.log('  ' + item.group.padEnd(8) + item.name.padEnd(12) +
-      (collected ? '收录 ' : '未收 ') + flag.padEnd(4) + ' ' +
-      String(r.paras).padStart(3) + String(r.fields).padStart(6) +
-      String(r.related).padStart(6) + String(item.hue).padStart(6) + '  ' +
-      (badge(r)) + (problems.length ? '  ★ ' + problems.join('；') : ''));
+    console.log('  ' + item.group.padEnd(7) + item.name.padEnd(11) +
+      flag.padEnd(4) +
+      String(r.paras).padStart(3) + ' 段' +
+      String(r.fields).padStart(4) + ' 栏' +
+      String(r.srcs).padStart(4) + ' 源' +
+      String(r.srcLinks).padStart(3) + ' 链' +
+      (r.caveat ? '  提醒' : '     ') +
+      '  ' + String(item.hue).padStart(4) +
+      (problems.length ? '  ★ ' + problems.join('；') : ''));
+    /* 页面上不许出现字面星号 —— 说明 markdown 语法漏到 HTML 里了。
+       （sources.js 踩过一次，这次 heritage-page.js 的 caveat 又踩了一次，
+       所以八个页面都加上这条判据。） */
+    const stars = await evalJs(`(() => {
+      const el = document.querySelector('.ethnic');
+      const t = el ? el.innerText : '';
+      return (t.match(/\\*\\*/g) || []).length;
+    })()`);
+    if (stars) problems.push('有 ' + stars + ' 处字面星号（markdown 漏了）');
+
     if (problems.length) fails++;
 
     seenHues.add(item.hue);
@@ -160,10 +177,6 @@ try {
   ws.close();
 } catch (e) { bad('中断：' + e.message); }
 finally { chrome.kill(); server.close(); await sleep(200); }
-
-function badge(r) {
-  return r.notice ? '未收录说明在' : (r.badge || '（无标签）');
-}
 
 console.log('\n' + (fails ? '✗ ' + fails + ' 项未通过\n' : '✓ 八族分页自检通过\n'));
 process.exit(fails ? 1 : 0);
