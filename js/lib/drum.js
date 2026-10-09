@@ -53,6 +53,11 @@ export function buildDrum(opts = {}) {
   if (!host) return null;
 
   const reduced = !!opts.reduced;
+  /* 用户敲一下时回调（页面拿它去发声） */
+  const onStrike = opts.onStrike || null;
+  /* 自检用：用户一共敲了几下、最后一次什么时候 */
+  let userHits = 0;
+  let lastStruckAt = 0;
   const size = opts.size || 440;
   const C = size / 2;
   const R_RIM = C - 10;          // 鼓沿
@@ -205,6 +210,7 @@ export function buildDrum(opts = {}) {
     /* section 可能是 -1（还没到任何一段）—— 那时候不该敲。
        原来没拦，SECTIONS[-1] 是 undefined，读 .tone 直接抛异常（踩过）。 */
     if (section < 0) return;
+    lastStruckAt = now;
     const s = SECTIONS[section];
     // 中心：缩一下再回去（用 CSS 类触发动画比重画 SVG 便宜）
     core.classList.remove('is-hit');
@@ -266,13 +272,54 @@ export function buildDrum(opts = {}) {
     raf = requestAnimationFrame(frame);
   }
 
+  /**
+   * 让**用户自己敲**。
+   *
+   * 指导老师说「只是简单的点击」「可以做一些沉浸式的体验」。
+   * 序章这只鼓原来是背景装饰：它自己按 BPM 敲，用户只能看着。
+   * 现在点鼓面就敲一下 —— 声音由页面提供（onStrike 回调），
+   * 视觉（鼓心弹、涟漪）由这里负责。
+   *
+   * 为什么声音不在这里做：这一页的音序器在 home.js 手上，
+   * 鼓这一层不该知道音频怎么发。分开之后，
+   * 以后想把这只鼓放到别处用，不用带着音频一起搬。
+   *
+   * @returns {boolean} 敲到了没有（section < 0 时敲不响，见 strike 的注释）
+   */
+  function userStrike() {
+    if (section < 0) return false;
+    strike(performance.now());
+    userHits++;
+    if (onStrike) onStrike(section);
+    return true;
+  }
+
+  /** 鼓面可点：整块 SVG 都算命中区，不用瞄准鼓心 */
+  svg.style.pointerEvents = 'auto';
+  svg.style.cursor = 'pointer';
+  svg.setAttribute('role', 'button');
+  svg.setAttribute('tabindex', '0');
+  svg.setAttribute('aria-label', '手鼓：点一下或按回车敲一声');
+  svg.addEventListener('pointerdown', (e) => { e.preventDefault(); userStrike(); });
+  svg.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); userStrike(); }
+  });
+
   return {
     section: () => section,
     setSection,
     start: () => { running = true; nextBeat = performance.now() + 100; },
     stop: () => { running = false; },
+    /* 用户敲一下（供页面别处调用，比如点三个词的时候顺手敲一声） */
+    hit: userStrike,
     /* 自检用 */
-    state: () => ({ section, running, ripples: ripples.filter((r) => r.t >= 0).length }),
+    state: () => ({
+      section, running,
+      ripples: ripples.filter((r) => r.t >= 0).length,
+      /* 用户一共敲了几下 —— 验"点鼓面真的有反应"靠这个 */
+      userHits,
+      struck: lastStruckAt,
+    }),
     el: svg,
   };
 }

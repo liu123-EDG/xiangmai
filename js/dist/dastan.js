@@ -2210,6 +2210,35 @@ class DapSequencer {  /**
     }
   }
 
+  /* ------------------------------------------------------------ 敲一下
+     给「用户自己打」用的（指导老师：只是简单的点击 → 沉浸式的体验）。
+     原来只有内部 _hit 那一套，外面没法让手鼓**立刻**响一声 ——
+     它只会按 BPM 自己循环。
+
+     和 _hit 的区别：这个不排进调度，就是现在响。
+     音量按 currentTime 直接给，不做淡入 —— 手打要的就是即时。 */
+  hit(kind) {
+    if (!this.ready || !this.ctx) return false;
+    /* context 可能是 suspended（用户还没交互过）。
+       能唤醒就唤醒 —— 敲鼓本身就是一次手势，浏览器允许。 */
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    /* 稍微往后放一点点：立刻响会落在当前音频块里，有些设备上会吞掉。
+       12ms 听不出来，但稳。 */
+    const t = this.ctx.currentTime + 0.012;
+    const k = kind || 'dum';
+    try {
+      if (k === 'tek') this._tek(t, 0.62, 1);
+      else if (k === 'snap') this._snap(t, 0.26, 1);
+      else if (k === 'mute') this._mute(t, 0.5, 1);
+      else this._dum(t, 0.9, 1);
+    } catch (e) {
+      /* 敲一下失败不该把页面搞崩 —— 没声也能继续看 */
+      if (window.console) console.warn('[弦脉] 手鼓敲击失败：', e && e.message);
+      return false;
+    }
+    return true;
+  }
+
   /* ------------------------------------------------------------ 满圈一声
      互动里的"圈满了"需要的不只是更密的鼓，是**一下子砸下来**。
      所以另做一个：低频撞击 + 一记炸开的长镲 + 快速滚奏收尾。

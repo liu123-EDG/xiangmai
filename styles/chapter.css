@@ -1256,6 +1256,15 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   transition: opacity 0.5s var(--ease-slow);
 }
 .mq__head { fill: hsl(var(--h) 42% 62% / 0.95); }
+/* 朵帕（四棱花帽）。**不给它上身体那个色相** ——
+   帽子是这身装扮里唯一"有民族标识"的东西，让它自己站住：
+   暖一点、实一点，和身体区分开。 */
+.mq__doppa {
+  fill: hsl(28 46% 44% / 0.95);
+  stroke: rgba(10, 9, 8, 0.45);
+  stroke-width: 0.6;
+}
+.mq__doppa-top { fill: hsl(34 52% 58% / 0.95); }
 .mq__body {
   fill: hsl(var(--h) 38% 46% / 0.9);
   stroke: rgba(10, 9, 8, 0.5);
@@ -1263,10 +1272,29 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
   transform-box: fill-box;
   transform-origin: 50% 100%;
 }
+/* 裙摆：比身体亮一档，和上身分开读；摆动靠 --sway 轻微旋转。
+   转轴放在腰上（上边缘），这样是"裙摆甩起来"，不是整片平移。 */
+.mq__skirt {
+  fill: hsl(var(--h) 44% 58% / 0.75);
+  stroke: rgba(10, 9, 8, 0.4);
+  stroke-width: 0.6;
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  transform: rotate(calc(var(--sway, 0) * 7deg));
+}
 .mq__arm {
   stroke: hsl(var(--h) 42% 62% / 0.85);
   stroke-width: 2;
   stroke-linecap: round;
+  /* 绕肩转 —— 两条臂的肩点分别在左右，转轴各自设，转的方向相反，
+     所以看起来是"一开一合"，不是两条一起甩。 */
+  transform-box: fill-box;
+  transform-origin: 100% 100%;
+  transform: rotate(calc(var(--swing, 0) * -16deg));
+}
+.mq__arm--r {
+  transform-origin: 0% 100%;
+  transform: rotate(calc(var(--swing, 0) * 16deg));
 }
 /* 加进来的时候弹一下 */
 .mq__person.is-in .mq__body { animation: mqPop 0.7s var(--ease-slow); }

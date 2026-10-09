@@ -401,6 +401,23 @@ async function boot() {
       host: drumHost,
       size: Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.46),
       reduced: REDUCED,
+      /* **点鼓面就响。**
+         指导老师：「只是简单的点击」「可以做一些沉浸式的体验」。
+         这只鼓原来是背景装饰 —— 它自己按 BPM 敲，用户只能看着。
+         现在用户自己打：点鼓面出声。视觉（鼓心弹、涟漪）由 drum.js 负责，
+         声音在这里给 —— 鼓那一层不该知道音频怎么发。
+
+         三段各用一种打法：苍劲用闷击、叙事用边击、欢腾用响亮的中心击。
+         敲出来的就是当前那一段的声音，和背景的自动鼓点同源。 */
+      onStrike: (sec) => {
+        if (!audio) return;
+        /* **先把 context 唤醒。**
+           敲鼓本身就是一次手势，这是唯一能开声的时机 ——
+           没手动开过声音的用户，不唤醒的话点了鼓面一点声都没有。 */
+        if (!audio.enabled) audio.enable();
+        audio.setBand(Math.max(0, Math.min(2, sec)));
+        audio.hit(sec === 0 ? 'mute' : sec === 1 ? 'tek' : 'dum');
+      },
     });
     window.__XM_DRUM__ = drum;   // 自检用
     /* 建好之后立刻按当前幕对齐一次 ——
