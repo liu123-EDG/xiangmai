@@ -215,8 +215,17 @@ export function buildMelody(host, opts = {}) {
  * @param {HTMLElement} section
  * @param {object} melody  buildMelody 的返回值
  * @param {boolean} reduced
+ * @param {object} [opts]
+ * @param {(item:object, index:number)=>void} [opts.onNote]
+ *        **游标越过某个音符时回调** —— 页面拿它去发声。
+ *        加了这一条，滚一遍就等于把这条旋律听一遍：
+ *        「一条旋律，八个音」不再只是一句话（指导老师要的 A8③）。
+ *        为什么放在这一层：只有这里知道游标现在在哪、
+ *        哪个音符刚被越过。让页面自己算会把这套几何重写一遍。
+ * @returns {() => void} 解绑
  */
-export function bindMelodyScroll(section, melody, reduced) {
+export function bindMelodyScroll(section, melody, reduced, opts = {}) {
+  const onNote = opts.onNote || null;
   if (!melody || reduced) {
     // 减弱动效：直接给完整曲线，不做逐段显示
     melody.pathLine.style.strokeDasharray = 'none';
@@ -227,6 +236,9 @@ export function bindMelodyScroll(section, melody, reduced) {
   const { pathLine, playhead, totalLen } = melody;
   playhead.style.opacity = '0';
   let ticking = false;
+  /* 已经响过的音符。**用集合记住，不是每帧比大小** ——
+     滚动是来回的，比大小会把同一个音反复触发。 */
+  const sounded = new Set();
 
   const update = () => {
     ticking = false;
@@ -241,12 +253,38 @@ export function bindMelodyScroll(section, melody, reduced) {
     pathLine.style.strokeDasharray = totalLen + ' ' + totalLen;
     pathLine.style.strokeDashoffset = (totalLen * (1 - play)).toFixed(1);
 
-    if (playhead.getTotalLength) {
+    /* 游标位置。
+       **这里原来有个一直没被发现的 bug**：
+         写成 `if (playhead.getTotalLength)` ——
+         而 playhead 是个 <g> 元素，SVGElement 上**根本没有 getTotalLength**，
+         那个方法是 SVGGraphicsElement（path/circle/line…）才有的。
+         所以条件永远为假，游标从来没动过，一声不响地停在那儿。
+         改：拿 pathLine 算（它才是 <path>，本来就在上面算过 totalLen）。
+
+       顺带：这条旋律是"从左到右"读的，所以游标 x 就是它的时间轴 ——
+       发声按 x 判断游标越过了哪个音，不用再换算弧长。 */
+    let cursorX = -1e9;
+    if (pathLine.getPointAtLength) {
       const pt = pathLine.getPointAtLength(totalLen * play);
+      cursorX = pt.x;
       playhead.setAttribute('transform', 'translate(' + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ')');
     }
     playhead.style.opacity = play > 0.01 && play < 0.995 ? '1' : (play >= 0.995 ? '0.35' : '0');
     melody.svg.style.setProperty('--melody-play', play.toFixed(3));
+
+    if (onNote && cursorX > -1e8) {
+      melody.items.forEach((it, i) => {
+        if (!sounded.has(i) && it.x <= cursorX) {
+          sounded.add(i);
+          onNote(it.data, i);
+        }
+      });
+      /* 往回滚过头了就撤销已响记号，让"再滚一遍"能再响一次。
+         容差 40px：不留容差会在边界上反复触发。 */
+      melody.items.forEach((it, i) => {
+        if (sounded.has(i) && it.x > cursorX + 40) sounded.delete(i);
+      });
+    }
   };
 
   const onScroll = () => {

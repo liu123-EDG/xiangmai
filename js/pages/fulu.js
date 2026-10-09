@@ -6,6 +6,7 @@ import { MUQAM } from '../lib/muqam-data.js';
 import { HERITAGE, heritageHref } from '../lib/heritage-data.js';
 import { unlock, createTheme, autoPlayOnGesture } from '../lib/theme.js';
 import { buildSources } from '../lib/sources.js';
+import { createMelodyVoice } from '../lib/melody-voice.js';
 
 /* 这一页不放鼓：它是一次"横向看"的比较，主题曲一个人铺底就够。
    所以 sound:false —— 免得鼓点和主题曲抢。 */
@@ -13,9 +14,22 @@ const ctx = bootChapter({ active: 'fulu', sound: false });
 const { REDUCED } = ctx;
 const $ = (s) => document.querySelector(s);
 
+/* 八个音的声音。
+   和主题曲**各用各的 context**：主题曲是循环配乐，
+   这里的音是"滚一下响一声"的一次性音，混在一条链路上互相压。
+   代价是页面上有两个 AudioContext（站里其他页都只有一个）——
+   这两个都是短促、低音量的，不会互相静音（浏览器限制的是
+   "同一页面多个 context 同时长时间播放"）。 */
+const voice = createMelodyVoice({ volume: 0.15 });
+window.__XM_VOICE__ = voice;   // 自检用
+
 const theme = createTheme('../assets/audio/mashrap/theme.mp3');
 theme.preload();
+/* 首次交互把旋律的声音也一起唤醒 ——
+   滚轮不算手势，不在这时候 arm 的话，后面滚过去是没声的。 */
 autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+window.addEventListener('pointerdown', () => voice.arm(), { once: true });
+window.addEventListener('keydown', () => voice.arm(), { once: true });
 
 // 自检用
 window.__XM_THEME__ = theme;
@@ -120,7 +134,30 @@ if (mHost) {
     },
     onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
   });
-  bindMelodyScroll($('#melody-act'), melody, REDUCED);
+  /* **自检用的数组要在 bind 之前建。**
+     bindMelodyScroll 里面会立刻调一次 update() —— 那次就可能触发 onNote，
+     而数组在后面才建，回调里的守卫会把这一笔丢掉（而且后面全丢）。
+     踩过：数组永远是空的，看着像"回调没被调用"。 */
+  window.__XM_NOTES__ = [];
+
+  bindMelodyScroll($('#melody-act'), melody, REDUCED, {
+    /* **滚过去就响。**
+       原来这张图只看得见：悬停出说明、点击进分页、游标在走但一声不响。
+       说是"一条旋律，八个音"，其实没有旋律。
+       现在游标越过哪个音就响哪个 —— 滚一遍等于听一遍。
+
+       音高直接用 HERITAGE 的 pitch 算（见 melody-voice.js），
+       所以**图上画在哪儿，听起来就是那个高度** —— 图和声是同一份数据，
+       不会出现"看着高、听着低"。 */
+    onNote: (item) => {
+      /* 记一笔"回调来过了" —— 自检靠它区分两件事：
+         "回调没被调用" 和 "调用了但没出声"。
+         这两种情况的修法完全不同。 */
+      if (window.__XM_NOTES__) window.__XM_NOTES__.push(item ? item.id : '?');
+      if (!item) return;
+      voice.play(item.pitch, { tone: 0.3 });
+    },
+  });
 }
 
 /* ---- 上锁与解锁提示 ----

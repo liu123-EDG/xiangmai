@@ -11,6 +11,7 @@
      js/lib/melody.js  → buildMelody, bindMelodyScroll
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
      js/lib/sources.js  → buildSources
+     js/lib/melody-voice.js  → createMelodyVoice
      js/pages/fulu.js
 */
 (function () {
@@ -30,6 +31,7 @@ __XM[8] = {};
 __XM[9] = {};
 __XM[10] = {};
 __XM[11] = {};
+__XM[12] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -3198,8 +3200,17 @@ function buildMelody(host, opts = {}) {
  * @param {HTMLElement} section
  * @param {object} melody  buildMelody 的返回值
  * @param {boolean} reduced
+ * @param {object} [opts]
+ * @param {(item:object, index:number)=>void} [opts.onNote]
+ *        **游标越过某个音符时回调** —— 页面拿它去发声。
+ *        加了这一条，滚一遍就等于把这条旋律听一遍：
+ *        「一条旋律，八个音」不再只是一句话（指导老师要的 A8③）。
+ *        为什么放在这一层：只有这里知道游标现在在哪、
+ *        哪个音符刚被越过。让页面自己算会把这套几何重写一遍。
+ * @returns {() => void} 解绑
  */
-function bindMelodyScroll(section, melody, reduced) {
+function bindMelodyScroll(section, melody, reduced, opts = {}) {
+  const onNote = opts.onNote || null;
   if (!melody || reduced) {
     // 减弱动效：直接给完整曲线，不做逐段显示
     melody.pathLine.style.strokeDasharray = 'none';
@@ -3210,6 +3221,9 @@ function bindMelodyScroll(section, melody, reduced) {
   const { pathLine, playhead, totalLen } = melody;
   playhead.style.opacity = '0';
   let ticking = false;
+  /* 已经响过的音符。**用集合记住，不是每帧比大小** ——
+     滚动是来回的，比大小会把同一个音反复触发。 */
+  const sounded = new Set();
 
   const update = () => {
     ticking = false;
@@ -3224,12 +3238,38 @@ function bindMelodyScroll(section, melody, reduced) {
     pathLine.style.strokeDasharray = totalLen + ' ' + totalLen;
     pathLine.style.strokeDashoffset = (totalLen * (1 - play)).toFixed(1);
 
-    if (playhead.getTotalLength) {
+    /* 游标位置。
+       **这里原来有个一直没被发现的 bug**：
+         写成 `if (playhead.getTotalLength)` ——
+         而 playhead 是个 <g> 元素，SVGElement 上**根本没有 getTotalLength**，
+         那个方法是 SVGGraphicsElement（path/circle/line…）才有的。
+         所以条件永远为假，游标从来没动过，一声不响地停在那儿。
+         改：拿 pathLine 算（它才是 <path>，本来就在上面算过 totalLen）。
+
+       顺带：这条旋律是"从左到右"读的，所以游标 x 就是它的时间轴 ——
+       发声按 x 判断游标越过了哪个音，不用再换算弧长。 */
+    let cursorX = -1e9;
+    if (pathLine.getPointAtLength) {
       const pt = pathLine.getPointAtLength(totalLen * play);
+      cursorX = pt.x;
       playhead.setAttribute('transform', 'translate(' + pt.x.toFixed(1) + ' ' + pt.y.toFixed(1) + ')');
     }
     playhead.style.opacity = play > 0.01 && play < 0.995 ? '1' : (play >= 0.995 ? '0.35' : '0');
     melody.svg.style.setProperty('--melody-play', play.toFixed(3));
+
+    if (onNote && cursorX > -1e8) {
+      melody.items.forEach((it, i) => {
+        if (!sounded.has(i) && it.x <= cursorX) {
+          sounded.add(i);
+          onNote(it.data, i);
+        }
+      });
+      /* 往回滚过头了就撤销已响记号，让"再滚一遍"能再响一次。
+         容差 40px：不留容差会在边界上反复触发。 */
+      melody.items.forEach((it, i) => {
+        if (sounded.has(i) && it.x > cursorX + 40) sounded.delete(i);
+      });
+    }
   };
 
   const onScroll = () => {
@@ -4038,8 +4078,128 @@ __ns = __XM[10];
 __ns.mount_buildSources = function () { return buildSources; };
 }
 
-/* ── js/pages/fulu.js ── */
+/* ── js/lib/melody-voice.js ── */
 function __M11__() {
+/* ==========================================================================
+   弦脉 · 八个音的声音（附录「一条旋律，八个音」）
+   --------------------------------------------------------------------------
+   指导老师：要"多一些交互"，而且要沉浸式的。
+   附录那张旋律图原来是**只看的**：悬停显示说明、点击进分页，
+   随滚动只是游标在走 —— 说是"一条旋律"，其实一声没响。
+
+   现在滚过去就响。**「一条旋律，八个音」不再只是一句话。**
+
+   —— 音是怎么定的 ——
+   这八个音在图上是有音高的（HERITAGE 的 pitch 字段，1 最低、每 +1 升半格）。
+   所以声音直接按那个字段算，**不另编一套**：
+   图上那个音画在哪儿，它听起来就是那个高度。图和声是同一份数据。
+
+   音色：拨弦。用两个衰减正弦（基音 + 八度泛音）叠一下 ——
+   比纯正弦有"弦"的感觉，又不至于像电子琴。
+   每个民族的音色略有差别（泛音多少不同），但不做花哨的处理：
+   这一块的重点是"听得出来高低"，不是音色炫技。
+
+   为什么不用 _dum/_tek 那套鼓：那是打击乐，没有音高。
+   这里是旋律，要能听出 do re mi。
+   ========================================================================== */
+
+/** 五声音阶（宫商角徵羽），从 A3 起。用五声是因为这些民族音乐
+    大量用五声框架，随便挑一个音都不会难听。 */
+const PENTATONIC = [0, 2, 4, 7, 9];
+const BASE_HZ = 220;          // A3
+
+/** pitch（1..13）→ 频率。每 +1 升半格，五声框架内循环。 */
+function hzOfPitch(pitch) {
+  const step = Math.max(0, Math.round(pitch) - 1);
+  const oct = Math.floor(step / PENTATONIC.length);
+  const deg = step % PENTATONIC.length;
+  const semi = PENTATONIC[deg] + oct * 12;
+  return BASE_HZ * Math.pow(2, semi / 12);
+}
+
+/**
+ * @param {object} [opts]
+ * @param {number} [opts.volume=0.16]
+ */
+function createMelodyVoice(opts = {}) {
+  let ctx = null;
+  let master = null;
+  const volume = opts.volume === undefined ? 0.16 : opts.volume;
+  let played = 0;              // 自检用：一共响了几声
+
+  const ensure = () => {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+    return ctx;
+  };
+
+  /**
+   * 响一声。
+   * @param {number} pitch  音高（HERITAGE 里的 pitch）
+   * @param {object} [o]
+   * @param {number} [o.tone]  泛音多少（0..1），默认 0.35
+   */
+  function play(pitch, o = {}) {
+    if (!ensure()) return false;
+    /* context 可能是 suspended（用户还没交互过）。
+       滚轮不算手势，所以这里只能尽力唤醒 ——
+       真正保证有声音的是 autoPlayOnGesture 那次首交互。 */
+    if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime + 0.008;
+    const hz = hzOfPitch(pitch);
+    const dur = o.dur === undefined ? 1.25 : o.dur;
+    const tone = o.tone === undefined ? 0.35 : o.tone;
+
+    /* 基音：指数衰减，像被拨了一下 */
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0.0001, t);
+    g1.gain.exponentialRampToValueAtTime(0.9, t + 0.006);
+    g1.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const o1 = ctx.createOscillator();
+    o1.type = 'triangle';
+    o1.frequency.setValueAtTime(hz, t);
+    o1.connect(g1).connect(master);
+    o1.start(t); o1.stop(t + dur + 0.05);
+
+    /* 八度泛音：短、轻 —— 给"弦"的质感 */
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t);
+    g2.gain.exponentialRampToValueAtTime(0.9 * tone, t + 0.004);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.5);
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(hz * 2, t);
+    o2.connect(g2).connect(master);
+    o2.start(t); o2.stop(t + dur * 0.55);
+
+    played++;
+    return true;
+  }
+
+  return {
+    play,
+    /** 只管唤醒，不出声。首次交互时调一次 —— 有了 running 的 context，
+        后面滚动才有声音。 */
+    arm: () => { const c = ensure(); if (c && c.state === 'suspended') c.resume(); return !!c; },
+    state: () => ({
+      played,
+      ctxState: ctx ? ctx.state : 'none',
+      volume,
+    }),
+  };
+}
+
+__ns = __XM[11];
+__ns.mount_createMelodyVoice = function () { return createMelodyVoice; };
+}
+
+/* ── js/pages/fulu.js ── */
+function __M12__() {
 var bootChapter = __XM[4]["bootChapter"];
 var buildWheel = __XM[6]["buildWheel"];
 var bindWheelScroll = __XM[6]["bindWheelScroll"];
@@ -4052,8 +4212,10 @@ var unlock = __XM[9]["unlock"];
 var createTheme = __XM[9]["createTheme"];
 var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
 var buildSources = __XM[10]["buildSources"];
+var createMelodyVoice = __XM[11]["createMelodyVoice"];
 
 /* 附录 · 形制比较 —— 十二套木卡姆轮盘 + 八个民族的旋律入口 */
+
 
 
 
@@ -4068,9 +4230,22 @@ const ctx = bootChapter({ active: 'fulu', sound: false });
 const { REDUCED } = ctx;
 const $ = (s) => document.querySelector(s);
 
+/* 八个音的声音。
+   和主题曲**各用各的 context**：主题曲是循环配乐，
+   这里的音是"滚一下响一声"的一次性音，混在一条链路上互相压。
+   代价是页面上有两个 AudioContext（站里其他页都只有一个）——
+   这两个都是短促、低音量的，不会互相静音（浏览器限制的是
+   "同一页面多个 context 同时长时间播放"）。 */
+const voice = createMelodyVoice({ volume: 0.15 });
+window.__XM_VOICE__ = voice;   // 自检用
+
 const theme = createTheme('../assets/audio/mashrap/theme.mp3');
 theme.preload();
+/* 首次交互把旋律的声音也一起唤醒 ——
+   滚轮不算手势，不在这时候 arm 的话，后面滚过去是没声的。 */
 autoPlayOnGesture({ theme, seq: null, fade: 3.2 });
+window.addEventListener('pointerdown', () => voice.arm(), { once: true });
+window.addEventListener('keydown', () => voice.arm(), { once: true });
 
 // 自检用
 window.__XM_THEME__ = theme;
@@ -4175,7 +4350,30 @@ if (mHost) {
     },
     onHover: (m) => { if (mReadout) mReadout.innerHTML = line(m); },
   });
-  bindMelodyScroll($('#melody-act'), melody, REDUCED);
+  /* **自检用的数组要在 bind 之前建。**
+     bindMelodyScroll 里面会立刻调一次 update() —— 那次就可能触发 onNote，
+     而数组在后面才建，回调里的守卫会把这一笔丢掉（而且后面全丢）。
+     踩过：数组永远是空的，看着像"回调没被调用"。 */
+  window.__XM_NOTES__ = [];
+
+  bindMelodyScroll($('#melody-act'), melody, REDUCED, {
+    /* **滚过去就响。**
+       原来这张图只看得见：悬停出说明、点击进分页、游标在走但一声不响。
+       说是"一条旋律，八个音"，其实没有旋律。
+       现在游标越过哪个音就响哪个 —— 滚一遍等于听一遍。
+
+       音高直接用 HERITAGE 的 pitch 算（见 melody-voice.js），
+       所以**图上画在哪儿，听起来就是那个高度** —— 图和声是同一份数据，
+       不会出现"看着高、听着低"。 */
+    onNote: (item) => {
+      /* 记一笔"回调来过了" —— 自检靠它区分两件事：
+         "回调没被调用" 和 "调用了但没出声"。
+         这两种情况的修法完全不同。 */
+      if (window.__XM_NOTES__) window.__XM_NOTES__.push(item ? item.id : '?');
+      if (!item) return;
+      voice.play(item.pitch, { tone: 0.3 });
+    },
+  });
 }
 
 /* ---- 上锁与解锁提示 ----
@@ -4311,11 +4509,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sources.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/fulu.js */
+/* js/lib/melody-voice.js */
 try {
   __ns = __XM[11];
   __M11__();
   for (var k in __XM[11]) { if (k.indexOf("mount_") === 0) __XM[11][k.slice(6)] = __XM[11][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/melody-voice.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/fulu.js */
+try {
+  __ns = __XM[12];
+  __M12__();
+  for (var k in __XM[12]) { if (k.indexOf("mount_") === 0) __XM[12][k.slice(6)] = __XM[12][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/fulu.js" + " :: " + (e && e.stack || e));
 }
