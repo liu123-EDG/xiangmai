@@ -165,6 +165,7 @@ try {
     const f = window.__XM_FILM__;
     const v = document.querySelector('.fullfilm video');
     const o = document.querySelector('.fullfilm');
+    const th = window.__XM_THEME__;
     return JSON.stringify({
       st: f ? f.state() : null,
       popped: ${JSON.stringify(popped)},
@@ -179,6 +180,8 @@ try {
       overlayOp: o ? +(+getComputedStyle(o).opacity).toFixed(2) : null,
       hasSkip: !!document.querySelector('.fullfilm__skip'),
       unlocked: localStorage.getItem('xiangmai.unlocked.mashrap') === '1',
+      /* 主题曲当前音量 —— 用来验"片子响的时候它让位了" */
+      vol: th ? th.state().volume : null,
     });
   })()`));
   after.atPop = popped;
@@ -190,8 +193,15 @@ try {
   else bad('满圈后没有幕布');
   if (after.src && /full-circle-slim/.test(after.src)) ok('取的是压好的片子：' + after.src);
   else bad('视频路径不对：' + after.src);
-  if (after.muted === true) ok('视频静音（现场主题曲在放，不该打架）');
-  else bad('视频没静音 —— 会和主题曲撞');
+  /* 片子**有声音**（作者拍的现场声）。
+     一开始做成静音，理由是"会和主题曲打架" —— 那是回避，不是解决。
+     现在靠"片子响时把主题曲压下去"处理，所以这里要验两件事：
+     视频没静音，且主题曲真的让位了。 */
+  if (after.muted === false) ok('视频有声（不是静音播放）');
+  else bad('视频还是静音的 —— 作者拍的现场声被丢掉了');
+  if (after.vol !== null && after.vol < 0.55 - 0.02) {
+    ok('主题曲让位了：0.55 → ' + after.vol.toFixed(3));
+  } else bad('主题曲没压低（' + after.vol + '）—— 会和片子的声音撞在一起');
   if (after.playsInline) ok('playsinline 在（手机上不会全屏劫持）');
   else bad('缺 playsinline');
   if (after.w > 0) ok('画面已解出 ' + after.w + 'px');
@@ -229,11 +239,13 @@ try {
   await sleep(2600);
   const end = JSON.parse(await evalJs(`(() => {
     const f = window.__XM_FILM__;
+    const th = window.__XM_THEME__;
     return JSON.stringify({
       st: f.state(),
       inDom: !!document.querySelector('.fullfilm'),
       unlocked: localStorage.getItem('xiangmai.unlocked.mashrap') === '1',
       pageOk: !document.body.classList.contains('is-loading'),
+      vol: th ? th.state().volume : null,
     });
   })()`));
   console.log('       收场之后 ' + JSON.stringify(end));
@@ -241,6 +253,10 @@ try {
   else bad('幕布还在 DOM 里 —— 会把整页盖住');
   if (end.unlocked) ok('解锁保持');
   else bad('解锁丢了');
+  /* 主题曲必须抬回来 —— 压下去不抬回来，用户就永远听不到背景音乐了。
+     （音量是 setTargetAtTime 渐变，等一会儿再读才准。） */
+  if (end.vol !== null && end.vol > 0.5) ok('主题曲已抬回 ' + end.vol.toFixed(3));
+  else bad('主题曲没抬回来（' + end.vol + '）—— 压下去就不管了');
 
   /* ---- ⑥ 无 404、无异常 ---- */
   if (!bad_req.length) ok('没有请求失败');

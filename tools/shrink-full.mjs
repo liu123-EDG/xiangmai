@@ -78,6 +78,10 @@ if (!existsSync(srcLocal) || statSync(srcLocal).size !== statSync(SRC).size) {
 await mkdir(join(root, REL_DIR), { recursive: true });
 
 const BOTH = process.argv.includes('--both');
+/* --silent：出一版没有音轨的。默认**带声音** ——
+   作者拍的片子本身有现场声，静音播放是把内容丢掉一半。
+   和主题曲的冲突由 fullfilm.js 那边处理（播放期间把主题曲压下去）。 */
+const SILENT = process.argv.includes('--silent');
 const TARGETS = BOTH
   ? [{ width: 960, height: 540, bps: 2_200_000, suffix: '-slim' },
      { width: 640, height: 360, bps: 1_100_000, suffix: '-slim-m' }]
@@ -118,36 +122,71 @@ try {
 
   const before = statSync(srcLocal).size;
   console.log('\n════════ 满圈视频瘦身 ════════');
-  console.log('  源 ' + (before / 1048576).toFixed(2) + ' MB（' + REL_DIR + '/source.mp4）\n');
+  console.log('  源 ' + (before / 1048576).toFixed(2) + ' MB（.tmp/source/full-circle.mp4）\n');
 
   for (const T of TARGETS) {
     process.stdout.write('  ' + (T.width + '×' + T.height).padEnd(10) + ' 录制中…（约 15 秒）');
 
     const raw = await evalJs(`(async () => {
-      const src = ${JSON.stringify(REL_DIR + '/source.mp4')};
+      const src = '.tmp/source/full-circle.mp4';
       const W = ${T.width}, H = ${T.height}, BPS = ${T.bps};
       if (!window.MediaRecorder) return JSON.stringify({ err: '没有 MediaRecorder' });
 
       const buf = await (await fetch('/' + src + '?t=' + Date.now())).arrayBuffer();
       const v = document.createElement('video');
       v.src = URL.createObjectURL(new Blob([buf], { type: 'video/mp4' }));
-      v.muted = true; v.playsInline = true;
+      v.playsInline = true;
+
+      /* 先生成音轨，再起播。
+         **顺序很要紧**：createMediaElementSource 必须在 play() 之前接好，
+         否则头几百毫秒的声音录不进去。
+         另外这里不能设 v.muted —— 静音元素的 MediaElementSource
+         输出也是静的，录出来是一条空音轨。 */
+      const SILENT = ${SILENT ? 'true' : 'false'};
+      let ac = null;
+      if (!SILENT) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        ac = new AC();
+        v.volume = 1;
+      } else {
+        v.muted = true;
+      }
+
       await new Promise((r) => { v.onloadeddata = r; v.onerror = () => r(); });
-      if (!v.videoWidth) return JSON.stringify({ err: '解码失败' });
+      if (!v.videoWidth) {
+        return JSON.stringify({ err: '解码失败：videoWidth=0，元素错误码 ' +
+          (v.error ? v.error.code + ' ' + v.error.message : '无') });
+      }
 
       const cv = document.createElement('canvas');
       cv.width = W; cv.height = H;
       const g = cv.getContext('2d');
 
-      const cands = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      const cands = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9',
+                     'video/webm;codecs=vp8,opus', 'video/webm'];
       const mime = cands.find((m) => MediaRecorder.isTypeSupported(m));
       if (!mime) return JSON.stringify({ err: '不支持 webm 录制' });
 
-      /* 只录 canvas 流 —— **没有音轨**。
-         现场已经有主题曲在放，再加一条只会打架。
-         （MediaRecorder 要音轨的话得另接 AudioContext，那是另一件事。） */
+      /* 画面：canvas 流。声音：另接一条 MediaStreamDestination，
+         把它的音轨加进同一个流里 —— canvas.captureStream() 只有画面，
+         要录声音必须自己拼这条轨。
+         音轨压到 64 kbps：这是"现场感"的声音，不需要高保真，
+         体积省下来都给画面。 */
       const stream = cv.captureStream(30);
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: BPS });
+      if (!SILENT && ac) {
+        const srcNode = ac.createMediaElementSource(v);
+        const dest = ac.createMediaStreamDestination();
+        srcNode.connect(dest);
+        const at = dest.stream.getAudioTracks()[0];
+        if (at) stream.addTrack(at);
+        // 只接 dest 不接扬声器：录得到，但不会在有头浏览器里外放
+      }
+
+      const rec = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: BPS,
+        ...(SILENT ? {} : { audioBitsPerSecond: 64000 }),
+      });
       const parts = [];
       rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
       const stopped = new Promise((r) => { rec.onstop = r; });

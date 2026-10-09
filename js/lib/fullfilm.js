@@ -71,6 +71,9 @@ export function buildFullCircleFilm(opts = {}) {
      "它很快就 done 了"，分不清是解码失败、被策略拒、还是真的放完了。 */
   let lastWhy = '';
   let lastErr = '';
+  /* 片子是不是正在出声（用来保证 onStart / onDone 严格配对，
+     不会出现"压了两次、只抬回一次"或者反过来）。 */
+  let soundOn = false;
 
   function make() {
     if (box) return box;
@@ -82,15 +85,27 @@ export function buildFullCircleFilm(opts = {}) {
     const inner = el('div', 'fullfilm__frame');
     video = document.createElement('video');
     video.className = 'fullfilm__video';
-    /* 静音是设计不是缺陷：现场主题曲正在放，再加一条音轨只会打架。
-       压缩时也只录了画面流，本来就没有音轨。 */
+    /* **片子有声音。**
+       一开始做成静音的，理由是"现场主题曲正在放，再加一条音轨会打架"。
+       那是回避问题，不是解决 —— 作者拍的片子自带现场声，
+       静音播等于把内容丢掉一半。
+       正确做法是**压低另一条**：片子响的时候主题曲让位
+       （onStart / onDone 回调，由调用方调 theme.setVolume），放完抬回来。
+       对话时把背景音乐压下去，是这个场景的标准处理。
+
+       muted 的初值仍是 true：有的浏览器对"带声自动播放"更严，
+       真正起播前一行再放开（见 play() 里）。
+       注意 setAttribute('muted') 只影响**初始**状态，
+       运行时算数的是 video.muted 这个属性。 */
     video.muted = true;
     video.defaultMuted = true;
     video.playsInline = true;
     video.preload = 'none';
     video.setAttribute('muted', '');
     video.setAttribute('playsinline', '');
-    video.setAttribute('aria-hidden', 'true');
+    /* 不设 aria-hidden：那会把这段短片从可访问性树里摘掉，
+       而它是有内容的（带声音）。给个名字让人知道有多长。 */
+    video.setAttribute('aria-label', '满圈之后的短片，约 15 秒，有声音');
 
     skipBtn = el('button', 'fullfilm__skip', '跳过');
     skipBtn.type = 'button';
@@ -144,12 +159,14 @@ export function buildFullCircleFilm(opts = {}) {
       box.classList.remove('is-in');
       box.classList.add('is-out');
     }
+    /* 主题曲抬回来 —— 一进入收场就抬，不等幕布淡完。
+       幕布要淡 1.8 秒，等它淡完再抬音量，中间会有近两秒的静默空档。 */
+    if (soundOn) { soundOn = false; if (opts.onDone) opts.onDone(why); }
     const wait = opts.reduced ? 0 : FADE_OUT * 1000;
     outTimer = setTimeout(() => {
       phase = 'done';
       if (box && box.parentNode) box.parentNode.removeChild(box);
       box = null; video = null; skipBtn = null;
-      if (opts.onDone) opts.onDone(why);
     }, wait);
   }
 
@@ -175,12 +192,23 @@ export function buildFullCircleFilm(opts = {}) {
       });
     });
 
+    /* **放开静音**，然后立刻 play()。
+       这两行必须在同一次手势的调用栈里 —— play() 是被点击触发的
+       （用户刚点完第 16 下），这会儿还在用户激活窗口内，带声起播是允许的。
+       放到 await 之后再做，激活就过期了，会退化成"被策略拒"。 */
+    video.muted = false;
     const p = video.play();
     if (p && p.then) {
-      p.then(() => { phase = 'playing'; })
-       .catch((e) => finish('自动播放被拒：' + ((e && e.name) || e)));
+      p.then(() => {
+        phase = 'playing';
+        /* 真的响起来了，才让主题曲让位。
+           ——为什么不在 play() 之前就压：万一起播被拒，
+           片子没声、主题曲也压低了，变成两头都听不清。 */
+        if (!soundOn) { soundOn = true; if (opts.onStart) opts.onStart(); }
+      }).catch((e) => finish('自动播放被拒：' + ((e && e.name) || e)));
     } else {
       phase = 'playing';
+      if (!soundOn) { soundOn = true; if (opts.onStart) opts.onStart(); }
     }
 
     /* 硬兜底：不管发生什么，25 秒之后一定收场。

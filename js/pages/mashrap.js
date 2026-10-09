@@ -22,14 +22,24 @@ const readout = document.getElementById('mq-readout');
    在这里建（而不是等满圈时才建）：元素提前进 DOM，满圈时只是加个类，
    不会有"第一次点开时卡一下"的空档。
    base 传 '..' —— 这一页在 mashrap/ 下，视频在 assets/ 下。
-   reduced 时它自己会跳过，直接回调 onDone。 */
+   reduced 时它自己会跳过，直接回调 onDone。
+
+   **主题曲让位**：片子有声音（作者拍的现场声），它响的时候主题曲压下去，
+   放完（或跳过）抬回来。
+   音量常量写在这里而不是散在回调里 —— 以后想调只改这两个数。 */
+const THEME_NORMAL = 0.55;     // 满圈之后主题曲的正常音量
+const THEME_DUCKED = 0.10;     // 片子说话时压到这里（不是 0：留一点底，衔接不生硬）
+
 const film = buildFullCircleFilm({
   base: '..',
   reduced: ctx.REDUCED,
+  onStart: () => theme.setVolume(THEME_DUCKED),
   onDone: () => {
-    /* 片子放完（或跳过）之后回到页面。
-       这里什么额外的事都不用做 —— 解锁在满圈那一刻就完成了，
-       幕布一撤，用户看到的就是已经打开的页面。 */
+    /* 放完（或跳过）之后回到页面。两件事：
+       ① 主题曲抬回来 —— 一进收场就抬，不等幕布淡完（淡出要 1.8 秒，
+          等它淡完再抬，中间会有近两秒的静默空档）
+       ② 解锁在满圈那一刻就完成了，幕布一撤，用户看到的就是打开的页面 */
+    theme.setVolume(THEME_NORMAL);
     const hint = document.getElementById('mq-hint');
     if (hint) hint.classList.add('is-done');
   },
