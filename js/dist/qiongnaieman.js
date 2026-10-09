@@ -2264,8 +2264,16 @@ const NAV = [
     lockHref: 'mashrap/index.html#mq-act',
     lockHint: '先把第四章那场麦西热甫跳完',
   },
+  /* 八音 · 八族档案。挂在最后，和附录同一道门后面 ——
+     它引用的就是附录那条旋律图上的八个音，门开了一起开。
+     这一节有八页（heritage/<id>/index.html）加一个总页面（heritage/index.html）。 */
+  {
+    id: 'bain', num: '八音', label: '八族档案', href: 'heritage/index.html',
+    requires: 'xiangmai.unlocked.mashrap',
+    lockHref: 'mashrap/index.html#mq-act',
+    lockHint: '先把第四章那场麦西热甫跳完',
+  },
 ];
-
 const $ = (s, r) => (r || document).querySelector(s);
 
 /** 读取解锁状态。localStorage 读不到（隐私模式）就当没锁，别把人挡在外面。 */

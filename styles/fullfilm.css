@@ -1,0 +1,85 @@
+/* --------------------------------------------------------------------------
+   满圈之后那支片子（第四章）
+   --------------------------------------------------------------------------
+   点满 16 下 → 主题曲起 → 黑幕拉开，片子放一遍 → 放完自己渐渐消失。
+
+   层级放在声音按钮之下（z-index 比 topbar 低一档），
+   这样片子在放的时候，右上角的声音开关仍然够得着 ——
+   万一用户想关掉主题曲，不该被幕布挡住。
+   -------------------------------------------------------------------------- */
+.fullfilm {
+  position: fixed;
+  inset: 0;
+  z-index: 55;                     /* topbar 是 60，留给声音开关 */
+  display: grid;
+  place-items: center;
+  padding: clamp(0.6rem, 3vw, 2rem);
+  background: rgba(6, 5, 4, 0.92);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1.1s var(--ease-slow), visibility 1.1s;
+}
+.fullfilm.is-in {
+  opacity: 1;
+  visibility: visible;
+}
+/* 淡出：比淡入慢一点，"渐渐消失"才成立 */
+.fullfilm.is-out {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1.8s var(--ease-slow), visibility 1.8s;
+}
+
+.fullfilm__frame {
+  width: min(60rem, 94vw);
+  max-height: 82vh;
+  border: 1px solid rgba(222, 214, 200, 0.14);
+  border-radius: 3px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.95);
+  /* 幕布拉开时画面自己再放大一点点，像"凑近看" */
+  transform: scale(0.985);
+  transition: transform 1.1s var(--ease-slow);
+}
+.fullfilm.is-in .fullfilm__frame { transform: scale(1); }
+
+.fullfilm__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 82vh;
+  object-fit: contain;
+  background: #000;
+}
+
+/* 跳过：放在右下角，不抢画面中心，但一眼看得见 */
+.fullfilm__skip {
+  position: fixed;
+  right: clamp(0.9rem, 4vw, 2.4rem);
+  bottom: clamp(0.9rem, 4vw, 2.4rem);
+  padding: 0.5rem 1.1rem;
+  border: 1px solid rgba(222, 214, 200, 0.28);
+  border-radius: 999px;
+  background: rgba(12, 11, 10, 0.72);
+  color: rgba(222, 214, 200, 0.82);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: border-color .4s var(--ease-slow), color .4s var(--ease-slow),
+              background .4s var(--ease-slow);
+}
+.fullfilm__skip:hover, .fullfilm__skip:focus-visible {
+  border-color: rgba(192, 138, 62, 0.75);
+  color: #f6ecd8;
+  background: rgba(24, 20, 16, 0.86);
+  outline: none;
+}
+
+/* 减弱动效：不要那两段过渡，直接显示/消失 */
+@media (prefers-reduced-motion: reduce) {
+  .fullfilm, .fullfilm.is-out { transition: none; }
+  .fullfilm__frame { transition: none; transform: none; }
+}

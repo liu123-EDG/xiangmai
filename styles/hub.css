@@ -1,0 +1,202 @@
+/* ==========================================================================
+   弦脉 · 八音总页面
+   --------------------------------------------------------------------------
+   八张卡，每张一族。卡片颜色取自那一族档案页同一个 --eh，
+   所以从这一页点进去、以及从附录旋律图点进来，颜色是接得上的。
+
+   类名一律带 hub- 前缀：chapter.css 里有 .act / .body / .chapter-hero
+   这些通用名，撞上过一次就够受的。
+
+   **这里自带一套 --eh-* 变量**，不引 heritage.css ——
+   那个文件里还有 .ethnic / .h-p 那一整套档案页正文样式，
+   引进来会污染总页面。色相的含义两边一致，只是各定义一份。
+   ========================================================================== */
+
+/* 每张卡自己带 --eh（见 hub.js 写的 style），这四档从它派生 */
+.hub-page, .hub-card {
+  --eh-accent: hsl(var(--eh, 36) 46% 58%);
+  --eh-soft:   hsl(var(--eh, 36) 40% 62% / 0.32);
+  --eh-faint:  hsl(var(--eh, 36) 36% 60% / 0.14);
+  --eh-bright: hsl(var(--eh, 36) 54% 70%);
+}
+
+.hub-act { padding-top: clamp(2rem, 5vh, 3rem); }
+.hub-grid {
+  width: min(72rem, 92vw);
+  margin: clamp(2rem, 5vh, 3rem) auto 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+  gap: clamp(0.8rem, 1.8vw, 1.2rem);
+}
+
+/* ---------------------------------------------------------------- 卡片 */
+
+.hub-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: clamp(1.1rem, 2.2vw, 1.5rem) clamp(1.1rem, 2.2vw, 1.5rem)
+           clamp(1.1rem, 2.2vw, 1.5rem) calc(clamp(1.1rem, 2.2vw, 1.5rem) + 0.5rem);
+  border: 1px solid rgba(222, 214, 200, 0.10);
+  border-radius: 3px;
+  background: rgba(14, 12, 10, 0.72);
+  text-decoration: none;
+  overflow: hidden;
+  transition: border-color .5s var(--ease-slow), background .5s var(--ease-slow),
+              transform .5s var(--ease-slow);
+}
+.hub-card:hover, .hub-card:focus-visible {
+  border-color: var(--eh-accent);
+  background: rgba(22, 19, 16, 0.88);
+  transform: translateY(-2px);
+  outline: none;
+}
+.hub-card:focus-visible { box-shadow: 0 0 0 1px var(--eh-accent); }
+
+/* 左边一道族色竖条 —— 八张卡站在一起时，靠它区分 */
+.hub-card__bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--eh-accent);
+  opacity: 0.55;
+  transition: opacity .5s var(--ease-slow), width .5s var(--ease-slow);
+}
+.hub-card:hover .hub-card__bar,
+.hub-card:focus-visible .hub-card__bar { opacity: 1; width: 4px; }
+
+/* 音高数：卡片左上角。
+   导语说"按旋律图上的音高排"，那就得让这个顺序**看得见** ——
+   网格是横向填充的，位置本身说明不了音阶，数字才行。 */
+.hub-card__pitch {
+  position: absolute;
+  top: clamp(0.9rem, 1.8vw, 1.2rem);
+  left: calc(clamp(1.1rem, 2.2vw, 1.5rem) + 0.5rem);
+  display: flex; align-items: center; gap: 0.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--eh-accent);
+  opacity: 0.8;
+}
+.hub-card__pitch b { font-weight: 500; font-size: 0.78rem; }
+.hub-card__pitch i {
+  font-style: normal;
+  letter-spacing: -0.05em;
+  opacity: 0.5;
+}
+
+.hub-card__group {
+  margin-top: 1.5rem;              /* 给上面的音高数让位 */
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  color: var(--eh-accent);
+}
+.hub-card__name {
+  font-family: var(--font-serif);
+  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+  letter-spacing: 0.05em;
+  color: #f6ecd8;
+}
+.hub-card__ug {
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--eh-soft);
+}
+.hub-card__kind {
+  margin-top: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.55);
+}
+.hub-card__note {
+  margin-top: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.72);
+}
+.hub-card__foot {
+  margin-top: auto;
+  padding-top: 0.9rem;
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.08);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(222, 214, 200, 0.42);
+}
+.hub-card__src { color: var(--eh-accent); opacity: 0.85; }
+
+/* 「读之前先知道」小旗子 —— 让有口径提醒的条目在总览里就能被认出来 */
+.hub-card__flag {
+  position: absolute;
+  top: 0; right: 0;
+  padding: 0.24rem 0.7rem;
+  border-bottom-left-radius: 3px;
+  background: var(--eh-faint);
+  border-left: 1px solid var(--eh-soft);
+  border-bottom: 1px solid var(--eh-soft);
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--eh-bright);
+}
+
+/* ------------------------------------------------------------ 说明区 */
+
+.hub-acts { padding-top: clamp(1.5rem, 4vh, 2.5rem); }
+.hub-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: clamp(1rem, 2.4vw, 1.6rem);
+  margin-top: 1.6rem;
+}
+.hub-note {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.12);
+}
+.hub-note__k {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  color: var(--amber);
+}
+.hub-note p {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  line-height: 2;
+  color: rgba(222, 214, 200, 0.7);
+}
+
+.hub-back {
+  margin-top: clamp(2rem, 5vh, 3rem);
+  padding-top: 1.4rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.10);
+}
+.hub-back a {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color .4s var(--ease-slow);
+}
+.hub-back a:hover, .hub-back a:focus-visible {
+  border-bottom-color: currentColor;
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-card { transition: none; }
+  .hub-card:hover { transform: none; }
+}

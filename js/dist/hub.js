@@ -1,16 +1,13 @@
 /* 由 tools/build.mjs 生成，请勿直接编辑。改源码后运行 node tools/build.mjs
    本页模块（依依赖序）：
-     js/lib/part-data.js  → PART_TONE, PARTS
-     js/lib/part.js  → renderPart
      js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MASHRAQ_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
-     js/lib/circle.js  → buildCircle
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
-     js/lib/fullfilm.js  → buildFullCircleFilm
-     js/pages/mashrap.js
+     js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage
+     js/pages/hub.js
 */
 (function () {
 "use strict";
@@ -25,467 +22,9 @@ __XM[4] = {};
 __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
-__XM[8] = {};
-__XM[9] = {};
-__XM[10] = {};
-
-/* ── js/lib/part-data.js ── */
-function __M0__() {
-/* ==========================================================================
-   弦脉 · 三个部分的内容
-   --------------------------------------------------------------------------
-   第二章 穹乃额曼 / 第三章 达斯坦 / 第四章 麦西热甫 —— 结构完全一样，
-   只是内容不同。所以数据写在这里，页面由 js/lib/part.js 统一渲染。
-
-   —— 怎么往里填内容 ——
-   每个部分有 intro（开场）和 sections（若干节）。每一节可以只放文字、
-   只放图片、或者图文都有：
-
-     { title: '小标题', body: ['第一段', '第二段'], images: [{...}] }
-     { images: [{...}] }                       // 纯图片节
-     { title: '小标题', body: ['…'] }           // 纯文字节
-
-   图片写成：
-     { src: '../assets/img/qiongnaieman/xxx.jpg',
-       label: '图片位（缺图时显示的提示）',
-       ratio: '16 / 9',
-       caption: '图注' }
-
-   **文件名不用提前确定**，放好图片后把路径填进来即可；文件不存在时
-   槽位会显示占位样式，版面不会变形。
-
-   —— 内容准则 ——
-   只写可查证的内容。不确定的地方留空或标注"待补"，不要编。
-   你现在看到的下面的文字，是现有资料里能确认的那部分。
-   ========================================================================== */
-
-/** 三段共用的色调，与首屏结构柱、章节卡一一对应 */
-const PART_TONE = {
-  qon: '#7d97a6',
-  dastan: '#c08a3e',
-  mashrap: '#4a8071',
-};
-
-const PARTS = {
-  /* ======================================================== 二 · 穹乃额曼 */
-  qon: {
-    id: 'qon',
-    num: '二',
-    title: '穹乃额曼',
-    sub: '大曲',
-    latin: 'Qonuneqme',
-    tone: PART_TONE.qon,
-    order: '三段中的第一段',
-    mood: '舒缓 → 明朗',
-    lead: '每一套木卡姆都由三大部分构成，情绪层层推进。穹乃额曼是开篇——' +
-          '由散板序唱进入节拍性段落，情绪由舒缓深沉逐渐趋向明朗热烈。' +
-          '唱词多采用古典诗歌，是整套木卡姆中最具古典气质的部分。',
-    /** 概念图：跟在开场之后的一整屏画框。换图只改 src；
-        fallback 是取不到 webp 时的退路；宽高写上可避免加载时跳动 */
-    heroImage: {
-      src: '../assets/img/qiongnaieman/hero.webp',
-      fallback: '../assets/img/qiongnaieman/hero.png',
-      alt: '萨塔尔琴与手抄本，窗外是喀什老城与远处的天山',
-      caption: '概念图 · 穹乃额曼',
-      w: 1312,
-      h: 1199,
-    },
-    stats: [
-      { v: '一', unit: '', label: '三段中的第一部分' },
-      { v: '2/3', unit: '', label: '占每套木卡姆的篇幅' },
-      { v: '散→快→散', unit: '', label: '节拍结构' },
-    ],
-    sections: [
-      {
-        title: '什么是「穹乃额曼」',
-        body: [
-          '穹乃额曼是十二木卡姆的第一部分，也是历史最久远、结构最庞大的部分，' +
-          '占到每套木卡姆的<strong>三分之二左右</strong>，与汉唐时期的「西域大曲」有直接源流关系。',
-          '「穹」是天穹，「乃额曼」是曲子，合起来有<strong>「苍穹下的曲子」</strong>之意。',
-        ],
-      },
-      {
-        title: '段落构成：散 → 慢 → 中 → 快 → 散',
-        body: [
-          '整体遵循「散→慢→中→快→散」的节拍结构。',
-          '开篇是<strong>散板序唱</strong>（木凯迪满）：主乐师奏响萨它尔，独唱者唱起「格则勒」体诗歌。' +
-          '没有伴唱，不打手鼓，节奏自由。这个散板序唱<strong>决定了整部木卡姆的「母调」</strong>，' +
-          '是后续所有曲调的基础和主干。',
-          '手鼓进入后，依次经过<strong>太孜</strong>（慢板叙咏歌）、<strong>努斯赫</strong>（变体乐段）、' +
-          '<strong>穆斯坦扎特</strong>、<strong>耶李姆沙给</strong>等中板段落，速度逐步加快。',
-          '到<strong>朱拉</strong>（意为「光、闪耀、欢乐」，适合婚礼演唱）和<strong>赛乃姆</strong>' +
-          '（舞蹈形象的音乐）进入歌舞段落，<strong>穹赛勒克</strong>（5/8 拍）时情绪热烈，达到高潮。' +
-          '最后以<strong>太喀特</strong>轻快收尾，成为过渡到达斯坦的桥梁，' +
-          '尾唱时散板主乐句变化再现，形成自足循环。',
-          '不同套木卡姆的穹乃额曼内部曲目并不完全一致，但「散→慢→中→快→散」的整体情绪弧线是共通的。',
-        ],
-      },
-      {
-        title: '乐器及角色',
-        body: [
-          '穹乃额曼的乐器使用有一个鲜明特征——<strong>开始部分没有舞蹈，也很少用鼓</strong>，' +
-          '以弦乐和叙唱为主。',
-          '<strong>萨它尔</strong>是最核心的乐器，散板序唱就在它的琴声中展开。' +
-          '它的角色是<strong>定调者</strong>——奏出的旋律确立了整部木卡姆的「母调」。',
-          '<strong>手鼓（达普）</strong>在太孜段落才进入，角色是<strong>节奏框架的建立者</strong>。' +
-          '散板阶段没有手鼓，因为散板本身自由无固定节拍；' +
-          '一旦进入太孜，手鼓就把音乐从自由的叙唱拉入有结构的乐段推进中。',
-          '整体以<strong>人声叙唱为主导</strong>，器乐更多是跟随和间奏。',
-        ],
-      },
-      {
-        title: '调式 / 律制：四分中立音',
-        body: [
-          '<strong>四分中立音律是核心特征。</strong>' +
-          '普通音乐把一个全音分成两个半音，木卡姆中大量使用把全音分成四个「四分音」的做法，' +
-          '由此产生<strong>中立三度</strong>（介于大、小三度之间）、中立六度等「非标准」音程——' +
-          '这些音在十二平均律里根本不存在。',
-          '这些四分音往往以<strong>「游移音」</strong>的面貌出现：不是固定在某一个精确高度上，' +
-          '而是在一个音区里上下游移，使旋律有一种「不稳定感」和「飘移感」。',
-          '调式上还存在<strong>「多结音现象」</strong>——一首乐曲中不止一个音可以作为结音；' +
-          '<strong>「一级多音现象」</strong>也常见，同一个音级位置上可能同时存在几个不同乐音。',
-        ],
-      },
-      {
-        title: '聆听要点',
-        body: [
-          '听穹乃额曼，不要用听流行歌曲的习惯。它的「好听」不在旋律的记忆点，' +
-          '在<strong>音色的质感</strong>和<strong>旋律的游移</strong>。',
-          '<strong>先听散板序唱的那句「起音」。</strong>' +
-          '萨它尔的琴声苍劲、干涩，像老木头被拉动。人声进来后是独唱，没有伴奏——' +
-          '注意它的音是不是「准」的：有些音「挂」在两个标准音之间，上不去也下不来，' +
-          '这就是四分中立音。<strong>不要试图把它「听准」，要听它的「不准」本身。</strong>',
-          '<strong>再听手鼓什么时候进来。</strong>' +
-          '散板阶段没有鼓，只有弦乐和人声；太孜一开始，手鼓打起来，音乐的「身体」才出现。' +
-          '注意节拍是不是规整的，3/4、5/4、7/8 这些不常见节拍会交替出现，脚打不准是正常的。',
-          '<strong>听旋律的走向。</strong>' +
-          '穹乃额曼的旋律不是「往上走到高潮再下来」的拱形，更多是一种<strong>盘旋式推进</strong>——' +
-          '在一个音区里绕，绕到某个点突然拔高，像「撕云裂帛」，然后又低回下去。',
-          '<strong>最后注意听「尾唱」。</strong>' +
-          '当乐曲接近结束时，散板序唱的主乐句会变化再现，熟悉的萨它尔音色重新出现，' +
-          '但和开头不完全一样——是一种<strong>「回来了，但已经不是原来的地方」</strong>的感觉。',
-        ],
-      },
-    ],
-  },
-
-  /* ======================================================== 三 · 达斯坦 */
-  dastan: {
-    id: 'dastan',
-    num: '三',
-    title: '达斯坦',
-    sub: '叙事诗',
-    latin: 'Dastan',
-    tone: PART_TONE.dastan,
-    order: '三段中的第二段',
-    mood: '叙事 · 铺陈',
-    lead: '达斯坦是十二木卡姆的第二部分，核心是「叙事」。' +
-          '它的波斯语原意就是「故事」「叙事长诗」，' +
-          '在维吾尔木卡姆语境中，特指以说唱相间形式表演的叙事歌曲套曲。' +
-          '它不是单一情绪的展开，而是一条不断加速的叙事线。',
-    stats: [
-      { v: '二', unit: '', label: '三段中的第二部分' },
-      { v: '唱·奏·唱', unit: '', label: '演唱与器乐交替' },
-      { v: '叙事', unit: '', label: '讲一个完整的故事' },
-    ],
-    sections: [
-      {
-        title: '什么是「达斯坦」',
-        body: [
-          '达斯坦是十二木卡姆的第二部分，核心是<strong>「叙事」</strong>。',
-          '它的波斯语原意就是「故事」「叙事长诗」，在维吾尔木卡姆语境中，' +
-          '特指以<strong>说唱相间</strong>形式表演的叙事歌曲套曲。',
-        ],
-      },
-      {
-        title: '段落构成：叙事歌曲 —— 器乐间奏曲',
-        body: [
-          '达斯坦的结构是「叙事歌曲—器乐间奏曲」的循环推进。' +
-          '每套木卡姆的达斯坦部分由 <strong>3 至 5 首</strong>节拍与速度不同的叙事歌曲组成，' +
-          '中间插入民间器乐间奏曲（维吾尔语称<strong>「迈尔乎里」</strong>），' +
-          '整体<strong>开始稍慢，逐渐加快，直到兴奋愉快地结束</strong>。',
-          '这种结构决定了达斯坦区别于穹乃额曼和麦西热甫的根本特征：' +
-          '<strong>它不是单一情绪的展开，而是一条不断加速的叙事线</strong>。' +
-          '穹乃额曼是盘旋游移的，麦西热甫是开场即欢腾的；' +
-          '达斯坦则从沉缓的叙述起步，每一首歌曲和每一段间奏曲都把情绪往前推一步，' +
-          '最后达到高潮收束。',
-        ],
-      },
-      {
-        title: '主要乐器及角色',
-        body: [
-          '达斯坦的表演形态是典型的<strong>弹唱</strong>，主演者被称为<strong>「达斯坦奇」</strong>。',
-          '<strong>主演者</strong>手持热瓦甫、都它尔、弹布尔或萨塔尔中的一件，' +
-          '<strong>自弹自唱</strong>。<strong>助演者</strong>（1 至 2 人）持手鼓、石片或萨巴依击节，' +
-          '或不持乐器帮腔助唱。常见组合以热瓦甫和都它尔为主。',
-          '乐器在达斯坦中的角色与穹乃额曼有本质差异。' +
-          '穹乃额曼的萨塔尔是「定调者」，器乐跟随人声叙唱；' +
-          '达斯坦的乐器则是<strong>叙事的直接载体</strong>——' +
-          '达斯坦奇弹着热瓦甫讲故事，<strong>乐器就是他说唱的工具本身</strong>。' +
-          '器乐间奏曲（迈尔乎里）的插入，让达斯坦奇在长篇叙事中获得呼吸间隙，' +
-          '同时以纯器乐推进情绪。',
-        ],
-      },
-      {
-        title: '调式与律制特点',
-        body: [
-          '达斯坦的音乐建立在南疆木卡姆总体调式体系之上。' +
-          '其突出特征是<strong>调式、调性的频繁变化</strong>，常用手法包括' +
-          '<strong>同主音不同调式的交替与转换</strong>，以及' +
-          '<strong>前后主音互为五度关系的交替与转换</strong>。' +
-          '这种变化服务于叙事内容的情绪起伏——爱情段落柔和，冲突段落紧张，英雄段落激昂。',
-          '与穹乃额曼大量使用四分中立音形成的「游移感」不同，' +
-          '达斯坦的旋律线条<strong>更接近语言本身</strong>。' +
-          '它的叙事性要求「让人听懂故事」，因此旋律往往比穹乃额曼更平实、' +
-          '更贴近维吾尔语的自然语调，抒情性则体现在情绪转折的关键句上。',
-        ],
-      },
-      {
-        title: '唱词与文学特征',
-        body: [
-          '达斯坦的唱词是多段体分节歌式结构。' +
-          '一部达斯坦作品包含<strong>十几首至几十首</strong>唱词，每首又分几段至十几段。',
-          '主要文体包括：<strong>「穆斯塔扎特」</strong>（每段两句，A、B、A、B 式腰脚韵）、' +
-          '<strong>「艾在尔」</strong>（每段四句，首段句句押韵，后续段双句押韵）、' +
-          '<strong>「莫亥麦斯」</strong>（每段五句，首段句句押韵，' +
-          '后续段前四句押另韵、末句归原韵）。',
-          '唱词散韵结合，叙事与抒情融为一体，善于穿插民间故事、神话传说。' +
-          '代表性作品包括《艾里甫与赛乃姆》《玉素甫·艾卖提》《阿不都热合曼汗·霍加》等。',
-        ],
-      },
-      {
-        title: '聆听要点',
-        body: [
-          '达斯坦的「好听」不在音色的游移，在<strong>「故事被唱出来」的推进感</strong>。',
-          '<strong>先听达斯坦奇开口的第一句。</strong>' +
-          '他不是在「唱一首歌」，是在「讲一件事」。注意语气——' +
-          '叙事歌曲的旋律线条比穹乃额曼更平实、更接近语言，因为它的任务是让人听懂。',
-          '<strong>再听歌曲与间奏曲的交替节奏。</strong>' +
-          '歌曲是「说」，间奏曲是「歇并推进」。迈尔乎里不是装饰，它是情绪的推进器。' +
-          '注意每段间奏曲是否比前面的歌曲更往前一步。',
-          '<strong>最后听整体速度的爬升。</strong>' +
-          '达斯坦从稍慢起步，一首一首往上推，到最后一首叙事歌时情绪已相当高涨，' +
-          '最后以一句散板收束。这种「渐强式」的叙事推进，' +
-          '是达斯坦区别于穹乃额曼（盘旋游移）和麦西热甫（开场即欢腾）最明显的听觉标志。',
-        ],
-      },
-    ],
-  },
-
-  /* ======================================================== 四 · 麦西热甫 */
-  mashrap: {
-    id: 'mashrap',
-    num: '四',
-    title: '麦西热甫',
-    sub: '歌舞曲',
-    latin: 'Meshrep',
-    tone: PART_TONE.mashrap,
-    order: '三段中的第三段',
-    mood: '停不下来',
-    lead: '没有间奏。一上来就是鼓。<br>' +
-          '萨帕依的铁环在响，手鼓在打。一首接一首，不停。' +
-          '跳的人越来越多，圈子越来越大。速度只往上，不往下。<br>' +
-          '它不是「欢快」，它是<strong>停不下来</strong>。' +
-          '最后在最快的地方直接切断。人散了，鼓还在耳朵里。',
-    stats: [
-      { v: '三', unit: '', label: '三段中的第三部分' },
-      { v: '无间奏', unit: '', label: '一上来就是鼓' },
-      { v: '只往上', unit: '', label: '速度不回落' },
-    ],
-    sections: [
-      {
-        title: '它不是「欢快」，是停不下来',
-        body: [
-          '走到麦西热甫，音乐的性格整个变了。' +
-          '前两段还有喘息的地方——穹乃额曼有散板的自由，达斯坦有器乐间奏曲当呼吸口；' +
-          '<strong>麦西热甫没有间奏</strong>。',
-          '一段结束，下一段直接接上，中间不留空。' +
-          '速度从开始就只有一个方向：<strong>往上</strong>。' +
-          '这不是情绪上的「热闹」，是结构上的<strong>不停</strong>。',
-        ],
-      },
-      {
-        title: '鼓在打，铁环在响',
-        body: [
-          '麦西热甫的骨架是打击乐。<strong>手鼓（达普）</strong>打节奏，' +
-          '<strong>萨帕依</strong>——一种带铁环的打击乐器——在手里摇出连续的金属声。' +
-          '铁环的声音很碎、很密，像雨点落在铁皮上，它填满了手鼓之间的空隙。',
-          '所以麦西热甫的听感是<strong>满的</strong>：' +
-          '没有长音拖着，没有留白等着，每一拍都被东西填住。' +
-          '这也是它为什么让人坐不住——音乐里没有给你「听」的位置。',
-        ],
-      },
-      {
-        title: '圈子越来越大',
-        body: [
-          '「麦西热甫」既是这一段的名字，也是一种聚会形式的名字。',
-          '它通常从一个人或几个人起头，谁想跳谁下场，' +
-          '<strong>人一个一个加进来，圈子一圈一圈扩大</strong>。' +
-          '没有报名，没有顺序，也不评比谁跳得好。',
-          '音乐、舞蹈、游戏、罚则都在里面，参加的人既是观众也是演员。' +
-          '所以它的「好」不在演奏水平，在<strong>有多少人真的下场了</strong>。',
-        ],
-      },
-      {
-        title: '最后在最快的地方直接切断',
-        body: [
-          '速度一路上推，推到最快处——<strong>然后停</strong>。',
-          '不是在慢下来的时候收，是在最急最密的那一下直接切断。',
-          '这是麦西热甫最特别的地方：它不给你一个「结束」的过程，' +
-          '只给你一个<strong>断裂</strong>。',
-          '人散了，鼓还在耳朵里。',
-        ],
-      },
-      {
-        title: '待补',
-        pending: [
-          '常用的节奏型与具体鼓点记法',
-          '舞蹈程式与动作名称',
-          '一场麦西热甫的完整流程：谁起头、怎么轮、什么时候罚',
-          '与其他两段在调式 / 律制上的具体差别',
-        ],
-      },
-    ],
-  },
-};
-
-__ns = __XM[0];
-__ns.mount_PART_TONE = function () { return PART_TONE; };
-__ns.mount_PARTS = function () { return PARTS; };
-}
-
-/* ── js/lib/part.js ── */
-function __M1__() {
-var PARTS = __XM[0]["PARTS"];
-
-/* ==========================================================================
-   弦脉 · 三个部分章的渲染
-   --------------------------------------------------------------------------
-   第二章 / 第三章 / 第四章结构完全一样，只是内容不同。
-   所以页面骨架由这里统一生成，HTML 里只留容器，数据在 part-data.js。
-
-   这样加内容 = 改数据，不用碰 HTML；三个页也不会各自跑偏。
-   ========================================================================== */
-
-
-
-const $ = (s) => document.querySelector(s);
-
-/** 一句一行地排正文 */
-function bodyHTML(lines) {
-  return lines.map((t) => '<p class="body reveal">' + t + '</p>').join('');
-}
-
-function statsHTML(stats) {
-  return '<ul class="chapter-hero__stats reveal" data-delay="4">' + stats.map((s) =>
-    '<li><b>' + s.v + (s.unit ? '<i>' + s.unit + '</i>' : '') + '</b>' +
-    '<span>' + s.label + '</span></li>'
-  ).join('') + '</ul>';
-}
-
-function slotHTML(img, i) {
-  return '<figure class="slot reveal" data-delay="' + Math.min(5, i + 1) + '"' +
-    ' data-src="' + img.src + '"' +
-    ' data-label="' + (img.label || '图片位') + '"' +
-    ' style="--slot-ratio: ' + (img.ratio || '16 / 9') + '">' +
-    '<img alt="' + (img.alt || img.caption || '') + '" loading="lazy" decoding="async">' +
-    (img.caption ? '<figcaption>' + img.caption + '</figcaption>' : '') +
-    '</figure>';
-}
-
-function imagesHTML(images) {
-  if (!images || !images.length) return '';
-  if (images.length === 1) return slotHTML(images[0], 0);
-  // 两张并排
-  return '<div class="slot-pair">' +
-    images.map((im, i) => slotHTML(im, i)).join('') + '</div>';
-}
-
-function pendingHTML(items) {
-  return '<p class="pending reveal">这里还缺：<br>' +
-    items.map((t) => '· ' + t).join('<br>') + '</p>';
-}
-
-function sectionHTML(sec, i) {
-  const delay = Math.min(4, i);
-  return '<section class="act" data-act="' + (i + 1) + '">' +
-    '<span class="act__num" aria-hidden="true">' + '一二三四五六七八'[i] + '</span>' +
-    '<div class="act__inner">' +
-      (sec.title ? '<h2 class="act__title reveal" data-delay="' + delay + '">' + sec.title + '</h2>' : '') +
-      (sec.body ? bodyHTML(sec.body) : '') +
-      (sec.images ? imagesHTML(sec.images) : '') +
-      (sec.pending ? pendingHTML(sec.pending) : '') +
-    '</div></section>';
-}
-
-/**
- * 用数据铺满整页。HTML 里需要三个容器：
- *   #part-hero（开场）、#part-body（正文各节）、.chapter-nav（底部，由 site.js 填）
- * 以及 <body data-part="qon"> 指明用哪一份数据。
- */
-function renderPart() {
-  const id = document.body.dataset.part;
-  const p = PARTS[id];
-  if (!p) {
-    if (window.console) console.warn('[弦脉] 找不到 part 数据：' + id);
-    return null;
-  }
-
-  document.title = '第' + p.num + '章 · ' + p.title + '（' + p.sub + '）｜十二木卡姆 — 弦脉';
-  const desc = document.querySelector('meta[name="description"]');
-  if (desc) desc.setAttribute('content', p.lead);
-
-  // 这一段的色调，供页面上的小面积强调色使用
-  document.body.style.setProperty('--part-tone', p.tone);
-
-  const hero = $('#part-hero');
-  if (hero) {
-    hero.innerHTML = '<div class="chapter-hero__inner">' +
-      '<p class="chapter-hero__part reveal">第' + p.num + '章 · 十二木卡姆的' +
-        (p.num === '二' ? '第一' : p.num === '三' ? '第二' : '第三') + '部分</p>' +
-      '<h1 class="reveal" data-delay="1">' + p.title + '</h1>' +
-      '<span class="chapter-hero__ug reveal" data-delay="2">' + p.latin + ' · ' + p.sub + '</span>' +
-      '<p class="chapter-hero__lead reveal" data-delay="3">' + p.lead + '</p>' +
-      statsHTML(p.stats) +
-      '</div>';
-  }
-
-  /* 概念图：紧跟开场的一整屏画框。
-     图是"这一章的视觉主题"，不是插图，所以给它独立一屏，
-     按原图比例展示，不裁切。
-     用 <picture>：优先 webp（小得多），取不到就退回原作者给的格式。 */
-  const heroImg = $('#part-hero-image');
-  if (heroImg && p.heroImage) {
-    const hi = p.heroImage;
-    const dims = (hi.w ? ' width="' + hi.w + '"' : '') + (hi.h ? ' height="' + hi.h + '"' : '');
-    const sources = [];
-    if (/\.webp$/i.test(hi.src)) sources.push('<source srcset="' + hi.src + '" type="image/webp">');
-    if (hi.fallback) sources.push('<source srcset="' + hi.fallback + '">');
-
-    heroImg.innerHTML =
-      '<figure class="plate">' +
-        '<picture>' + sources.join('') +
-          '<img src="' + (hi.fallback || hi.src) + '" alt="' + (hi.alt || p.title) + '"' +
-            ' loading="lazy" decoding="async"' + dims + '>' +
-        '</picture>' +
-        (hi.caption ? '<figcaption>' + hi.caption + '</figcaption>' : '') +
-      '</figure>';
-  } else if (heroImg) {
-    heroImg.innerHTML = '';          // 没有图就整屏收起（.plate-act:empty 会 display:none）
-  }
-
-  const body = $('#part-body');
-  if (body) body.innerHTML = p.sections.map(sectionHTML).join('');
-
-  return p;
-}
-
-__ns = __XM[1];
-__ns.mount_renderPart = function () { return renderPart; };
-}
 
 /* ── js/lib/materials.js ── */
-function __M2__() {
+function __M0__() {
 /* ==========================================================================
    弦脉 · 共享材质库
    --------------------------------------------------------------------------
@@ -1159,7 +698,7 @@ void main() {
 }
 `;
 
-__ns = __XM[2];
+__ns = __XM[0];
 __ns.mount_VERT_SRC = function () { return VERT_SRC; };
 __ns.mount_NOISE_GLSL = function () { return NOISE_GLSL; };
 __ns.mount_MATERIAL_GLSL = function () { return MATERIAL_GLSL; };
@@ -1172,15 +711,15 @@ __ns.mount_WALL_FRAG = function () { return WALL_FRAG; };
 }
 
 /* ── js/lib/renderer.js ── */
-function __M3__() {
-var VERT_SRC = __XM[2]["VERT_SRC"];
-var SCENE_FRAG = __XM[2]["SCENE_FRAG"];
-var DUST_FRAG = __XM[2]["DUST_FRAG"];
-var WALL_FRAG = __XM[2]["WALL_FRAG"];
-var EMBER_FRAG = __XM[2]["EMBER_FRAG"];
-var CHAPTER_AIR_FRAG = __XM[2]["CHAPTER_AIR_FRAG"];
-var MASHRAQ_FRAG = __XM[2]["MASHRAQ_FRAG"];
-var MATERIAL_GLSL = __XM[2]["MATERIAL_GLSL"];
+function __M1__() {
+var VERT_SRC = __XM[0]["VERT_SRC"];
+var SCENE_FRAG = __XM[0]["SCENE_FRAG"];
+var DUST_FRAG = __XM[0]["DUST_FRAG"];
+var WALL_FRAG = __XM[0]["WALL_FRAG"];
+var EMBER_FRAG = __XM[0]["EMBER_FRAG"];
+var CHAPTER_AIR_FRAG = __XM[0]["CHAPTER_AIR_FRAG"];
+var MASHRAQ_FRAG = __XM[0]["MASHRAQ_FRAG"];
+var MATERIAL_GLSL = __XM[0]["MATERIAL_GLSL"];
 
 /* ==========================================================================
    弦脉 · 渲染器
@@ -1627,7 +1166,7 @@ class Renderer {
   }
 }
 
-__ns = __XM[3];
+__ns = __XM[1];
 __ns.mount_COLORS = function () { return COLORS; };
 __ns.mount_SEG_H = function () { return SEG_H; };
 __ns.mount_SEG_BOUNDS = function () { return SEG_BOUNDS; };
@@ -1636,7 +1175,7 @@ __ns.mount_Renderer = function () { return Renderer; };
 }
 
 /* ── js/lib/sequencer.js ── */
-function __M4__() {
+function __M2__() {
 /* ==========================================================================
    弦脉 · 手鼓音序器
    --------------------------------------------------------------------------
@@ -2225,13 +1764,13 @@ class DapSequencer {  /**
   }
 }
 
-__ns = __XM[4];
+__ns = __XM[2];
 __ns.mount_DapSequencer = function () { return DapSequencer; };
 __ns.mount_PATTERNS = function () { return PATTERNS; };
 }
 
 /* ── js/lib/site.js ── */
-function __M5__() {
+function __M3__() {
 /* ==========================================================================
    弦脉 · 站点外壳
    --------------------------------------------------------------------------
@@ -2517,7 +2056,7 @@ function mountSlots() {
   });
 }
 
-__ns = __XM[5];
+__ns = __XM[3];
 __ns.mount_NAV = function () { return NAV; };
 __ns.mount_mountShell = function () { return mountShell; };
 __ns.mount_mountSoundButton = function () { return mountSoundButton; };
@@ -2527,14 +2066,14 @@ __ns.mount_mountSlots = function () { return mountSlots; };
 }
 
 /* ── js/lib/chapter.js ── */
-function __M6__() {
-var Renderer = __XM[3]["Renderer"];
-var DapSequencer = __XM[4]["DapSequencer"];
-var mountShell = __XM[5]["mountShell"];
-var mountChapterNav = __XM[5]["mountChapterNav"];
-var revealOnScroll = __XM[5]["revealOnScroll"];
-var mountSlots = __XM[5]["mountSlots"];
-var mountSoundButton = __XM[5]["mountSoundButton"];
+function __M4__() {
+var Renderer = __XM[1]["Renderer"];
+var DapSequencer = __XM[2]["DapSequencer"];
+var mountShell = __XM[3]["mountShell"];
+var mountChapterNav = __XM[3]["mountChapterNav"];
+var revealOnScroll = __XM[3]["revealOnScroll"];
+var mountSlots = __XM[3]["mountSlots"];
+var mountSoundButton = __XM[3]["mountSoundButton"];
 
 /* ==========================================================================
    弦脉 · 章节页公共启动
@@ -2708,324 +2247,13 @@ function bootChapter(opts = {}) {
   return { renderer, seq, REDUCED, syncSize };
 }
 
-__ns = __XM[6];
+__ns = __XM[4];
 __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
-/* ── js/lib/circle.js ── */
-function __M7__() {
-/* ==========================================================================
-   弦脉 · 麦西热甫圆圈
-   --------------------------------------------------------------------------
-   第四章的互动。麦西热甫最核心的动作是"下场跳"——所以这里不让你敲鼓，
-   让你**往里加人**：
-
-     点一下 → 圈里多一个人 → 鼓点密一层 → 纹样亮一分
-
-   为什么这样做：麦西热甫讲的不是个人技巧，是群体。一个人敲鼓是练习，
-   一圈人一起才是麦西热甫。所以互动的单位是"人"，不是"鼓点"。
-
-   音频：每加一个人，就多打开一层伴奏（由手鼓音序器实时合成），
-         圈满时各层全开，节奏型也换成最密的那个。
-   ========================================================================== */
-
-const SVGNS = 'http://www.w3.org/2000/svg';
-const el = (tag, attrs) => {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  return n;
-};
-
-/** 圈子最多容纳多少人。
-    24 个点起来太累，16 个既能看出"圈子在变大"，又不至于点到烦。 */
-const MAX = 16;
-
-/**
- * @param {object} opts
- * @param {HTMLElement} opts.host      容器
- * @param {(n:number)=>void} [opts.onChange]  人数变化时回调（拿去驱动纹样与音频）
- * @param {boolean} [opts.reduced]
- */
-function buildCircle(opts) {
-  const { host } = opts;
-  if (!host) return null;
-  const reducedMotion = !!opts.reduced;
-
-  const VB = 560;
-  const CX = VB / 2, CY = VB / 2;
-  const R_RING = 196;        // 圈的地面
-  const R_PERSON = 132;      // 人站的位置
-
-  const svg = el('svg', {
-    class: 'mq', viewBox: `0 0 ${VB} ${VB}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'group',
-    'aria-label': '麦西热甫圆圈：点一下往圈里加一个人',
-  });
-
-  /* ---- 地面：一圈一圈的同心环，像踩出来的场子 ---- */
-  const floor = el('g', { class: 'mq__floor', 'aria-hidden': 'true' });
-  [R_RING, R_RING - 22, R_RING - 46, R_PERSON].forEach((r, i) => {
-    floor.appendChild(el('circle', { cx: CX, cy: CY, r, class: 'mq__ring mq__ring--' + i }));
-  });
-  // 放射状的短刻线：像地毯的边饰
-  for (let i = 0; i < 48; i++) {
-    const a = (i / 48) * Math.PI * 2;
-    const r1 = R_RING - 46, r2 = R_RING - 54 + (i % 2 ? 0 : 6);
-    floor.appendChild(el('line', {
-      x1: CX + Math.cos(a) * r1, y1: CY + Math.sin(a) * r1,
-      x2: CX + Math.cos(a) * r2, y2: CY + Math.sin(a) * r2,
-      class: 'mq__tick',
-    }));
-  }
-  svg.appendChild(floor);
-
-  /* ---- 庆祝层：满圈时炸开的一次性效果 ----
-       分三层：冲击波环、飞散光点、中心闪光。
-       平时 opacity 为 0，满圈时触发一次。 */
-  const fxDefs = el('defs');
-  const fxGlow = el('radialGradient', { id: 'mqGlow' });
-  fxGlow.appendChild(el('stop', { offset: '0', 'stop-color': '#ffeec2', 'stop-opacity': '0.9' }));
-  fxGlow.appendChild(el('stop', { offset: '0.5', 'stop-color': '#e8c98f', 'stop-opacity': '0.35' }));
-  fxGlow.appendChild(el('stop', { offset: '1', 'stop-color': '#c08a3e', 'stop-opacity': '0' }));
-  fxDefs.appendChild(fxGlow);
-  svg.appendChild(fxDefs);
-
-  const fx = el('g', { class: 'mq__fx', 'aria-hidden': 'true' });
-  const flash = el('circle', { cx: CX, cy: CY, r: R_RING + 40, fill: 'url(#mqGlow)', class: 'mq__flash' });
-  fx.appendChild(flash);
-  const waves = [];
-  for (let i = 0; i < 3; i++) {
-    const w = el('circle', { cx: CX, cy: CY, r: R_RING, class: 'mq__wave', 'data-i': String(i) });
-    fx.appendChild(w);
-    waves.push(w);
-  }
-  const sparks = el('g', { class: 'mq__sparks' });
-  const sparkNodes = [];
-  for (let i = 0; i < 36; i++) {
-    const a = (i / 36) * Math.PI * 2 + (i % 2 ? 0.08 : 0);
-    const r0 = R_RING + 6;
-    const s = el('circle', {
-      cx: CX + Math.cos(a) * r0, cy: CY + Math.sin(a) * r0,
-      r: 2 + (i % 3) * 0.9, class: 'mq__spark',
-    });
-    s.dataset.a = String(a);
-    s.dataset.v = String(0.7 + (i % 5) * 0.14);
-    sparks.appendChild(s);
-    sparkNodes.push(s);
-  }
-  fx.appendChild(sparks);
-  svg.appendChild(fx);
-
-  /* ---- 跳动的环：人越多转得越快、越亮 ---- */
-  const pulse = el('circle', { cx: CX, cy: CY, r: R_PERSON, class: 'mq__pulse' });
-  svg.appendChild(pulse);
-
-  /* ---- 人 ---- */
-  const people = el('g', { class: 'mq__people' });
-  svg.appendChild(people);
-
-  /* ---- 中心读数 ---- */
-  const core = el('g', { class: 'mq__core' });
-  const num = el('text', { x: CX, y: CY + 4, class: 'mq__count' });
-  num.textContent = '0';
-  const cap = el('text', { x: CX, y: CY + 34, class: 'mq__cap' });
-  cap.textContent = '点一下，进圈';
-  core.appendChild(num); core.appendChild(cap);
-  svg.appendChild(core);
-
-  /* ---- 命中区：整块可点 ---- */
-  const hit = el('rect', {
-    x: 0, y: 0, width: VB, height: VB, class: 'mq__hit',
-  });
-  hit.setAttribute('tabindex', '0');
-  hit.setAttribute('role', 'button');
-  hit.setAttribute('aria-label', '往麦西热甫圆圈里加一个人');
-  svg.appendChild(hit);
-
-  host.appendChild(svg);
-
-  let count = 0;
-  const nodes = [];
-  let burst = 0;              // >0 表示庆祝动画进行中（0..1 的进度）
-
-  /** 满圈庆祝：环炸开 + 光点飞散 + 中心闪一下 + 所有人跳起来 */
-  const startBurst = () => { if (reducedMotion) return; burst = 0.0001; };
-
-  /** 每帧推进庆祝动画 */
-  const tickBurst = (dt) => {
-    if (burst <= 0) return;
-    burst += dt / 2800;                       // 2.8 秒走完 —— 要让人看清这一下
-    const p = Math.min(1, burst);
-
-    // 闪光：前 25% 就收掉，只留"一下"
-    flash.setAttribute('opacity', String(Math.max(0, 1 - p * 3.4)));
-    flash.setAttribute('r', String(R_RING + 40 + Math.min(1, p * 2.4) * 190));
-
-    // 三层冲击波，错开出发
-    waves.forEach((w, i) => {
-      const wp = Math.max(0, Math.min(1, (p - i * 0.10) / 0.80));
-      w.setAttribute('r', String(R_RING + wp * (170 + i * 62)));
-      w.setAttribute('opacity', String(wp > 0 && wp < 1 ? Math.sin(wp * Math.PI) * 0.9 : 0));
-    });
-
-    // 光点飞散
-    sparkNodes.forEach((s) => {
-      const a = parseFloat(s.dataset.a);
-      const v = parseFloat(s.dataset.v);
-      const dist = R_RING + 6 + p * 250 * v;
-      s.setAttribute('cx', (CX + Math.cos(a) * dist).toFixed(1));
-      s.setAttribute('cy', (CY + Math.sin(a) * dist).toFixed(1));
-      s.setAttribute('opacity', String(Math.max(0, Math.sin(Math.min(1, p * 1.15) * Math.PI))));
-    });
-
-    // 人浪：错开相位地跳，越到后面越平复
-    nodes.forEach((g, i) => {
-      const phase = (i / Math.max(1, nodes.length)) * Math.PI * 2;
-      const decay = Math.max(0, 1 - p * 1.1);
-      const hop = Math.max(0, Math.sin(p * Math.PI * 5 + phase)) * decay * 11;
-      g.style.setProperty('--hop', hop.toFixed(2) + 'px');
-    });
-
-    if (p >= 1) {
-      nodes.forEach((g) => g.style.setProperty('--hop', '0px'));
-      burst = 0;
-    }
-  };
-
-  /** 人的位置：**按当前人数**均匀铺满整圈。
-      这里踩过坑：早先用 (i / MAX) 当角度，人少的时候全挤在圆的头一段
-      （10 个人只占 135°，看上去像"人不见了"）。
-      应该按当前人数分，这样不管几个人都是绕成一整圈的。 */
-  const layout = () => {
-    const n = Math.max(1, nodes.length);
-    nodes.forEach((g, i) => {
-      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const r = R_PERSON + (i % 3) * 7 - 7;
-      g.dataset.a = String(a);
-      g.dataset.r = String(r);
-    });
-  };
-
-  const add = () => {
-    if (count >= MAX) return false;
-    const i = count;
-    const g = el('g', { class: 'mq__person' });
-    // 一个人 = 一个头 + 一个身体（拉长的水滴），简化到不能再简
-    g.appendChild(el('circle', { cx: 0, cy: -13, r: 6.4, class: 'mq__head' }));
-    g.appendChild(el('path', {
-      d: 'M 0 -6 C 7 -6, 9 4, 8 15 L -8 15 C -9 4, -7 -6, 0 -6 Z',
-      class: 'mq__body',
-    }));
-    // 手臂：跳起来是抬着的
-    g.appendChild(el('line', { x1: -7, y1: -1, x2: -14, y2: -9, class: 'mq__arm' }));
-    g.appendChild(el('line', { x1: 7, y1: -1, x2: 14, y2: -9, class: 'mq__arm' }));
-    g.style.setProperty('--h', String((i * 37) % 360));
-    // 入场：从中心弹出来
-    g.style.setProperty('--in', '0');
-    people.appendChild(g);
-
-    nodes.push(g);
-    count = i + 1;
-    layout();
-    place();
-
-    // 入场动画：下一帧把 --in 推到 1
-    requestAnimationFrame(() => {
-      g.style.setProperty('--in', '1');
-      g.classList.add('is-in');
-    });
-
-    sync();
-    // 满圈：触发庆祝
-    if (count >= MAX && opts.onFull) opts.onFull();
-    if (count >= MAX) startBurst();
-    return true;
-  };
-
-  const reset = () => {
-    nodes.forEach((g) => g.remove());
-    nodes.length = 0;
-    count = 0;
-    sync();
-  };
-
-  /** 按存下来的角度/半径摆放，并叠一个整体的慢转 */
-  let spin = 0;
-  const place = () => {
-    nodes.forEach((g) => {
-      const a = parseFloat(g.dataset.a) + spin;
-      const r = parseFloat(g.dataset.r);
-      const x = CX + Math.cos(a) * r;
-      const y = CY + Math.sin(a) * r;
-      // 站在圈上的人，脚朝圆心
-      const rot = (a * 180) / Math.PI + 90;
-      /* 庆祝时整体往上跳一下。
-         注意：SVG 的 transform **属性**不接受单位 —— 写成 "0px" 会让
-         整条 transform 列表作废，所有人塌回原点叠成一个（踩过）。
-         所以这里只取数字，不加单位。 */
-      const hop = parseFloat(g.style.getPropertyValue('--hop')) || 0;
-      g.setAttribute('transform',
-        'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')' +
-        (hop ? ' translate(0 ' + (-hop).toFixed(2) + ')' : ''));
-    });
-  };
-
-  const sync = () => {
-    num.textContent = String(count);
-    cap.textContent = count === 0 ? '点一下，进圈'
-      : count >= MAX ? '圈满了' : '再点一下';
-    svg.style.setProperty('--mq-heat', (count / MAX).toFixed(3));
-    if (opts.onChange) opts.onChange(count, MAX);
-  };
-
-  hit.addEventListener('click', () => { if (!add()) reset(); });
-  hit.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      if (!add()) reset();
-    }
-  });
-
-  /* 缓慢自转：让圈看起来是活的。切后台停。 */
-  let raf = 0;
-  let last = performance.now();
-  const loop = (now) => {
-    raf = requestAnimationFrame(loop);
-    const dt = now - last; last = now;
-    // 22 个人以上转得快一点（热闹起来了）
-    spin += dt * 0.00004 * (1 + count / MAX);
-    place();
-    tickBurst(dt);          // 庆祝动画也在这个循环里推进
-  };
-  if (!opts.reduced) {
-    raf = requestAnimationFrame(loop);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
-      else if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); }
-    });
-  } else {
-    // 减弱动效：不做炸开（startBurst 里已有 reducedMotion 守卫）
-  }
-
-  sync();
-
-  return {
-    add, reset,
-    celebrate: startBurst,
-    get count() { return count; },
-    get max() { return MAX; },
-    destroy() { if (raf) cancelAnimationFrame(raf); },
-  };
-}
-
-__ns = __XM[7];
-__ns.mount_buildCircle = function () { return buildCircle; };
-}
-
 /* ── js/lib/theme.js ── */
-function __M8__() {
+function __M5__() {
 /* ==========================================================================
    弦脉 · 主题曲播放
    --------------------------------------------------------------------------
@@ -3580,468 +2808,433 @@ const unlock = {
   },
 };
 
-__ns = __XM[8];
+__ns = __XM[5];
 __ns.mount_createTheme = function () { return createTheme; };
 __ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
-/* ── js/lib/fullfilm.js ── */
-function __M9__() {
+/* ── js/lib/heritage-data.js ── */
+function __M6__() {
 /* ==========================================================================
-   弦脉 · 满圈之后那支片子
+   弦脉 · 各民族音乐非遗
    --------------------------------------------------------------------------
-   用户的要求："点完那个圆，你加个窗口，然后播放一遍这个视频，
-   然后自己渐渐消失。"
+   旋律图上的八个入口。每一条对应一个分页面：../heritage/<id>/index.html
 
-   所以它是一条**一次性的仪式**，不是播放器：
-     满圈 → 主题曲起 → 黑幕拉开，片子放一遍
-          → 放完自己渐渐消失 → 露出解锁后的页面
-   不循环、不重播、不留按钮。看完了它就是看完了。
+   字段说明：
+     id        路由名，决定分页面目录
+     name      中文名
+     ug        拉丁 / 罗马转写（便于检索）
+     group     民族
+     kind      形态类型
+     pitch     在旋律图上的音高位置（1 = 最低的下加一线，每 +1 上升半格）
+     hue       音符配色色相（数字，空格分隔的 hsl 用）
+     note      一句话说明
+     level     名录等级
+     region    流传地
+     form      艺术形态
+     instrument 乐器（**资料里没提就留空**，不猜）
+     body      正文段落
+     caveat    需要提醒读者的一条注意事项（可选）
+     sources   来源列表：[材料名, 链接或说明]
+     related   同族还有哪些项目（不属于这一条）
 
-   三个设计决定，都说一下理由：
-     ① 视频**静音**。现场已经有主题曲在放（满圈那一刻起），
-        片子再带一条音轨只会和它打架。这也是压缩时只录画面流的原因。
-     ② 给一个「跳过」。15 秒对已经点满 16 下的人来说不算短，
-        不让跳就是把奖励变成惩罚。跳过 = 立刻淡出，不是关掉整段体验。
-     ③ 满圈时若开了"减弱动效"，**不放片子**，直接解锁 ——
-        这一条是给人的，不是给片子的。
+   2026 扩展：作者先后提供了两批资料（docs/extracted/ 下是抽出的纯文本）。
+   第一批是各族文化的汇总，第二批是**逐项的专门资料**（带官方链接）。
+   两批都整理在这里，并逐条标出处。
+
+   **三条纪律**（和「参考来源」那一节一致）：
+     ① 只写资料里有的。措辞贴着原文，不改写、不补充想象。
+     ② 资料里没有的（比如某族没提乐器），**留空**，不拿相近内容顶上。
+     ③ 资料里明确指出的**口径问题**要写进页面（caveat）——
+        比如"苗族古歌是口头文学，和一般歌曲应加以区分"，
+        读者按错的口径去理解，比读到空字段更糟。
    ========================================================================== */
 
-const el = (tag, cls, html) => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (html !== undefined) n.innerHTML = html;
-  return n;
-};
-
-/* 两个尺寸。和站里其他视频同一个约定：
-   桌面 960×540 / 手机 640×360，按视口宽挑。
-
-   **路径由 base + 相对路径拼成，base 必须带尾斜杠。**
-   踩过一次：base 传了 '..'（没尾斜杠），拼出来是 `..assets/...` ——
-   少一个字符，浏览器把它当文件名，报的却是
-   "MEDIA_ELEMENT_ERROR: Format error"（错误码 4），
-   看着像文件坏了，其实是地址错了。下面会强制补斜杠。
-
-   **不用站点根绝对路径（'/assets/...'）** —— 那在 file:// 下会指向
-   磁盘根目录，整站双击打开就全瞎了。站里所有资源都是相对路径，这里也一样。 */
-const SRC_DESKTOP = 'assets/video/full/full-circle-slim.webm';
-const SRC_MOBILE = 'assets/video/full/full-circle-slim-m.webm';
-
-const isDesktop = () => {
-  try { return window.matchMedia('(min-width: 900px)').matches; } catch { return true; }
-};
-
-const FADE_IN = 1.1;     // 幕布淡入
-const FADE_OUT = 1.8;    // 放完之后渐渐消失
-
-/**
- * @param {object} opts
- * @param {string} [opts.base]   相对站点根的路径前缀（第四章是 '../' 或 ''）
- * @param {boolean} [opts.reduced] 减弱动效时直接跳过
- * @param {Function} [opts.onDone] 片子结束（或跳过）之后回调
- * @returns {{play: Function, skip: Function, state: Function}|null}
- */
-function buildFullCircleFilm(opts = {}) {
-  /* base 强制补尾斜杠 —— 传 '..' 和传 '../' 都得能对上。
-     少这个斜杠就是 `..assets/...`，浏览器报"格式错误"，
-     极难从错误信息反推到"少了个斜杠"。 */
-  let base = opts.base === undefined ? '' : String(opts.base);
-  if (base && !base.endsWith('/')) base += '/';
-
-  let box = null;
-  let video = null;
-  let skipBtn = null;
-  let phase = 'idle';      // idle → in → playing → out → done
-  let startedAt = 0;
-  let outTimer = 0;
-  let watchdog = 0;
-  /* 收场的原因。**一定要记** —— 不记的话，出了问题只能看到
-     "它很快就 done 了"，分不清是解码失败、被策略拒、还是真的放完了。 */
-  let lastWhy = '';
-  let lastErr = '';
-
-  function make() {
-    if (box) return box;
-    box = el('div', 'fullfilm');
-    box.setAttribute('role', 'dialog');
-    box.setAttribute('aria-label', '满圈之后的短片');
-    box.setAttribute('aria-hidden', 'true');
-
-    const inner = el('div', 'fullfilm__frame');
-    video = document.createElement('video');
-    video.className = 'fullfilm__video';
-    /* 静音是设计不是缺陷：现场主题曲正在放，再加一条音轨只会打架。
-       压缩时也只录了画面流，本来就没有音轨。 */
-    video.muted = true;
-    video.defaultMuted = true;
-    video.playsInline = true;
-    video.preload = 'none';
-    video.setAttribute('muted', '');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('aria-hidden', 'true');
-
-    skipBtn = el('button', 'fullfilm__skip', '跳过');
-    skipBtn.type = 'button';
-
-    inner.appendChild(video);
-    box.appendChild(inner);
-    box.appendChild(skipBtn);
-    document.body.appendChild(box);
-
-    skipBtn.addEventListener('click', () => finish('用户跳过'));
-
-    /* 兜底：webm 有时没时长元数据，ended 可能不触发。
-       不能让幕布永远挂着 —— 那会把整页糊住（站里别的视频踩过这个坑）。 */
-    video.addEventListener('ended', () => finish('播完'));
-    video.addEventListener('error', () => {
-      const e = video.error;
-      lastErr = e ? ('code ' + e.code + (e.message ? ' ' + e.message : '')) : '未知';
-      finish('解码失败 ' + lastErr);
-    });
-    video.addEventListener('stalled', () => { lastErr = 'stalled'; });
-    video.addEventListener('abort', () => { lastErr = 'abort'; });
-    /* 加载过程只记**最后一步**，不记全过程。
-       排查时真正需要的是"走到哪一步断的" —— 全程日志在成品里是噪音。
-       （这次就是靠 loadstart 那行看到 src 拼成了 `..assets/...`，
-       而报错信息只有"格式错误"三个字，完全看不出是地址错了。） */
-    video.addEventListener('loadstart', () => { lastErr = 'loadstart ' + video.getAttribute('src'); });
-    video.addEventListener('loadedmetadata', () => {
-      lastErr = 'loadedmetadata dur=' +
-        (isFinite(video.duration) ? video.duration.toFixed(1) : String(video.duration));
-    });
-    video.addEventListener('canplay', () => { lastErr = 'canplay rs=' + video.readyState; });
-    video.addEventListener('timeupdate', () => {
-      /* 兜底：webm 常常没有时长元数据（duration = Infinity），
-         这时这个判断不成立，靠下面的 watchdog 收场。
-         有时长信息时，超过标称时长 0.6 秒还没 ended 就当它完了。 */
-      if (video.duration && isFinite(video.duration) &&
-          video.currentTime > video.duration + 0.6) finish('超时兜底');
-    });
-
-    return box;
-  }
-
-  function finish(why) {
-    if (phase === 'out' || phase === 'done') return;
-    lastWhy = why;
-    phase = 'out';
-    if (outTimer) { clearTimeout(outTimer); outTimer = 0; }
-    if (watchdog) { clearTimeout(watchdog); watchdog = 0; }
-    if (video) { try { video.pause(); } catch { /* 已停 */ } }
-    if (box) {
-      box.classList.remove('is-in');
-      box.classList.add('is-out');
-    }
-    const wait = opts.reduced ? 0 : FADE_OUT * 1000;
-    outTimer = setTimeout(() => {
-      phase = 'done';
-      if (box && box.parentNode) box.parentNode.removeChild(box);
-      box = null; video = null; skipBtn = null;
-      if (opts.onDone) opts.onDone(why);
-    }, wait);
-  }
-
-  function play() {
-    if (phase !== 'idle') return false;
-    /* 减弱动效：不放，直接当它结束了。
-       这一条是给人的，不是给片子的。 */
-    if (opts.reduced) { phase = 'done'; if (opts.onDone) opts.onDone('减弱动效，跳过'); return false; }
-
-    const b = make();
-    const src = base + (isDesktop() ? SRC_DESKTOP : SRC_MOBILE);
-    lastErr = 'play() ' + src;
-    video.src = src;
-    video.load();
-
-    phase = 'in';
-    startedAt = Date.now();
-    // 下一帧再加类，保证 transition 真的跑起来
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        b.classList.add('is-in');
-        b.setAttribute('aria-hidden', 'false');
-      });
-    });
-
-    const p = video.play();
-    if (p && p.then) {
-      p.then(() => { phase = 'playing'; })
-       .catch((e) => finish('自动播放被拒：' + ((e && e.name) || e)));
-    } else {
-      phase = 'playing';
-    }
-
-    /* 硬兜底：不管发生什么，25 秒之后一定收场。
-       幕布挂住比不放片子严重得多。 */
-    watchdog = setTimeout(() => finish('watchdog'), 25000);
-
-    return true;
-  }
-
-  return {
-    play,
-    skip: () => finish('外部跳过'),
-    state: () => ({
-      phase,
-      why: lastWhy,
-      err: lastErr,
-      hasBox: !!box,
-      src: video ? (video.getAttribute('src') || '') : '',
-      elapsed: startedAt ? +((Date.now() - startedAt) / 1000).toFixed(2) : 0,
-      readyState: video ? video.readyState : null,
-      networkState: video ? video.networkState : null,
-      dur: video && isFinite(video.duration) ? +video.duration.toFixed(2) : null,
-      t: video ? +video.currentTime.toFixed(2) : null,
-      paused: video ? video.paused : null,
-      // 给自检看：幕布是不是真的淡出掉了
-      opacity: box ? +(+getComputedStyle(box).opacity).toFixed(3) : 0,
-      inDom: !!(box && box.parentNode),
-    }),
-  };
-}
-
-__ns = __XM[9];
-__ns.mount_buildFullCircleFilm = function () { return buildFullCircleFilm; };
-}
-
-/* ── js/pages/mashrap.js ── */
-function __M10__() {
-var renderPart = __XM[1]["renderPart"];
-var bootChapter = __XM[6]["bootChapter"];
-var buildCircle = __XM[7]["buildCircle"];
-var createTheme = __XM[8]["createTheme"];
-var autoPlayOnGesture = __XM[8]["autoPlayOnGesture"];
-var unlock = __XM[8]["unlock"];
-var buildFullCircleFilm = __XM[9]["buildFullCircleFilm"];
-
-/* ==========================================================================
-   第四章 · 麦西热甫
-   --------------------------------------------------------------------------
-   背景不用图片，用程序化生成的维吾尔几何纹样（八瓣星网格 + 交错菱形带 +
-   卷草），随互动实时变化：圈里的人越多，纹样越密越亮。
-
-   互动：点一下往圈里加一个人。人越多，鼓点密一层，纹样亮一分。
-   ========================================================================== */
-
-
-
-
-
-
-renderPart();
-const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
-
-const host = document.getElementById('mq-host');
-const readout = document.getElementById('mq-readout');
-
-/* 满圈之后那支片子。
-   在这里建（而不是等满圈时才建）：元素提前进 DOM，满圈时只是加个类，
-   不会有"第一次点开时卡一下"的空档。
-   base 传 '..' —— 这一页在 mashrap/ 下，视频在 assets/ 下。
-   reduced 时它自己会跳过，直接回调 onDone。 */
-const film = buildFullCircleFilm({
-  base: '..',
-  reduced: ctx.REDUCED,
-  onDone: () => {
-    /* 片子放完（或跳过）之后回到页面。
-       这里什么额外的事都不用做 —— 解锁在满圈那一刻就完成了，
-       幕布一撤，用户看到的就是已经打开的页面。 */
-    const hint = document.getElementById('mq-hint');
-    if (hint) hint.classList.add('is-done');
+const HERITAGE = [
+  {
+    id: 'zhuang-tianqin', name: '天琴艺术', ug: 'Tianqin',
+    group: '壮族', kind: '器乐 · 弹唱', pitch: 3, hue: 36,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '广西崇左一带（中越边境）',
+    form: '弹、唱、舞一体',
+    instrument: '天琴（壮语称「鼎叮」）',
+    note: '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
+    body: [
+      '流传于崇左边境，弹、唱、舞一体。',
+      '天琴又称「鼎叮」，琴身不用钉子粘合，脚系铜铃，唱腔婉转，用于祈福和节庆。',
+    ],
+    sources: [['作者提供的《壮族.docx》', '']],
+    /* 同族还有这些，但不属于"天琴艺术"这一条 —— 留着，别混进来 */
+    related: ['壮锦织造技艺', '壮族铜鼓铸造技艺 / 铜鼓习俗', '靖西壮族绣球制作技艺'],
   },
+  {
+    id: 'mongol-morinhuur', name: '马头琴', ug: 'Morin Khuur',
+    group: '蒙古族', kind: '器乐', pitch: 5, hue: 152,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '蒙古族草原牧区',
+    form: '弓弦乐器',
+    instrument: '马头琴',
+    note: '琴头雕刻精致马头，琴声低沉浑厚、辽阔悠扬，贯穿蒙古族节庆、祭祀、日常生活。',
+    body: [
+      '蒙古族标志性传统弓弦乐器，琴头雕刻精致马头，造型古朴大气。',
+      '琴声低沉浑厚、辽阔悠扬，既能演绎《万马奔腾》的激昂壮阔，也能弹奏《鸿雁》的温柔绵长。',
+      '马头琴贯穿蒙古族节庆、祭祀、日常生活，是草原文化的声音象征。',
+    ],
+    sources: [['作者提供的《蒙古族文化.docx》', '']],
+    related: ['蒙古呼麦', '那达慕大会'],
+  },
+  {
+    id: 'dong-dage', name: '侗族大歌', ug: 'Kam Grand Choir',
+    group: '侗族', kind: '多声部民歌', pitch: 8, hue: 200,
+    collected: true,
+    level: '联合国教科文组织非物质文化遗产名录（2009 年入选）',
+    region: '侗族村寨',
+    form: '民间多声部民歌的总称，通常无伴奏、无指挥',
+    /* 资料没提具体乐器 —— 留空，不猜。大歌本来就是无伴奏的。 */
+    instrument: '',
+    note: '侗族民间多声部民歌的总称，通常无伴奏、无指挥，传统声部组合常以「众低独高」概括。',
+    body: [
+      '侗族大歌是侗族民间多声部民歌的总称，通常无伴奏、无指挥。中国非物质文化遗产网将其归入表演艺术和口头传统相关类别。',
+      '其传统声部组合常以「众低独高」概括：低声部构成厚实背景，高声部在上方领唱或凸显旋律，形成和谐而富层次的合唱音响。',
+      '曲目可包括声音歌、叙事歌、童声歌、踩堂歌与拦路歌。',
+      '歌师教歌、歌班唱歌是重要传承方式。大歌与村寨生活、礼俗、社会关系和知识记忆相连，不宜仅作为舞台合唱来理解。',
+      '2009 年，侗族大歌入选联合国教科文组织非物质文化遗产名录。',
+    ],
+    caveat: '大歌与村寨生活、礼俗相连，**不宜仅作为舞台合唱来理解** —— 这是资料里明确提醒的。',
+    sources: [
+      ['国家民族事务委员会 · 中国非物质文化遗产网「侗族大歌」',
+        'https://www.neac.gov.cn/seac/c103546/202305/1163432.shtml'],
+    ],
+    related: [],
+  },
+  {
+    id: 'manchu-xinchengxi', name: '新城戏', ug: 'Xincheng Opera',
+    group: '满族', kind: '戏曲', pitch: 6, hue: 320,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '吉林松原',
+    form: '戏曲剧种',
+    instrument: '八角鼓',
+    note: '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+    body: [
+      '诞生吉林松原，以八角鼓为基础，融合萨满音乐、满族民歌，是专属满族的戏曲剧种。',
+      '行当齐全，表演融入满族舞蹈，剧目多取材满族历史与民间故事，唱腔独特，是当代满族戏曲代表。',
+    ],
+    sources: [['作者提供的《满族.docx》', '']],
+    related: ['新宾满族剪纸', '中式服装制作技艺（满族旗袍制作技艺）'],
+  },
+  {
+    id: 'miao-guge', name: '苗族古歌', ug: 'Hxak Lul',
+    group: '苗族', kind: '口头文学 · 古歌', pitch: 11, hue: 12,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '苗族各聚居区（篇目与称谓随地区、支系不同）',
+    form: '古老的口头文学形式',
+    instrument: '',
+    note: '苗族古老的口头文学形式，内容涉及开天辟地、战争迁徙、风俗习惯、神话传说等。',
+    body: [
+      '苗族古歌是苗族古老的口头文学形式，内容涉及开天辟地、战争迁徙、风俗习惯、生产劳动、神话传说、爱情故事、礼辞、丧葬、苗医苗药、天文和哲学等。',
+      '它可通过口头演述与抄本两种方式传播。在不同地区和支系中，篇目、演述语境与称谓可能不同，因此采集或引用时宜注明地区与版本。',
+      '古歌保存了关于族群历史、信仰、迁徙和生活知识的集体记忆，对历史、文学、宗教、艺术及民俗研究具有重要价值，也在维系文化认同方面发挥作用。',
+    ],
+    caveat: '古歌**属于口头文学传统，和一般意义上的歌曲资料应加以区分**；' +
+      '也不要把不同地区的文本拼接为单一固定版本 —— 这两条都是资料里明确指出的。',
+    sources: [
+      ['中国非物质文化遗产网「苗族古歌」',
+        'https://www.ihchina.cn/project_details/12179'],
+      ['国家民族事务委员会 · 第一批国家级非遗名录少数民族部分',
+        'https://www.neac.gov.cn/seac/c100845/201401/1096446.shtml'],
+    ],
+    related: ['苗族银饰锻制技艺', '苗绣（苗族刺绣）'],
+  },
+  {
+    id: 'yi-shan-ge', name: '山歌小调', ug: 'Yi Folk Songs',
+    group: '彝族', kind: '民歌', pitch: 9, hue: 42,
+    collected: true,
+    level: '国家级非物质文化遗产（盘县彝族山歌）',
+    region: '贵州六盘水盘县盘北地区；云南弥渡牛街（地方补充）',
+    form: '山歌 —— 独唱、对唱、群体对唱、齐唱或简单二声部合唱',
+    instrument: '',
+    note: '并非全国统一的单一曲种 —— 不同地区在曲调、语言、歌场和演唱功能上差异明显。',
+    body: [
+      '「彝族山歌小调」并非全国统一的单一曲种，不同地区在曲调、语言、歌场和演唱功能上差异明显。下面以盘县彝族山歌为主体案例，以云南弥渡牛街的山歌小调作地方补充。',
+      '盘县彝族山歌主要流传于贵州六盘水盘县盘北地区。按内容可分为情歌、酒歌、劳动歌、叙事歌；演唱可为独唱、对唱、群体对唱、齐唱或简单二声部合唱。',
+      '歌词多见七言四句，也有问答结构，曲调被当地称作「拉山腔」。',
+      '该项目强调喉腔和头腔共振、真假声混合等演唱技巧，主要通过口传心授延续。对唱既是音乐实践，也常承载社交、伦理与情感表达。',
+      '云南弥渡牛街的彝族社区在劳动、喜庆和恋爱交往中唱山歌小调。相关材料指出，当地山歌常由男女对唱，内容涉及劳动、生活、爱情、亲情和友情；曲调可呈现欢快、忧伤、深情等不同情绪。',
+    ],
+    caveat: '用「彝族山歌小调」作总称时，**应避免把贵州、云南、四川等地的音乐形态视为完全相同**；' +
+      '创作或研究宜先确定具体地区 —— 这是资料里的提醒。',
+    sources: [
+      ['中国非物质文化遗产网「彝族民歌 彝族山歌」',
+        'https://www.ihchina.cn/project_details/12670/'],
+      ['云南非物质文化遗产保护网「弥渡牛街彝族民俗文化拾贝」',
+        'https://www.ynich.cn/news/new/1551.html'],
+    ],
+    related: ['彝族剪纸', '彝族服饰制作技艺', '彝剧'],
+  },
+  {
+    id: 'dai-zhangha', name: '章哈', ug: 'Zhangha',
+    group: '傣族', kind: '说唱', pitch: 4, hue: 168,
+    collected: true,
+    level: '国家级非物质文化遗产',
+    region: '云南西双版纳、德宏的傣族村寨',
+    form: '口头说唱',
+    instrument: '傣玎',
+    note: '没有固定书面剧本，依靠章哈歌手口头代代传承，被称为傣族的「口头百科全书」。',
+    body: [
+      '傣族传统口头说唱艺术，没有固定书面剧本，依靠章哈歌手口头代代传承。',
+      '内容包含创世神话、民间爱情故事、历史传说，常在泼水节、赕佛、村寨节庆活动中演唱。',
+      '伴奏使用傣玎乐器，唱腔婉转舒缓，被称为傣族的「口头百科全书」。',
+    ],
+    sources: [['作者提供的《傣族文化.docx》', '']],
+    related: ['傣族慢轮制陶技艺', '傣族织锦技艺', '傣族孔雀舞'],
+  },
+  {
+    id: 'tibetan-gesar', name: '格萨尔', ug: 'Gesar',
+    group: '藏族', kind: '英雄史诗 · 说唱', pitch: 13, hue: 218,
+    collected: true,
+    level: '2006 年列入国家级非物质文化遗产名录；' +
+      '2009 年列入联合国教科文组织人类非物质文化遗产代表作名录',
+    region: '多地藏族社区及其他民族中流传；西藏那曲是重要的传承地',
+    form: '以艺人说唱、吟诵、文本抄本、绘画、藏戏等多种形态延续',
+    instrument: '',
+    note: '以格萨尔王故事为中心的英雄史诗传统，说唱艺人是其活态传承的关键。',
+    body: [
+      '《格萨尔》是以格萨尔王故事为中心的英雄史诗传统，讲述岭国格萨尔王征战四方、抑强扶弱、造福人民的故事。它在多地藏族社区及其他民族中流传。',
+      '格萨尔并非单一固定文本，而是以艺人说唱、吟诵、文本抄本、绘画、藏戏等多种形态延续。说唱艺人是其活态传承的关键，表演会随地区、师承和场合而有所不同。',
+      '相关资料将其视为认识藏族历史、文化、民俗的重要窗口，也常称为「东方的荷马史诗」。',
+      '格萨（斯）尔于 2006 年列入国家级非物质文化遗产名录，2009 年列入联合国教科文组织人类非物质文化遗产代表作名录。',
+      '保护工作包括史诗文本搜集、翻译出版、艺人传习、展演与数据库建设。',
+      '站内另有已核实的一条传承人记录：西藏那曲的桑珠能唱 60 多部《格萨尔》，2009 年入选国家级非物质文化遗产代表性传承人。',
+    ],
+    caveat: '使用相关素材时，**应明确具体地区与版本，避免把不同传承支系当作同一唱本** —— ' +
+      '这是资料里的提醒。',
+    sources: [
+      ['中国非物质文化遗产网「格萨尔保护实践总结」',
+        'https://www.ihchina.cn/tenyear_protect_detail/19787.html'],
+      ['中国非物质文化遗产网「格萨尔的活态保护和传承」',
+        'https://www.ihchina.cn/project_details/10032/'],
+      ['站内已核实来源 · 桑珠（西藏那曲），见附录「参考来源」一节', ''],
+    ],
+    related: [],
+  },
+];
+
+/** 分页面路径 */
+function heritageHref(id) {
+  return '../heritage/' + id + '/index.html';
+}
+
+/** 按 id 取一条 */
+function heritageById(id) {
+  return HERITAGE.find((h) => h.id === id) || null;
+}
+
+/** 已经收录了资料的 —— 现在八族都是 */
+function collectedHeritage() {
+  return HERITAGE.filter((h) => h.collected);
+}
+
+__ns = __XM[6];
+__ns.mount_HERITAGE = function () { return HERITAGE; };
+__ns.mount_heritageHref = function () { return heritageHref; };
+__ns.mount_heritageById = function () { return heritageById; };
+__ns.mount_collectedHeritage = function () { return collectedHeritage; };
+}
+
+/* ── js/pages/hub.js ── */
+function __M7__() {
+var bootChapter = __XM[4]["bootChapter"];
+var createTheme = __XM[5]["createTheme"];
+var autoPlayOnGesture = __XM[5]["autoPlayOnGesture"];
+var HERITAGE = __XM[6]["HERITAGE"];
+
+/* ==========================================================================
+   弦脉 · 八音总页面
+   --------------------------------------------------------------------------
+   八族档案原来是八个散页，没有一个地方能把它们一次看全。
+   这一页就是那个地方：八张卡，每张一族。
+
+   卡片上的颜色用的是**那一族档案页的同一个 --eh** ——
+   所以从总页点进去，颜色是接得上的；从附录的旋律图点进来，也接得上。
+   三处同一个色源，改一处不会只有一处变。
+
+   声部（配乐）与档案页一致：只有主题曲，没有手鼓。
+   ========================================================================== */
+
+
+
+
+const $ = (s) => document.querySelector(s);
+
+const ctx = bootChapter({
+  active: 'bain',
+  drums: false,
+  emberGain: 0.32,          // 和档案页同一档 —— 这一节是读文字，背景不该抢
 });
-window.__XM_FILM__ = film;   // 自检用
 
-/* 主题曲。点满圆圈就开始放 —— 那一下是用户手势，浏览器允许出声；
-   解码是异步的，所以提前预载，免得到时候有半秒空白。
+/* ---------------------------------------------------------------- 统计 */
 
-   **复用同一个 AudioContext**：页面上有两个独立 context 时，
-   浏览器会让其中一个不响（静音的真实原因，定位了很久）。 */
+const stats = $('#hub-stats');
+if (stats) {
+  const sources = HERITAGE.reduce((n, h) => n + (h.sources || []).length, 0);
+  const links = HERITAGE.reduce((n, h) =>
+    n + (h.sources || []).filter(([, u]) => u).length, 0);
+  const paras = HERITAGE.reduce((n, h) => n + (h.body || []).length, 0);
+  stats.innerHTML =
+    '<li><b>' + HERITAGE.length + '<i>族</i></b><span>各一页档案</span></li>' +
+    '<li><b>' + sources + '<i>条</i></b><span>标注的来源</span></li>' +
+    '<li><b>' + links + '<i>条</i></b><span>可点的官方链接</span></li>' +
+    '<li><b>' + paras + '<i>段</i></b><span>正文</span></li>';
+}
+
+/* ---------------------------------------------------------------- 八张卡 */
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+const grid = $('#hub-grid');
+if (grid) {
+  /* 按音高排（和附录旋律图一致的顺序），高→低。
+     卡片把这个音高数写在角上。
+
+     为什么非要写出来：CSS 网格是**横向填充**的，三列一折，
+     排出来的读序是"往下折"的蛇形，不是一条从高到低的直线。
+     光靠位置读者看不出这是音阶顺序 —— 把音高数摊在卡面上，
+     顺序就是可核对的事实，不靠"我希望它是这样读的"。 */
+  const list = HERITAGE.slice().sort((a, b) => b.pitch - a.pitch);
+
+  grid.innerHTML = list.map((h) => {
+    const nSrc = (h.sources || []).length;
+    const nLink = (h.sources || []).filter(([, u]) => u).length;
+    /* 链接是**同级目录**，不是 heritageHref()。
+       档案页在 heritage/<id>/，总页面在 heritage/ 本身 ——
+       直接拼 '<id>/index.html' 就行。
+       （原来用 heritageHref() 去掉 '../' 得到 'heritage/<id>/index.html'，
+       从 heritage/ 出发就成了 heritage/heritage/<id>/ —— 多一层，404。） */
+    return '' +
+      '<a class="hub-card" href="' + esc(h.id) + '/index.html"' +
+        ' style="--eh:' + h.hue + '"' +
+        ' aria-label="' + esc(h.group + ' ' + h.name + '，音高第 ' + h.pitch + ' 位') + '，进入档案页">' +
+        '<span class="hub-card__bar" aria-hidden="true"></span>' +
+        /* 左上角的音高数 + 右边的小谱线，让"这是旋律上的第几个音"看得见 */
+        '<span class="hub-card__pitch" aria-hidden="true">' +
+          '<b>' + h.pitch + '</b>' +
+          '<i>' + '—'.repeat(Math.max(1, Math.round(h.pitch / 3))) + '</i>' +
+        '</span>' +
+        '<span class="hub-card__group">' + esc(h.group) + '</span>' +
+        '<span class="hub-card__name">' + esc(h.name) + '</span>' +
+        '<span class="hub-card__ug">' + esc(h.ug) + '</span>' +
+        '<span class="hub-card__kind">' + esc(h.kind) + '</span>' +
+        '<span class="hub-card__note">' + esc(h.note) + '</span>' +
+        '<span class="hub-card__foot">' +
+          '<span class="hub-card__meta">' +
+            (h.level ? esc(h.level.split('（')[0].split('；')[0]) : '') +
+          '</span>' +
+          '<span class="hub-card__src">' + nSrc + ' 来源' +
+            (nLink ? ' · ' + nLink + ' 链接' : '') + '</span>' +
+        '</span>' +
+        (h.caveat ? '<span class="hub-card__flag">读之前先知道</span>' : '') +
+      '</a>';
+  }).join('');
+}
+
+/* ---------------------------------------------------------------- 配乐 */
+
 const theme = createTheme('../assets/audio/mashrap/theme.mp3');
+theme.setVolume(0.24);
 theme.preload();
+autoPlayOnGesture({ theme, seq: null, fade: 2.4 });
 
-/* ------------------------------------------------------------------ 自动开声
-   这一章没有声音等于白做 —— 鼓点、萨帕依、主题曲都是内容的一部分，
-   不该让人先去找开关。第一次交互就自动打开手鼓。
-
-   主题曲**不在这里起**：它要等圈子点满才响（见下面的 onFull）。
-   但这一次手势必须把 theme 接上同一个 AudioContext ——
-   否则等点满时它的 context 还是 suspended，就"点了也没声"。 */
-autoPlayOnGesture({
-  theme,                  // 传进去只为了复用 context 与唤醒，不会立刻出声
-  seq: ctx.seq,
-  band: 2,
-  startTheme: false,      // 关键：这一页的主题曲由 onFull 触发
-});
-
-if (host) {
-  /** 人数 → 一句说明。让"加人"这件事有叙事，不只是数字变大。 */
-  const stage = (n, max) => {
-    const r = n / max;
-    if (n === 0) return ['还没人下场', '麦西热甫是从第一个下场的人开始的。点一下圆圈。'];
-    if (r < 0.2) return ['起头', '一个人先站进去。鼓点还稀，节奏还慢，等的是别人跟上。'];
-    if (r < 0.45) return ['有人跟上', '两三个人就能把节拍立起来。手鼓开始有呼应了。'];
-    if (r < 0.7) return ['成圈', '人一多，节奏型就密了。这时候跳错也没人管——本来就是大家一起热闹。'];
-    if (r < 1) return ['热起来', '圈快满了。鼓点、纹样、转圈的速度都在往上走。'];
-    return ['满圈 · 门开了',
-      '这是麦西热甫该有的样子：不是谁在表演，是一圈人自己把场子烧起来。' +
-      '<br><span style="color:var(--amber)">主题曲响起，其他民族的页面也解开了。</span>'];
-  };
-
-  const circle = buildCircle({
-    host,
-    reduced: ctx.REDUCED,
-    // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
-    onFull: () => {
-      if (ctx.seq) {
-        if (ctx.seq.ctx) theme.useContext(ctx.seq.ctx);
-        ctx.seq.flourish();
-      }
-      if (ctx.renderer) {
-        ctx.renderer.patternZoom = 1.75;      // 纹样整体推近一下
-      }
-      // 主题曲淡入；同时解锁其他民族的页面
-      theme.start(2.6);
-      unlock.set();
-      // 圈满了，操作提示就该退场
-      const hint = document.getElementById('mq-hint');
-      if (hint) hint.classList.add('is-done');
-
-      /* 满圈之后放一遍那支片子，放完自己渐渐消失。
-         用户要的就是这个：点完那个圆，加个窗口，播一遍，然后自己淡掉。
-         解锁**已经在上一步做完了** —— 片子是仪式，不是门槛：
-         万一片子放不出来（没有 MediaCodec、被策略拦），
-         用户照样进得去，不会卡在这里。 */
-      if (film) film.play();
-    },
-    onChange: (n, max) => {
-      const r = n / max;
-      // 驱动背景纹样：人越多越亮、越推近
-      if (ctx.renderer) {
-        ctx.renderer.heat = r;
-        ctx.renderer.patternZoom = 1 + r * 0.55;
-      }
-      // 驱动声音：人越多，节奏型越密
-      if (ctx.seq) {
-        ctx.seq.setBand(r < 0.35 ? 0 : r < 0.75 ? 1 : 2);
-      }
-      /* 提示**一直留着**，直到圈满。
-         一开始我写成"点一下就收掉"，但那正好毁掉它的用处 ——
-         用户点了一下、提示消失，就以为完事了，不会接着点。
-         它要说的就是"别停"，那就得陪着到终点。 */
-      if (readout) {
-        const [title, text] = stage(n, max);
-        readout.innerHTML = '<b>' + title + '</b>' + text +
-          (n >= max ? '<br><span style="color:var(--bone-faint)">再点一下重新开始。</span>' : '');
-      }
-    },
-  });
-
-  // 自检用
-  window.__XM_CIRCLE__ = circle;
-  window.__XM_RENDERER__ = ctx.renderer;
-  window.__XM_THEME__ = theme;
-}
-}
-
-/* js/lib/part-data.js */
-try {
-  __ns = __XM[0];
-  __M0__();
-  for (var k in __XM[0]) { if (k.indexOf("mount_") === 0) __XM[0][k.slice(6)] = __XM[0][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/part-data.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/part.js */
-try {
-  __ns = __XM[1];
-  __M1__();
-  for (var k in __XM[1]) { if (k.indexOf("mount_") === 0) __XM[1][k.slice(6)] = __XM[1][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/part.js" + " :: " + (e && e.stack || e));
+// 自检用
+window.__XM_HUB__ = {
+  state: () => ({
+    cards: document.querySelectorAll('.hub-card').length,
+    hues: [...document.querySelectorAll('.hub-card')]
+      .map((c) => c.style.getPropertyValue('--eh').trim()),
+    hrefs: [...document.querySelectorAll('.hub-card')]
+      .map((c) => c.getAttribute('href')),
+    stats: document.querySelectorAll('#hub-stats li').length,
+  }),
+};
+window.__XM_THEME__ = theme;
 }
 
 /* js/lib/materials.js */
 try {
-  __ns = __XM[2];
-  __M2__();
-  for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
+  __ns = __XM[0];
+  __M0__();
+  for (var k in __XM[0]) { if (k.indexOf("mount_") === 0) __XM[0][k.slice(6)] = __XM[0][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/materials.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/renderer.js */
 try {
-  __ns = __XM[3];
-  __M3__();
-  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
+  __ns = __XM[1];
+  __M1__();
+  for (var k in __XM[1]) { if (k.indexOf("mount_") === 0) __XM[1][k.slice(6)] = __XM[1][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/renderer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/sequencer.js */
 try {
-  __ns = __XM[4];
-  __M4__();
-  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
+  __ns = __XM[2];
+  __M2__();
+  for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sequencer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/site.js */
 try {
-  __ns = __XM[5];
-  __M5__();
-  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+  __ns = __XM[3];
+  __M3__();
+  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/site.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/chapter.js */
 try {
-  __ns = __XM[6];
-  __M6__();
-  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+  __ns = __XM[4];
+  __M4__();
+  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/circle.js */
+/* js/lib/theme.js */
+try {
+  __ns = __XM[5];
+  __M5__();
+  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/heritage-data.js */
+try {
+  __ns = __XM[6];
+  __M6__();
+  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-data.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/hub.js */
 try {
   __ns = __XM[7];
   __M7__();
   for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/circle.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/theme.js */
-try {
-  __ns = __XM[8];
-  __M8__();
-  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/lib/fullfilm.js */
-try {
-  __ns = __XM[9];
-  __M9__();
-  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/fullfilm.js" + " :: " + (e && e.stack || e));
-}
-
-/* js/pages/mashrap.js */
-try {
-  __ns = __XM[10];
-  __M10__();
-  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
-} catch (e) {
-  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/mashrap.js" + " :: " + (e && e.stack || e));
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/hub.js" + " :: " + (e && e.stack || e));
 }
 })();

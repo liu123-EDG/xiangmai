@@ -46,6 +46,8 @@ const PAGES = [
      产物 js/dist/heritage.js，八个目录的 HTML 都引它。
      （HTML 由 tools/gen-heritage.mjs 从数据生成，别手改。） */
   { entry: 'js/pages/heritage.js', out: 'js/dist/heritage.js' },
+  /* 八音总页面（八族一屏看全）。 */
+  { entry: 'js/pages/hub.js', out: 'js/dist/hub.js' },
 ];
 
 const IMPORT_RE = /^[ \t]*import\s+(?:([\s\S]*?)\s+from\s+)?['"]([^'"]+)['"][ \t]*;?[ \t]*$/gm;

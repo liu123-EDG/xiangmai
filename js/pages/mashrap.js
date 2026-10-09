@@ -10,12 +10,31 @@ import { renderPart } from '../lib/part.js';
 import { bootChapter } from '../lib/chapter.js';
 import { buildCircle } from '../lib/circle.js';
 import { createTheme, autoPlayOnGesture, unlock } from '../lib/theme.js';
+import { buildFullCircleFilm } from '../lib/fullfilm.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
 
 const host = document.getElementById('mq-host');
 const readout = document.getElementById('mq-readout');
+
+/* 满圈之后那支片子。
+   在这里建（而不是等满圈时才建）：元素提前进 DOM，满圈时只是加个类，
+   不会有"第一次点开时卡一下"的空档。
+   base 传 '..' —— 这一页在 mashrap/ 下，视频在 assets/ 下。
+   reduced 时它自己会跳过，直接回调 onDone。 */
+const film = buildFullCircleFilm({
+  base: '..',
+  reduced: ctx.REDUCED,
+  onDone: () => {
+    /* 片子放完（或跳过）之后回到页面。
+       这里什么额外的事都不用做 —— 解锁在满圈那一刻就完成了，
+       幕布一撤，用户看到的就是已经打开的页面。 */
+    const hint = document.getElementById('mq-hint');
+    if (hint) hint.classList.add('is-done');
+  },
+});
+window.__XM_FILM__ = film;   // 自检用
 
 /* 主题曲。点满圆圈就开始放 —— 那一下是用户手势，浏览器允许出声；
    解码是异步的，所以提前预载，免得到时候有半秒空白。
@@ -71,6 +90,13 @@ if (host) {
       // 圈满了，操作提示就该退场
       const hint = document.getElementById('mq-hint');
       if (hint) hint.classList.add('is-done');
+
+      /* 满圈之后放一遍那支片子，放完自己渐渐消失。
+         用户要的就是这个：点完那个圆，加个窗口，播一遍，然后自己淡掉。
+         解锁**已经在上一步做完了** —— 片子是仪式，不是门槛：
+         万一片子放不出来（没有 MediaCodec、被策略拦），
+         用户照样进得去，不会卡在这里。 */
+      if (film) film.play();
     },
     onChange: (n, max) => {
       const r = n / max;

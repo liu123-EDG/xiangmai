@@ -56,7 +56,28 @@ try {
 
   await send('Page.enable'); await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride',
-    { width: 1280, height: 1400, deviceScaleFactor: 1, mobile: false });
+    { width: 1440, height: 1500, deviceScaleFactor: 1, mobile: false });
+
+  /* --hub：拍八音总页面（而不是某一族的档案页） */
+  if (process.argv.includes('--hub')) {
+    await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/heritage/index.html` });
+    await sleep(1400);
+    await send('Runtime.evaluate',
+      { expression: `localStorage.setItem('xiangmai.unlocked.mashrap','1')` });
+    await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/heritage/index.html` });
+    await sleep(2600);
+    /* 先滚到卡片区再拍。
+       reveal 是滚动触发的 —— 不滚过去，卡片还是 opacity 0，拍出来一片黑。 */
+    await send('Runtime.evaluate', {
+      expression: `document.getElementById('hub').scrollIntoView({ block: 'start', behavior: 'instant' })`,
+    });
+    await sleep(1800);
+    const hs = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(join(root, 'shots', 'hub.png'), Buffer.from(hs.result.data, 'base64'));
+    console.log('  八音总页面 → shots/hub.png');
+    ws.close(); chrome.kill(); server.close();
+    process.exit(0);
+  }
 
   /* 只拍指定的几族；不传就拍全部 */
   const want = process.argv.slice(2);

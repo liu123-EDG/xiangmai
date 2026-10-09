@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>八音｜八个民族的音乐非遗 — 弦脉</title>
+<meta name="description" content="壮族天琴、蒙古族马头琴、侗族大歌、满族新城戏、苗族古歌、彝族山歌小调、傣族章哈、藏族格萨尔——八个民族的音乐类非物质文化遗产，各自的形态、流传地与来源。">
+<meta name="theme-color" content="#0a0908">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="八音｜八个民族的音乐非遗 — 弦脉">
+<meta property="og:description" content="一条旋律，八个音；一个音，一个民族。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Crect x='12' y='4' width='8' height='8' fill='%233a2b28'/%3E%3Crect x='12' y='12' width='8' height='8' fill='%23c08a3e'/%3E%3Crect x='12' y='20' width='8' height='8' fill='%23a33b28'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../styles/chapter.css">
+<link rel="stylesheet" href="../styles/hub.css">
+</head>
+<body class="chapter hub-page" data-render="pending">
+
+<a class="sr-only" href="#hub">跳到正文</a>
+
+<header class="topbar"></header>
+
+<canvas class="air" id="air" aria-hidden="true"></canvas>
+<div class="fallback-ember" aria-hidden="true"></div>
+
+<main>
+
+  <section class="chapter-hero" data-act="0">
+    <div class="chapter-hero__inner">
+      <p class="chapter-hero__part reveal">八音</p>
+      <h1 class="reveal" data-delay="1">一个音，一个民族</h1>
+      <span class="chapter-hero__ug reveal" data-delay="2">Eight Voices</span>
+      <p class="chapter-hero__lead reveal" data-delay="3">
+        十二木卡姆不是孤例。壮族、蒙古族、侗族、满族、苗族、彝族、傣族、藏族，
+        各自在自己的生活区域里养出了完全不同的音乐形态 ——
+        有的一口气唱几个钟头，有的无指挥无伴奏地合唱，有的靠一件两弦乐器撑起整场。
+        <br>八页档案，每页一族。点开哪一张，就进哪一族。
+      </p>
+      <ul class="chapter-hero__stats reveal" data-delay="4" id="hub-stats"></ul>
+    </div>
+  </section>
+
+  <section class="act hub-act" id="hub" data-act="1">
+    <div class="act__inner">
+      <h2 class="act__title reveal" data-delay="1">八个民族，八种声音</h2>
+      <p class="body reveal" data-delay="2">
+        每张卡上的颜色，和那一族档案页用的是同一个 ——
+        也从附录「一条旋律，八个音」里那个音符接过来。
+      </p>
+    </div>
+    <!-- 八张卡由 js/dist/hub.js 从 heritage-data.js 渲染 -->
+    <div class="hub-grid reveal" data-delay="3" id="hub-grid"></div>
+  </section>
+
+  <section class="act hub-acts" id="hub-acts" data-act="2">
+    <div class="act__inner">
+      <h2 class="act__title reveal">怎么用这一节</h2>
+      <div class="hub-notes">
+        <div class="hub-note reveal">
+          <span class="hub-note__k">顺序</span>
+          <p>八页没有先后，按旋律图上的音高排。想按民族找，看卡片上的族名。</p>
+        </div>
+        <div class="hub-note reveal" data-delay="1">
+          <span class="hub-note__k">来源</span>
+          <p>每页都标了来源。带 ↗ 的是可点的官方链接，点开在新标签打开。</p>
+        </div>
+        <div class="hub-note reveal" data-delay="2">
+          <span class="hub-note__k">口径</span>
+          <p>有的条目带「读之前先知道」。那是资料里明确指出的说法边界 ——
+            读者按错的口径去理解，比读到空字段更糟。</p>
+        </div>
+      </div>
+      <nav class="hub-back reveal">
+        <a href="../fulu/index.html#melody-act">← 回附录 · 一条旋律，八个音</a>
+      </nav>
+    </div>
+  </section>
+
+  <nav class="chapter-nav" aria-label="章节导航"></nav>
+</main>
+
+<script src="../js/dist/hub.js" defer></script>
+</body>
+</html>

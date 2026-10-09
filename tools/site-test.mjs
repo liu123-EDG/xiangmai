@@ -71,6 +71,16 @@ const NAV_COUNT = (() => {
   return (block.match(/id:\s*'/g) || []).length;
 })();
 
+/* 链条末端那一页的 href —— 也从 site.js 现算，不写死 'fulu/index.html'。
+   八音那一节加到附录后面之后，附录就不再是末端了，
+   写死会报"底部章节导航 = 2，应为 1"这种过时的假失败。 */
+const NAV_LAST_HREF = (() => {
+  const src = readFileSync(new URL('../js/lib/site.js', import.meta.url), 'utf8');
+  const block = src.slice(src.indexOf('export const NAV'), src.indexOf('];', src.indexOf('export const NAV')));
+  const hrefs = [...block.matchAll(/href:\s*'([^']+)'/g)].map((m) => m[1]);
+  return hrefs[hrefs.length - 1];
+})();
+
 let fails = 0;
 const ok = (m) => console.log('  ok   ' + m);
 const bad = (m) => { fails++; console.log('  FAIL ' + m); };
@@ -152,8 +162,13 @@ try {
     else bad('高亮错误：期望含「' + P.nav + '」，实际「' + state.navActive + '」');
 
     if (P.path !== 'index.html') {
-      // 链条末端（附录）只有"上一章"，没有"下一章"，这是对的
-      const expect = P.path === 'fulu/index.html' ? 1 : 2;
+      /* 链条末端只有"上一章"，中间的都有上下两章。
+         **末端是哪一页从 NAV 现算**，不写死 'fulu/index.html' ——
+         八音那一节加到附录后面之后，附录就不再是末端了，
+         写死就会报"底部章节导航 = 2，应为 1"这种
+         看着像坏了、其实只是过时的假失败（踩过）。 */
+      const lastHref = NAV_LAST_HREF;
+      const expect = P.path === lastHref ? 1 : 2;
       if (state.chapNav === expect) ok('底部章节导航 ' + state.chapNav + ' 个链接（期望 ' + expect + '）');
       else bad('底部章节导航 = ' + state.chapNav + ' 个链接，应为 ' + expect);
     }
