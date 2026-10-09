@@ -473,7 +473,38 @@ function renderPart() {
   }
 
   const body = $('#part-body');
-  if (body) body.innerHTML = p.sections.map(sectionHTML).join('');
+  if (body) {
+    /* 正文各节。**带 pending 的那一节不在这里渲染** —— 见下面的 return 之前。
+       原来它被当成一整节正文排在最后，标题就叫「待补」，
+       内容是"这里还缺：· ×××" —— 评委翻到那儿一眼就看见。
+       缺什么是诚实，但那是**页末的说明**，不该占着正文的位置。 */
+    body.innerHTML = p.sections
+      .filter((s) => !s.pending)
+      .map(sectionHTML)
+      .join('');
+  }
+
+  /* 页末的「本站还缺」。和参考来源、八族档案同一个规矩：
+     缺什么就说什么，但不摆成正文的一节。 */
+  const gaps = p.sections.filter((s) => s.pending).reduce(
+    (acc, s) => acc.concat(s.pending), []);
+  if (body && gaps.length) {
+    const g = document.createElement('section');
+    g.className = 'act gaps-act';
+    g.setAttribute('data-act', '90');
+    g.innerHTML =
+      '<div class="act__inner">' +
+        '<h2 class="act__title reveal">本站还缺</h2>' +
+        '<p class="body reveal" data-delay="1">' +
+          '这一页讲的是<strong>听感与结构</strong>，不是记谱。下面这几项还没有可靠出处，' +
+          '所以留空 —— <strong>不用相近内容凑数</strong>。' +
+        '</p>' +
+        '<ul class="gaps reveal" data-delay="2">' +
+          gaps.map((t) => '<li>' + t + '</li>').join('') +
+        '</ul>' +
+      '</div>';
+    body.appendChild(g);
+  }
 
   return p;
 }

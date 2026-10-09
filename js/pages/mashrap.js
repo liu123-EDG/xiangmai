@@ -11,12 +11,22 @@ import { bootChapter } from '../lib/chapter.js';
 import { buildCircle } from '../lib/circle.js';
 import { createTheme, autoPlayOnGesture, unlock } from '../lib/theme.js';
 import { buildFullCircleFilm } from '../lib/fullfilm.js';
+import { buildRhythmLab } from '../lib/rhythm-lab.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
 
 const host = document.getElementById('mq-host');
 const readout = document.getElementById('mq-readout');
+
+/* 节奏台 —— 指导老师要的"随着鼓点动"就是这一块：记号跟着鼓声亮。
+   它自带一套调度（自己的 AudioContext + 音频时钟驱动的动画），
+   **不复用页面的手鼓音序器**：那个只有 onPhrase 回调，没有"每一拍"，
+   靠定时器对嘴一定会飘。宁可多一个 context，也不要对不上嘴。 */
+const lab = buildRhythmLab(document.getElementById('rlab-host'), {
+  reduced: ctx.REDUCED,
+});
+window.__XM_LAB__ = lab;   // 自检用
 
 /* 满圈之后那支片子。
    在这里建（而不是等满圈时才建）：元素提前进 DOM，满圈时只是加个类，

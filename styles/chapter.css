@@ -1545,6 +1545,40 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
 }
 
 /* --------------------------------------------------------------------------
+   页末「本站还缺」
+   --------------------------------------------------------------------------
+   原来这些是当成一整节正文排在最后的，标题就叫「待补」（评委一眼就看见）。
+   现在是页末的一段说明，用虚线框标出"这不是正文"，
+   但条目本身写清楚——缺什么是要交代的事实，不是要藏起来的短处。
+   -------------------------------------------------------------------------- */
+.gaps-act { padding-top: clamp(1rem, 3vh, 2rem); }
+.gaps-act .act__title { color: rgba(222, 214, 200, 0.72); }
+.gaps {
+  margin: 1.4rem 0 0;
+  padding: 1.2rem clamp(1.1rem, 3vw, 1.7rem);
+  border: 1px dashed rgba(196, 198, 206, 0.3);
+  border-radius: 3px;
+  background: rgba(20, 20, 22, 0.42);
+  list-style: none;
+}
+.gaps li {
+  position: relative;
+  padding: 0.5rem 0 0.5rem 1.1rem;
+  border-bottom: 1px solid rgba(222, 214, 200, 0.06);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.66);
+}
+.gaps li:last-child { border-bottom: 0; }
+.gaps li::before {
+  content: '—';
+  position: absolute;
+  left: 0; top: 0.5rem;
+  color: rgba(196, 198, 206, 0.45);
+}
+
+/* --------------------------------------------------------------------------
    13. 响应式
    -------------------------------------------------------------------------- */
 @media (max-width: 860px) {

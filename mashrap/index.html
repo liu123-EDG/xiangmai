@@ -16,6 +16,8 @@
 <!-- 满圈之后那支片子的幕布样式。单独一个文件：它是一次性组件，
      塞进 chapter.css 会和别的章节规则纠缠。 -->
 <link rel="stylesheet" href="../styles/fullfilm.css">
+<!-- 节奏台的样式。同理单独一份。 -->
+<link rel="stylesheet" href="../styles/rhythm-lab.css">
 </head>
 <body class="chapter" data-part="mashrap" data-render="pending">
 
@@ -30,6 +32,22 @@
   <section class="chapter-hero" id="part-hero" data-act="0"></section>
   <section class="plate-act" id="part-hero-image" data-act="1"></section>
   <div id="part-body"></div>
+
+  <!-- 节奏台：记号随鼓点亮起，「填满」和「切断」听得见也看得见。
+       放在正文之后、圆圈互动之前 —— 先讲清这一段音乐是什么，
+       再让人自己下场。 -->
+  <section class="act rlab-act" id="rlab-act" data-act="8">
+    <div class="act__inner">
+      <span class="act__num" aria-hidden="true">五</span>
+      <h2 class="act__title reveal">听一遍：它是怎么「满」的，又是怎么「断」的</h2>
+      <p class="body reveal" data-delay="1">
+        下面这条是十二拍一循环。三种记号分别是<strong>手鼓</strong>、<strong>萨帕依</strong>
+        和它的<strong>铁环声</strong>——点「听一遍」，记号会跟着鼓点亮起来。
+        <br>先听起头，再听满，最后听那一下<strong>断</strong>。
+      </p>
+    </div>
+    <div id="rlab-host"></div>
+  </section>
 
   <!-- 互动：点一下往圈里加一个人。人越多，鼓点越密、纹样越亮 -->
   <section class="act mq-act" id="mq-act" data-act="9">

@@ -1,0 +1,187 @@
+/* ==========================================================================
+   弦脉 · 节奏台（第四章）
+   --------------------------------------------------------------------------
+   指导老师的意见：「节奏那可以设计一些音符 / 随着鼓点动」
+   「最好做一些图 / 交互形式的」「多一些交互内容」。
+   所以这一块的重点是**动**，不是好看 —— 记号亮起来要和鼓声同一时刻。
+
+   配色跟站里一致：骨白 + 琥珀。三条轨道各给一个色，
+   让"哪一种乐器在响"一眼分得开。
+   ========================================================================== */
+
+.rlab {
+  margin: clamp(2rem, 5vh, 3rem) auto 0;
+  width: min(60rem, 92vw);
+}
+
+.rlab__stage {
+  position: relative;
+  border: 1px solid rgba(221, 213, 199, 0.14);
+  border-radius: 3px;
+  /* 和章末按钮同一个理由：这一页常有全出血图片，透明底会糊 */
+  background: rgba(10, 9, 8, 0.86);
+  backdrop-filter: blur(4px);
+  padding: clamp(0.8rem, 2vw, 1.2rem);
+}
+.rlab__svg { display: block; width: 100%; height: auto; }
+
+/* 轨道名 */
+.rlab__lane {
+  fill: rgba(222, 214, 200, 0.42);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.rlab__lane-line {
+  stroke: rgba(222, 214, 200, 0.09);
+  stroke-width: 1;
+}
+/* 拍号刻度 */
+.rlab__tick {
+  fill: rgba(222, 214, 200, 0.26);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  text-anchor: middle;
+}
+
+/* 记号：**静息态就要看得见**，不然它不是"图"只是"等待播放的空格" */
+.rlab__m {
+  fill: rgba(222, 214, 200, 0.30);
+  transition: fill .12s linear, r .12s linear, filter .12s linear;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.rlab__m--dum { fill: rgba(192, 138, 62, 0.55); }
+.rlab__m--sap { fill: rgba(120, 168, 150, 0.5); }
+.rlab__m--tek { fill: rgba(150, 168, 196, 0.5); }
+
+/* 敲响的那一瞬：变亮、放大、带光晕。
+   **放大用 transform 不用 r** —— r 在 JS 里按力度算过（力度大的记号本来就大），
+   用 r 定值会把这层信息抹掉。scale 是在原大小上再放大，两者叠加。 */
+.rlab__m.is-hit {
+  fill: #f6e3b8;
+  transform: scale(1.55);
+  filter: drop-shadow(0 0 7px rgba(246, 227, 184, 0.85));
+}
+.rlab__m--dum.is-hit { fill: #ffd98a; filter: drop-shadow(0 0 10px rgba(255, 217, 138, 0.95)); }
+.rlab__m--sap.is-hit { fill: #b9f0d8; filter: drop-shadow(0 0 8px rgba(185, 240, 216, 0.9)); }
+.rlab__m--tek.is-hit { fill: #cfe0ff; filter: drop-shadow(0 0 8px rgba(207, 224, 255, 0.9)); }
+
+/* 播放头：一条竖线随音频时钟往右走 */
+.rlab__playhead {
+  stroke: rgba(232, 201, 143, 0.75);
+  stroke-width: 1.4;
+  opacity: 0;
+  transition: opacity .3s var(--ease-slow);
+}
+.rlab.is-playing .rlab__playhead { opacity: 1; }
+
+/* 切断的那一下：整块闪一下暗，标记"停" */
+.rlab.is-cut .rlab__stage {
+  background: rgba(6, 5, 4, 0.94);
+  border-color: rgba(192, 138, 62, 0.5);
+}
+.rlab.is-cut .rlab__m { fill: rgba(222, 214, 200, 0.14); }
+
+/* 说明文字 */
+.rlab__cue {
+  margin: 0.7rem 0 0;
+  min-height: 2.6em;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  line-height: 1.9;
+  color: rgba(222, 214, 200, 0.62);
+  transition: color .3s var(--ease-slow);
+}
+.rlab.is-cut .rlab__cue {
+  color: var(--amber);
+  letter-spacing: 0.2em;
+}
+
+/* ------------------------------------------------------------ 控制条 */
+
+.rlab__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1rem;
+  margin-top: 1rem;
+}
+
+/* 播放键：这是整块的入口，做大做显眼 */
+.rlab__play {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0.7rem 1.5rem;
+  border: 1px solid rgba(192, 138, 62, 0.55);
+  border-radius: 3px;
+  background: rgba(192, 138, 62, 0.1);
+  color: var(--amber);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: background .35s var(--ease-slow), border-color .35s var(--ease-slow),
+              color .35s var(--ease-slow);
+}
+.rlab__play:hover, .rlab__play:focus-visible {
+  background: rgba(192, 138, 62, 0.22);
+  border-color: var(--amber);
+  color: #f0d9ae;
+  outline: none;
+}
+.rlab__play:focus-visible { box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.45); }
+
+/* 三段切换 */
+.rlab__stages { display: flex; gap: 0.4rem; }
+.rlab__stage {
+  min-height: 44px;
+  min-width: 68px;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(221, 213, 199, 0.2);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--bone-dim);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: border-color .35s var(--ease-slow), background .35s var(--ease-slow),
+              color .35s var(--ease-slow);
+}
+.rlab__stage:hover, .rlab__stage:focus-visible {
+  border-color: rgba(232, 201, 143, 0.5);
+  color: var(--bone);
+  outline: none;
+}
+.rlab__stage.is-on {
+  border-color: var(--amber);
+  background: rgba(192, 138, 62, 0.16);
+  color: #f0d9ae;
+}
+
+.rlab__hint { flex: 1 1 14rem; margin: 0; }
+
+.rlab__note {
+  margin: 1.1rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid rgba(192, 138, 62, 0.4);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.5);
+}
+.rlab__note strong { color: rgba(242, 228, 196, 0.8); font-weight: 500; }
+
+/* 减弱动效：关掉发光与大变形的过渡，保留"亮起来"这个信息 */
+@media (prefers-reduced-motion: reduce) {
+  .rlab__m { transition: none; }
+  .rlab__m.is-hit { filter: none; }
+}
+
+@media (max-width: 640px) {
+  .rlab__bar { flex-direction: column; align-items: stretch; }
+  .rlab__stages { justify-content: space-between; }
+  .rlab__stage { flex: 1 1 0; min-width: 0; }
+  .rlab__play { width: 100%; }
+}
