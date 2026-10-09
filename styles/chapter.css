@@ -1425,27 +1425,112 @@ figure.slot.is-empty figcaption { color: var(--bone-faint); }
 /* --------------------------------------------------------------------------
    12. 章节导航（底部）
    -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+   底部「上一章 / 下一章」—— 做成按钮，不是一排小字
+   --------------------------------------------------------------------------
+   原来：font-size 0.72rem、没有 padding，量出来 70×16 px、字 11.5px。
+   指导老师看过之后提了意见：评委年纪大，太小了。
+   这不是审美偏好 —— 44×44 CSS px 是可点区域的无障碍通行下限
+   （苹果 HIG 与谷歌 Material 都这么定）。给年长用户还要留余量，
+   所以这里做到 **≥56px 高**、正文 1.05rem。
+
+   三个设计决定：
+     · 「上一章 / 下一章」四个字**单独写出来**，不再只靠一个小箭头 ——
+       箭头要先被解读，文字不用。
+     · 按钮整个有宽（约 22rem），不是只有文字可点；
+       移到哪儿都能按，不用瞄准。
+     · **窄屏竖着叠、占满宽**：并排会让每个只剩一半宽，字折行反而更难按。
+   -------------------------------------------------------------------------- */
 .chapter-nav {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 1.4rem;
+  gap: clamp(1rem, 3vw, 2rem);
   max-width: 1180px;
   margin: 0 auto;
   padding: clamp(3rem, 8vh, 6rem) clamp(1.2rem, 6vw, 6rem) clamp(4rem, 10vh, 7rem);
   border-top: 1px solid var(--line);
 }
-.chapter-nav a {
+
+.chapter-nav .cbtn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  /* 高度靠 padding 撑出来（正文一行 + 提示一行 + 上下各一份），
+     不写死 height —— 以后改字号，按钮自己跟着长，不会把字挤出来。 */
+  padding: clamp(1rem, 2.2vh, 1.35rem) clamp(1.4rem, 3vw, 2rem);
+  min-width: min(20rem, 100%);
+  min-height: 56px;
+  border: 1px solid rgba(221, 213, 199, 0.22);
+  border-radius: 3px;
+  /* **必须有底**，不能靠透明 + 描边。
+     达斯坦那一页是全出血图片背景，透明按钮压在山景上，
+     边框和字几乎看不见（截图里看到的）。
+     给年纪大的评委看，按钮得在任何背景上都是同一个样子。
+     backdrop-filter 让底下的图透出一点点，不至于像贴了块黑胶布。 */
+  background: rgba(12, 11, 10, 0.86);
+  backdrop-filter: blur(4px);
+  text-decoration: none;
+  transition: border-color .45s var(--ease-slow), background .45s var(--ease-slow),
+              transform .45s var(--ease-slow);
+}
+/* 下一章是"往前走"，给它更重的分量：主色边框、右对齐 */
+.chapter-nav .cbtn--next {
+  align-items: flex-end;
+  text-align: right;
+  border-color: rgba(192, 138, 62, 0.5);
+  background: rgba(26, 20, 13, 0.9);
+}
+
+.chapter-nav .cbtn__hint {
   font-family: var(--font-sans);
   font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  color: var(--bone-dim);
-  text-decoration: none;
-  transition: color 0.5s var(--ease-slow);
+  letter-spacing: 0.26em;
+  color: var(--bone-faint);
+  transition: color .45s var(--ease-slow);
 }
-.chapter-nav a:hover { color: var(--bone); }
-.chapter-nav .next { color: var(--amber); }
+.chapter-nav .cbtn__main {
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  color: var(--bone-dim);
+  transition: color .45s var(--ease-slow);
+}
+.chapter-nav .cbtn--next .cbtn__main { color: var(--amber); }
+
+/* 悬停 / 键盘聚焦：整块亮起来，不只是文字变色 */
+.chapter-nav .cbtn:hover,
+.chapter-nav .cbtn:focus-visible {
+  border-color: rgba(232, 201, 143, 0.65);
+  background: rgba(30, 26, 20, 0.94);
+  transform: translateY(-2px);
+  outline: none;
+}
+.chapter-nav .cbtn--next:hover,
+.chapter-nav .cbtn--next:focus-visible {
+  border-color: var(--amber);
+  background: rgba(44, 33, 19, 0.95);
+}
+.chapter-nav .cbtn:hover .cbtn__main,
+.chapter-nav .cbtn:focus-visible .cbtn__main { color: var(--bone); }
+.chapter-nav .cbtn--next:hover .cbtn__main,
+.chapter-nav .cbtn--next:focus-visible .cbtn__main { color: #f0d9ae; }
+.chapter-nav .cbtn:hover .cbtn__hint,
+.chapter-nav .cbtn:focus-visible .cbtn__hint { color: var(--bone-dim); }
+/* 键盘 Tab 到的时候要看得见 —— 鼠标点不会出现这个圈 */
+.chapter-nav .cbtn:focus-visible { box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.45); }
+
+/* 链条尽头那一侧：占位，让仅有的按钮仍然靠边 */
+.chapter-nav .cbtn-gap { flex: 1 1 0; }
+
+@media (max-width: 720px) {
+  .chapter-nav { flex-direction: column; }
+  .chapter-nav .cbtn { min-width: 100%; }
+  .chapter-nav .cbtn--next { align-items: flex-start; text-align: left; }
+}
 
 /* 后续内容的位置提示：给"待插入"的分页面用 */
 .pending {

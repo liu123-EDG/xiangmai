@@ -458,23 +458,46 @@ body[data-stage="3"] .entry { opacity: 1; visibility: visible; transform: transl
   align-items: flex-end;
   gap: 0.75rem;
 }
+/* --------------------------------------------------------------------------
+   分幕按钮（↑ 上一幕 / 下一幕 ↓）：也要够大能点
+   --------------------------------------------------------------------------
+   原来 font-size 0.66rem、padding 0.34rem 0.1rem，量出来 92×26、字 10.6px。
+   它固定在右下角、每一幕都在，是这一页用得最多的控件。
+   现在撑到 ≥44px 高、字 0.82rem。
+   （下一幕那个按钮带琥珀色，是"往前走"的主按钮，所以给它更亮的色。）
+   -------------------------------------------------------------------------- */
 .actnav__btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.34rem 0.1rem;
-  background: none;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  min-height: 56px;
+  padding: 0.85rem 1rem;
+  margin: -0.35rem -1rem;       /* 负边距：视觉上仍然贴右边缘，不显得被推进来 */
+  /* 和章末按钮同理：这一页常有全出血图片，透明按钮会糊在图上 */
+  background: rgba(12, 11, 10, 0.72);
+  backdrop-filter: blur(3px);
   border: 0;
+  border-radius: 3px;
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 0.66rem;
-  letter-spacing: 0.22em;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
   color: var(--bone-dim);
-  transition: color 0.5s var(--ease-slow), opacity 0.5s var(--ease-slow);
+  transition: color 0.5s var(--ease-slow), opacity 0.5s var(--ease-slow),
+              background 0.4s var(--ease-slow);
 }
-.actnav__btn:hover { color: var(--bone); }
+.actnav__btn:hover {
+  color: var(--bone);
+  background: rgba(14, 12, 10, 0.82);
+}
+.actnav__btn:focus-visible {
+  color: var(--bone);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.45);
+}
 .actnav__btn[disabled] { opacity: 0.28; cursor: default; }
-.actnav__btn[disabled]:hover { color: var(--bone-dim); }
+.actnav__btn[disabled]:hover { color: var(--bone-dim); background: none; }
 /* 最后一幕：按钮变成跨页入口，给它一点分量 */
 .actnav__btn.is-final {
   color: var(--amber);
@@ -494,21 +517,43 @@ body[data-stage="3"] .entry { opacity: 1; visibility: visible; transform: transl
 
 .actnav__dots {
   display: flex;
-  gap: 0.4rem;
+  /* 圆点之间留够距离 —— 紧挨着的几个 5px 点，年纪大的人基本点不准 */
+  gap: 0.15rem;
   margin: 0.1rem 0;
   padding: 0;
   list-style: none;
 }
+/* --------------------------------------------------------------------------
+   分幕圆点：**可点区域要够大，圆点本身可以小**
+   --------------------------------------------------------------------------
+   原来 button 的 padding 是 0.4rem 0.18rem，量出来 11×18 px ——
+   这是整个站最难点的东西，而序章全靠它导航。
+   指导老师提的"按钮小"，这一处比章末按钮更要紧。
+
+   做法：把 button 撑到 32×32（四个一组也不占地方），
+   里面那个小圆点**视觉尺寸不变**（5px → 6px，几乎看不出来）。
+   点击区变大、看上去没变 —— 这是这一类控件该有的处理方式。
+   -------------------------------------------------------------------------- */
 .actnav__dots button {
-  display: block;
-  padding: 0.4rem 0.18rem;
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  padding: 0;
   background: none;
   border: 0;
+  border-radius: 50%;
   cursor: pointer;
+  transition: background .4s var(--ease-slow);
 }
+.actnav__dots button:hover,
+.actnav__dots button:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+  outline: none;
+}
+.actnav__dots button:focus-visible { box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.5); }
 .actnav__dots i {
   display: block;
-  width: 5px; height: 5px;
+  width: 6px; height: 6px;
   border: 1px solid rgba(221, 213, 199, 0.34);
   border-radius: 50%;
   transition: background 0.5s var(--ease-slow), border-color 0.5s var(--ease-slow), transform 0.5s var(--ease-slow);

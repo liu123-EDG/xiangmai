@@ -2440,6 +2440,21 @@ function mountSoundButton(opts = {}) {
 /**
  * 页面底部的「上一章 / 下一章」。按 NAV 的链条自动生成 ——
  * 以后调整章节顺序或插新页，不用改任何 HTML。
+ *
+ * **做成真正的按钮，不是一排小字。**
+ * 原来是一条 16px 高、11.5px 字的文字链（量过），
+ * 指导老师看过之后提了意见：评委年纪大，这个太小。
+ * 这不是审美问题 —— 44×44 CSS px 是可点区域的无障碍下限
+ * （苹果 HIG 与谷歌 Material 都是这个数），给年长用户还要留余量。
+ * 现在每个按钮 ≥56px 高，字 1.05rem，整块可点，带边框。
+ *
+ * 结构：
+ *   <a class="cbtn">
+ *     <span class="cbtn__hint">上一章</span>
+ *     <span class="cbtn__main">二 · 穹乃额曼</span>
+ *   </a>
+ * hint（上一章 / 下一章）**单独一行写出来** ——
+ * 原来只有一个小小的箭头，得先看懂箭头才知道点它去哪。
  */
 function mountChapterNav(opts) {
   const base = opts.base || '';
@@ -2452,9 +2467,19 @@ function mountChapterNav(opts) {
   const next = NAV[i + 1];
   const label = (n) => n.num + ' · ' + n.label;
 
+  const btn = (n, dir) => {
+    const hint = dir === 'prev' ? '← 上一章' : '下一章 →';
+    const cls = 'cbtn' + (dir === 'next' ? ' cbtn--next' : '');
+    return '<a class="' + cls + '" href="' + base + n.href + '"' +
+      ' aria-label="' + hint.replace(/[←→]/g, '').trim() + '：' + label(n) + '">' +
+      '<span class="cbtn__hint">' + hint + '</span>' +
+      '<span class="cbtn__main">' + label(n) + '</span>' +
+      '</a>';
+  };
+
   host.innerHTML =
-    (prev ? '<a href="' + base + prev.href + '">← ' + label(prev) + '</a>' : '<span></span>') +
-    (next ? '<a class="next" href="' + base + next.href + '">' + label(next) + ' →</a>' : '<span></span>');
+    (prev ? btn(prev, 'prev') : '<span class="cbtn-gap"></span>') +
+    (next ? btn(next, 'next') : '<span class="cbtn-gap"></span>');
 }
 
 /**
