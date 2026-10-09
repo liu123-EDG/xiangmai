@@ -93,18 +93,24 @@ try {
 
   /* 播放中抓一帧：这一刻应该有记号是亮的 */
   await evalJs(`window.__XM_LAB__.setStage(1)`);
-  await evalJs(`document.querySelector('.rlab__play').click()`);
+  /* 示范在跑的那一帧 */
+  await evalJs(`document.querySelector('.rlab__mode[data-mode="demo"]').click()`);
   await sleep(1500);
-  const clip = JSON.parse(await evalJs(`(() => {
-    const b = document.querySelector('.rlab').getBoundingClientRect();
-    return JSON.stringify({ x: Math.round(b.left), y: Math.round(b.top),
-      width: Math.round(b.width), height: Math.round(b.height) });
-  })()`));
-  const shot = await send('Page.captureScreenshot', {
-    format: 'png', clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height, scale: 1 } });
+  const shot = await send('Page.captureScreenshot', { format: 'png' });
   await writeFile(join(root, 'shots', 'rlab-playing.png'), Buffer.from(shot.result.data, 'base64'));
   const lit = await evalJs(`document.querySelectorAll('.rlab__m.is-hit').length`);
-  console.log('  playing  → shots/rlab-playing.png   （此刻亮着 ' + lit + ' 个记号）');
+  console.log('  demo     → shots/rlab-playing.png   （此刻亮着 ' + lit + ' 个记号）');
+
+  /* 手动敲的瞬间：敲一下立刻拍，抓那个扩散的印记 */
+  await evalJs(`document.querySelector('.rlab__mode[data-mode="manual"]').click()`);
+  await sleep(400);
+  await evalJs(`window.__XM_LAB__.strike(0.35)`);
+  await evalJs(`window.__XM_LAB__.strike(0.62)`);
+  await sleep(90);
+  const shot2 = await send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(join(root, 'shots', 'rlab-manual.png'), Buffer.from(shot2.result.data, 'base64'));
+  const marks = await evalJs(`document.querySelectorAll('.rlab__strike').length`);
+  console.log('  manual   → shots/rlab-manual.png    （' + marks + ' 个敲击印记）');
 
   ws.close();
 } catch (e) { console.error('错误：' + e.message); }

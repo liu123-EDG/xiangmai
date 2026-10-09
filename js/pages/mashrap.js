@@ -92,11 +92,31 @@ if (host) {
       '<br><span style="color:var(--amber)">主题曲响起，其他民族的页面也解开了。</span>'];
   };
 
-  const circle = buildCircle({
-    host,
-    reduced: ctx.REDUCED,
-    // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
-    onFull: () => {
+/* 满圈之后那一下「断」。
+   ——为什么要有这个——
+   这一页最后一句是「人散了，鼓还在耳朵里」。文字说得出，
+   但**身体感觉不到**。所以满圈的 flourish 砸下去之后，
+   让**页面本身**跟着断一下：整屏急速压暗、纹样抽掉，
+   0.7 秒后再回来。
+
+   这和节奏台第三段是同构的 —— 那边是"最密的那一拍直接切断"，
+   这边是"整场一起停"。同一件事，一个用耳朵、一个用眼睛。
+   ——注意别过头——
+   只压暗、不变黑、不挡住入口：断完要能立刻继续用。
+   减弱动效时整段跳过。 */
+function pageCut() {
+  if (ctx.REDUCED) return false;
+  const b = document.body;
+  b.classList.add('is-cut');
+  setTimeout(() => b.classList.remove('is-cut'), 700);
+  return true;
+}
+
+const circle = buildCircle({
+  host,
+  reduced: ctx.REDUCED,
+  // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
+  onFull: () => {
       if (ctx.seq) {
         if (ctx.seq.ctx) theme.useContext(ctx.seq.ctx);
         ctx.seq.flourish();
@@ -104,6 +124,8 @@ if (host) {
       if (ctx.renderer) {
         ctx.renderer.patternZoom = 1.75;      // 纹样整体推近一下
       }
+      /* 断一下 —— 紧跟着那记重击，让整页和音频一起停 */
+      pageCut();
       // 主题曲淡入；同时解锁其他民族的页面
       theme.start(2.6);
       unlock.set();

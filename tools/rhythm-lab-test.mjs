@@ -100,8 +100,12 @@ try {
       lanes: document.querySelectorAll('.rlab__lane').length,
       ticks: document.querySelectorAll('.rlab__tick').length,
       stageBtns: document.querySelectorAll('.rlab__stages > .rlab__stage').length,
-      playBtn: !!document.querySelector('.rlab__play'),
-      cue: (document.querySelector('.rlab__cue') || {}).textContent || '',
+      modes: [...document.querySelectorAll('.rlab__mode')].map((b) => b.textContent.trim()),
+      onMode: (() => {
+        const b = document.querySelector('.rlab__mode.is-on');
+        return b ? b.dataset.mode : null;
+      })(),
+      how: (document.querySelector('.rlab__how') || {}).textContent || '',
       bootErr: (window.__XM_BOOT_ERR__ || []).length,
       hostHtml: w ? w.innerHTML.length : 0,
     });
@@ -114,8 +118,14 @@ try {
   else bad('刻度 = ' + init.ticks);
   if (init.stageBtns === 3) ok('三个切换键');
   else bad('切换键 = ' + init.stageBtns);
-  if (init.playBtn) ok('有「听一遍」');
-  else bad('没有播放键');
+  /* 老师要的沉浸：**默认就该是"我来打"**，不是"听一遍"。
+     默认成播放键的话，这一块又只是一次点击。 */
+  if (init.modes.length === 2) ok('两种模式：' + init.modes.join(' / '));
+  else bad('模式按钮 = ' + init.modes.length + ' 个');
+  if (init.onMode === 'manual') ok('默认是「我来打」（不是播放键）');
+  else bad('默认模式是 ' + init.onMode + ' —— 应该默认让人自己敲');
+  if (/敲|空格/.test(init.how)) ok('写明了怎么敲');
+  else bad('没说怎么敲：' + init.how.slice(0, 30));
   if (!init.bootErr) ok('脚本没报错');
   else bad('启动错误 ' + init.bootErr + ' 条');
 
@@ -140,21 +150,56 @@ try {
     ok('速度递增：' + dens.map((d) => d.bpm).join(' → ') + ' BPM');
   } else bad('速度没递增');
 
-  /* ---- ③ 点「听一遍」→ 真的有声音 ---- */
-  await evalJs(`window.__XM_LAB__.setStage(1)`);
-  await evalJs(`document.querySelector('.rlab__play').click()`);
-  await sleep(500);
-  const playing = JSON.parse(await evalJs(`JSON.stringify({
-    playing: window.__XM_LAB__.state().playing,
+  /* ---- ③ 手动敲：每一击都出声、留印、有反馈 ----
+     老师：「但是只是简单的点击」→「沉浸式的体验」。
+     所以这一条是这次改动的核心判据：**敲下去要有反应**。 */
+  await evalJs(`window.__XM_LAB__.setMode('manual')`);
+  const before = JSON.parse(await evalJs(`JSON.stringify({
+    strikes: window.__XM_LAB__.state().strikes,
     ctxState: window.__XM_LAB__.state().ctxState,
   })`));
-  if (playing.playing) ok('播放中（ctx ' + playing.ctxState + '）');
-  else bad('点了没开始播');
+  for (const f of [0.1, 0.5, 0.9, 0.5]) {
+    await evalJs(`window.__XM_LAB__.strike(${f})`);
+    await sleep(160);
+  }
+  await sleep(300);
+  const after = JSON.parse(await evalJs(`JSON.stringify({
+    strikes: window.__XM_LAB__.state().strikes,
+    ctxState: window.__XM_LAB__.state().ctxState,
+    judge: window.__XM_LAB__.state().judge,
+  })`));
+  console.log('       手动敲：' + before.strikes + ' → ' + after.strikes + ' 下，ctx ' + after.ctxState);
+  if (after.strikes === before.strikes + 4) ok('敲 4 下记了 4 下');
+  else bad('敲了 4 下但记了 ' + (after.strikes - before.strikes) + ' 下');
+  if (after.ctxState === 'running') ok('音频上下文起来了（ctx ' + after.ctxState + '）');
+  else bad('音频上下文 = ' + after.ctxState + ' —— 敲了没声');
 
-  /* 量电平：把调度器的 master 接到分析器上。
-     ——不改被测代码：从 AudioContext 的 destination 拿不到信号，
-     所以这里用一个探针 context 直接测扬声器输出是做不到的。
-     退而求其次：验点亮次数（下面）—— 那个一定能证明"在动"。 */
+  /* 真的在屏幕上留了印吗（不只是计数） */
+  const strikeMarks = await evalJs(`document.querySelectorAll('.rlab__strike').length`);
+  if (strikeMarks > 0) ok('轨道上有 ' + strikeMarks + ' 个敲击印记');
+  else console.log('       （印记 620ms 就淡掉，这一刻没抓到，计数已经证明有反应）');
+
+  /* ---- ④ 按键盘也能敲 ---- */
+  const k0 = await evalJs(`window.__XM_LAB__.state().strikes`);
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyDown', windowsVirtualKeyCode: 70, code: 'KeyF', key: 'f' });
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp', windowsVirtualKeyCode: 70, code: 'KeyF', key: 'f' });
+  await sleep(250);
+  const k1 = await evalJs(`window.__XM_LAB__.state().strikes`);
+  if (k1 > k0) ok('按 F 键也能敲（' + k0 + ' → ' + k1 + '）');
+  else bad('按键盘没反应（' + k0 + ' → ' + k1 + '）');
+
+  /* ---- ⑤ 切到「听一遍」→ 真的有示范在跑、记号随鼓点亮 ---- */
+  await evalJs(`document.querySelector('.rlab__mode[data-mode="demo"]').click()`);
+  await sleep(600);
+  const playing = JSON.parse(await evalJs(`JSON.stringify({
+    playing: window.__XM_LAB__.state().playing,
+    mode: window.__XM_LAB__.state().mode,
+    ctxState: window.__XM_LAB__.state().ctxState,
+  })`));
+  if (playing.playing && playing.mode === 'demo') ok('切「听一遍」→ 示范跑起来（ctx ' + playing.ctxState + '）');
+  else bad('切「听一遍」没跑起来：' + JSON.stringify(playing));
 
   /* ---- ④ 记号被点亮过 ---- */
   const lit1 = await evalJs(`window.__XM_LAB__.state().litTotal`);
@@ -183,15 +228,15 @@ try {
   if (sawCut) ok('「断」那一段真的会切（is-cut 出现过）');
   else bad('跑了 5.7 秒都没切 —— 最后那一下"断"没做出来');
 
-  /* ---- ⑥ 停下 ---- */
-  await evalJs(`document.querySelector('.rlab__play').click()`);
+  /* ---- ⑥ 切回「我来打」→ 示范停下来 ---- */
+  await evalJs(`document.querySelector('.rlab__mode[data-mode="manual"]').click()`);
   await sleep(400);
   const stopped = JSON.parse(await evalJs(`JSON.stringify({
     playing: window.__XM_LAB__.state().playing,
-    label: document.querySelector('.rlab__play').textContent.trim(),
+    mode: window.__XM_LAB__.state().mode,
   })`));
-  if (!stopped.playing) ok('停得下来（按钮回到「' + stopped.label + '」）');
-  else bad('停不下来');
+  if (!stopped.playing && stopped.mode === 'manual') ok('切回「我来打」→ 示范停下（模式 ' + stopped.mode + '）');
+  else bad('切回手动之后示范还在跑：' + JSON.stringify(stopped));
   const l3 = await evalJs(`window.__XM_LAB__.state().litTotal`);
   await sleep(1500);
   const l4 = await evalJs(`window.__XM_LAB__.state().litTotal`);

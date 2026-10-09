@@ -3997,6 +3997,8 @@ function buildRhythmLab(host, opts = {}) {
   let timer = 0;
   let playing = false;
   let stage = 0;
+  /* 'manual' = 自己敲（默认，老师要的沉浸）；'demo' = 看示范 */
+  let mode = 'manual';
 
   /* 排进音频时间轴的鼓点，等动画来"消费"。
      每条：{ at: 音频时刻, kind, gain, beat } */
@@ -4105,13 +4107,27 @@ function buildRhythmLab(host, opts = {}) {
         '<g class="rlab__lanes"></g>' +
         '<g class="rlab__marks"></g>' +
         '<line class="rlab__playhead" x1="0" y1="26" x2="0" y2="270" />' +
+        /* 手动敲的落点标记：敲一下在这里留一个印，看得见自己打在哪 */
+        '<g class="rlab__strikes"></g>' +
       '</svg>' +
       '<p class="rlab__cue" aria-live="polite"></p>' +
+      '<p class="rlab__judge" aria-live="polite"></p>' +
     '</div>' +
     '<div class="rlab__bar">' +
-      '<button class="rlab__play" type="button">▶ 听一遍</button>' +
+      /* **默认「我来打」**，不是"听一遍"。
+         老师的意见是「只是简单的点击」「可以做一些沉浸式的体验」——
+         一个播放键就是一次点击。让人自己敲，才是参与。 */
+      '<div class="rlab__modes" role="group" aria-label="怎么玩">' +
+        '<button class="rlab__mode is-on" type="button" data-mode="manual">✋ 我来打</button>' +
+        '<button class="rlab__mode" type="button" data-mode="demo">▶ 听一遍</button>' +
+      '</div>' +
       '<div class="rlab__stages" role="group" aria-label="三段节奏"></div>' +
     '</div>' +
+    '<p class="rlab__how" id="rlab-how">' +
+      '<strong>在下面随便敲</strong>（轨道上点、或在键盘上按 ' +
+      '<kbd>空格</kbd> <kbd>F</kbd> <kbd>J</kbd>）——每一下都出声。' +
+      '<br>敲的时候你会看到自己落在哪一拍上。' +
+    '</p>' +
     '<p class="rlab__note">' +
       '这三段节奏是为了演示<strong>「填满」</strong>和<strong>「切断」</strong>' +
       '这两个结构特征而设计的，<strong>不是某一套木卡姆的记谱</strong>。' +
@@ -4123,9 +4139,11 @@ function buildRhythmLab(host, opts = {}) {
   const svg = wrap.querySelector('.rlab__svg');
   const lanesG = wrap.querySelector('.rlab__lanes');
   const marksG = wrap.querySelector('.rlab__marks');
+  const strikesG = wrap.querySelector('.rlab__strikes');
   const head = wrap.querySelector('.rlab__playhead');
   const cue = wrap.querySelector('.rlab__cue');
-  const playBtn = wrap.querySelector('.rlab__play');
+  const judgeEl = wrap.querySelector('.rlab__judge');
+  const modesBox = wrap.querySelector('.rlab__modes');
   const stagesBox = wrap.querySelector('.rlab__stages');
 
   /* 三条轨道：手鼓（大圆）/ 萨帕依（小菱形）/ 铁环（细点）
@@ -4318,7 +4336,9 @@ function buildRhythmLab(host, opts = {}) {
     if (ctx.state === 'suspended') ctx.resume();
     playing = true;
     wrap.classList.add('is-playing');
-    playBtn.textContent = '■ 停';
+    /* 起示范就切到示范模式 —— 否则"听一遍"点了没反应，
+       因为手动模式下按钮不驱动播放。 */
+    if (mode !== 'demo') setMode('demo');
     restart();
     clearInterval(timer);
     timer = setInterval(() => {
@@ -4332,7 +4352,7 @@ function buildRhythmLab(host, opts = {}) {
   function stop() {
     playing = false;
     wrap.classList.remove('is-playing', 'is-cut');
-    playBtn.textContent = '▶ 听一遍';
+    setModeLabel();
     clearInterval(timer); timer = 0;
     cancelAnimationFrame(raf); raf = 0;
     queue = [];
@@ -4341,27 +4361,194 @@ function buildRhythmLab(host, opts = {}) {
     paintIdle();
   }
 
-  playBtn.addEventListener('click', () => { if (playing) stop(); else start(); });
+  /* --------------------------------------------------- 手动敲（沉浸那部分）
+
+     老师：「但是只是简单的点击」「可以做一些沉浸式的体验」。
+     一个播放键就是一次点击。所以这一块让人**自己敲**：
+
+       · 在轨道上点，或者按 空格 / F / J —— 每一下都出声
+       · 敲下去的地方留一个印（strikes），看得见自己打在哪
+       · 顺手告诉你离最近的拍有多远（准 / 早 / 晚），
+         但**不评分、不拦着** —— 这是让人体会节奏，不是考人
+       · 「断」那一段示范会自己停，**手打不会** ——
+         「停不下来」这件事，手上体会到，比读到一句"它是停不下来"有用
+
+     音色按横向位置分：左边（前几拍）是手鼓，右边是铁环，
+     中间偏下是萨帕依 —— 敲哪儿出什么声，位置和轨道对得上。 */
+
+  let strikeCount = 0;
+  let judgeTimer = 0;
+
+  function laneOfX(frac) {
+    if (frac < 0.34) return 'dum';
+    if (frac > 0.67) return 'tek';
+    return 'sapayi';
+  }
+
+  function judgeWord(diffMs) {
+    const a = Math.abs(diffMs);
+    if (a <= 55) return '准';
+    if (a <= 130) return diffMs < 0 ? '早一点' : '晚一点';
+    return diffMs < 0 ? '早了' : '晚了';
+  }
+
+  function strike(frac, source) {
+    if (!ensureCtx()) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime + 0.012;
+    const kind = laneOfX(frac);
+    if (kind === 'dum') dum(t, 0.85);
+    else if (kind === 'tek') tek(t, 0.5);
+    else sapayi(t, 0.32);
+    strikeCount++;
+    /* 敲过一下就把「在轨道上敲」那句提示收掉 —— 已经会了，不用再教 */
+    if (strikeCount === 1) wrap.classList.add('is-struck');
+
+    /* 落在轨道上留个印。用 CSS 动画让它自己淡掉，不用 JS 清理。 */
+    const lane = LANES.find((L) => L.key === kind) || LANES[0];
+    const x = PAD + frac * (640 - PAD * 2);
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    g.setAttribute('cx', x);
+    g.setAttribute('cy', lane.y);
+    g.setAttribute('r', 16);
+    g.setAttribute('class', 'rlab__strike rlab__strike--' + kind);
+    strikesG.appendChild(g);
+    setTimeout(() => { if (g.parentNode) g.parentNode.removeChild(g); }, 620);
+
+    /* 离最近的拍多远。只在示范模式下有节拍参考 ——
+       手打模式下没有"标准答案"，但示范在跑时就有了。 */
+    if (playing) {
+      const st = STAGES[stage];
+      const spb = 60 / st.bpm / 2;
+      const elapsed = ctx.currentTime - cycleStart;
+      const beatNow = elapsed / spb;
+      const nearest = Math.round(beatNow);
+      const diffMs = (beatNow - nearest) * spb * 1000;
+      judgeEl.textContent = (kind === 'dum' ? '咚' : kind === 'tek' ? '哒' : '沙') +
+        '　' + judgeWord(diffMs) +
+        (Math.abs(diffMs) > 55 ? '（' + Math.abs(Math.round(diffMs)) + 'ms）' : '');
+      judgeEl.className = 'rlab__judge is-on';
+      clearTimeout(judgeTimer);
+      judgeTimer = setTimeout(() => {
+        judgeEl.className = 'rlab__judge';
+        judgeEl.textContent = '';
+      }, 900);
+    } else {
+      /* 没在示范：只说"出什么声"，不谈准不准 —— 没有参照就没有对错 */
+      judgeEl.textContent = (kind === 'dum' ? '咚' : kind === 'tek' ? '哒' : '沙') +
+        (source === 'key' ? '　（键盘）' : '');
+      judgeEl.className = 'rlab__judge is-on';
+      clearTimeout(judgeTimer);
+      judgeTimer = setTimeout(() => {
+        judgeEl.className = 'rlab__judge';
+        judgeEl.textContent = '';
+      }, 700);
+    }
+  }
+
+  /* 在轨道上点/拖：pointerdown 之后按住不放会连续敲，
+     这比"一下一下点"更像真在打鼓。 */
+  let heldTimer = 0;
+  function fracOf(ev) {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) / r.width * 640;
+    return Math.min(1, Math.max(0, (px - PAD) / (640 - PAD * 2)));
+  }
+  svg.addEventListener('pointerdown', (ev) => {
+    if (mode !== 'manual') return;
+    ev.preventDefault();
+    svg.setPointerCapture && svg.setPointerCapture(ev.pointerId);
+    const f = fracOf(ev);
+    strike(f, 'pointer');
+    /* 按住 = 连打。节奏 190ms 一下，接近手鼓的连击。 */
+    let last = f;
+    const move = (e) => { last = fracOf(e); };
+    svg.addEventListener('pointermove', move);
+    clearInterval(heldTimer);
+    heldTimer = setInterval(() => {
+      if (mode !== 'manual') { clearInterval(heldTimer); return; }
+      strike(last, 'pointer');
+    }, 190);
+    const up = () => {
+      clearInterval(heldTimer);
+      svg.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+
+  /* 键盘：空格 / F / J。三个键都给，因为左右手都可能有习惯。
+     位置按经验分：F 靠左（手鼓）、J 靠右（铁环）、空格中间（萨帕依）。 */
+  function onKey(ev) {
+    if (mode !== 'manual') return;
+    /* 焦点在按钮上时空格是在按按钮，别抢 */
+    const tag = (ev.target && ev.target.tagName) || '';
+    if (tag === 'BUTTON' && ev.code === 'Space') return;
+    const map = { Space: 0.5, KeyF: 0.15, KeyJ: 0.85 };
+    const frac = map[ev.code];
+    if (frac === undefined) return;
+    ev.preventDefault();
+    strike(frac, 'key');
+  }
+  window.addEventListener('keydown', onKey);
+
+  /* --------------------------------------------------------------- 模式 */
+
+  function setModeLabel() {
+    Array.from(modesBox.children).forEach((b) =>
+      b.classList.toggle('is-on', b.dataset.mode === mode));
+    wrap.classList.toggle('is-manual', mode === 'manual');
+  }
+
+  function setMode(m) {
+    mode = m === 'demo' ? 'demo' : 'manual';
+    setModeLabel();
+    if (mode === 'manual') {
+      stop();
+      cue.textContent = '在轨道上敲，或按空格 / F / J。每一下都出声。';
+    } else {
+      cue.textContent = STAGES[stage].hint;
+    }
+  }
+
+  modesBox.addEventListener('click', (e) => {
+    const b = e.target.closest('.rlab__mode');
+    if (!b) return;
+    setMode(b.dataset.mode);
+    /* 「听一遍」点了就该开始播；「我来打」点了就停掉示范。
+       只切模式不驱动播放的话，用户点「听一遍」没反应。 */
+    if (mode === 'demo') start(); else stop();
+  });
 
   buildMarks();
   paintIdle();
+  setMode('manual');
+  setModeLabel();
 
   /* 自检用 */
   const api = {
-    start, stop, setStage,
+    start, stop, setStage, setMode,
     get playing() { return playing; },
+    get mode() { return mode; },
+    /* 手动敲一下 —— 自检用它模拟"用户敲了"，不用去合成指针事件 */
+    strike: (frac) => strike(frac === undefined ? 0.5 : frac, 'test'),
     state: () => ({
       playing,
+      mode,
       stage,
       bpm: STAGES[stage].bpm,
       marks: marks.length,
       /* 记号的位置和力度 —— 自检据此判断"满的那段确实更密" */
       beats: marks.map((m) => ({ kind: m.kind, beat: m.beat })),
       ctxState: ctx ? ctx.state : 'none',
-      /* 播过之后亮起来过几个记号 —— 用来验"真的随鼓点动了" */
+      /* 手动敲了几下、示范点亮了几次 —— "有没有真的在动"靠这两个数 */
+      strikes: strikeCount,
       litTotal: litTotal,
       cutAt: STAGES[stage].cut || null,
       cue: cue.textContent,
+      judge: judgeEl.textContent,
     }),
   };
   return api;
@@ -4476,11 +4663,31 @@ if (host) {
       '<br><span style="color:var(--amber)">主题曲响起，其他民族的页面也解开了。</span>'];
   };
 
-  const circle = buildCircle({
-    host,
-    reduced: ctx.REDUCED,
-    // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
-    onFull: () => {
+/* 满圈之后那一下「断」。
+   ——为什么要有这个——
+   这一页最后一句是「人散了，鼓还在耳朵里」。文字说得出，
+   但**身体感觉不到**。所以满圈的 flourish 砸下去之后，
+   让**页面本身**跟着断一下：整屏急速压暗、纹样抽掉，
+   0.7 秒后再回来。
+
+   这和节奏台第三段是同构的 —— 那边是"最密的那一拍直接切断"，
+   这边是"整场一起停"。同一件事，一个用耳朵、一个用眼睛。
+   ——注意别过头——
+   只压暗、不变黑、不挡住入口：断完要能立刻继续用。
+   减弱动效时整段跳过。 */
+function pageCut() {
+  if (ctx.REDUCED) return false;
+  const b = document.body;
+  b.classList.add('is-cut');
+  setTimeout(() => b.classList.remove('is-cut'), 700);
+  return true;
+}
+
+const circle = buildCircle({
+  host,
+  reduced: ctx.REDUCED,
+  // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
+  onFull: () => {
       if (ctx.seq) {
         if (ctx.seq.ctx) theme.useContext(ctx.seq.ctx);
         ctx.seq.flourish();
@@ -4488,6 +4695,8 @@ if (host) {
       if (ctx.renderer) {
         ctx.renderer.patternZoom = 1.75;      // 纹样整体推近一下
       }
+      /* 断一下 —— 紧跟着那记重击，让整页和音频一起停 */
+      pageCut();
       // 主题曲淡入；同时解锁其他民族的页面
       theme.start(2.6);
       unlock.set();
