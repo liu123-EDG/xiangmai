@@ -226,18 +226,47 @@ try {
     ok('长轴：点第三格 → 切到「' + tl.title + '」，进度条 ' + tl.fill);
   } else bad('长轴交互不对：' + JSON.stringify(tl));
 
-  // 减法：16 → 12
+  /* 减法：16 → 12。**现在不是自动的了，要自己划**（A8⑤）。
+     所以判据分两段：
+       ① 刚滚过来时：一格都没划，读数在邀请你划
+       ② 点掉那 4 格之后：4 格 is-out，读数变成 16→12 */
   await evalJs(`document.getElementById('subtract-host').scrollIntoView({block:'center'})`);
-  await sleep(3200);
+  await sleep(2600);
+  const subBefore = JSON.parse(await evalJs(`JSON.stringify({
+    out: document.querySelectorAll('.sub__cell.is-out').length,
+    droppable: document.querySelectorAll('.sub__cell--drop[role="button"]').length,
+    readout: document.querySelector('.sub__readout').textContent.replace(/\\s+/g,' ').trim(),
+    hint: (document.querySelector('.sub__hint') || {}).textContent || '',
+  })`));
+  if (subBefore.out === 0) ok('滚过来时一格都没划（等你动手，不是自动播）');
+  else bad('还没点就被划掉了 ' + subBefore.out + ' 格 —— 又变回自动的了');
+  if (subBefore.droppable === 4) ok('4 格是可点的按钮（可 Tab、回车能按）');
+  else bad('可点格数 = ' + subBefore.droppable + '，应为 4');
+  if (/划掉/.test(subBefore.hint)) ok('有邀请语：' + subBefore.hint.slice(0, 24) + '…');
+  else bad('没有告诉人要自己划：' + subBefore.hint.slice(0, 30));
+
+  /* 真的去点那 4 格 —— 走点击，不走 run() */
+  for (let i = 0; i < 4; i++) {
+    await evalJs(`document.querySelectorAll('.sub__cell--drop')[${i}].click()`);
+    await sleep(160);
+  }
+  await sleep(500);
   const sub = JSON.parse(await evalJs(`JSON.stringify({
     out: document.querySelectorAll('.sub__cell.is-out').length,
     st: window.__XM_LISHI__.subtract.state(),
     readout: document.querySelector('.sub__readout').textContent.replace(/\\s+/g,' ').trim(),
   })`));
-  if (sub.out === 4) ok('减法：16 个方块里 ' + sub.out + ' 个被剔除，剩 12');
-  else bad('剔除方块数 = ' + sub.out + '，应为 4');
+  if (sub.out === 4) ok('点掉 4 格 → ' + sub.out + ' 个被划掉，剩 12');
+  else bad('划掉数 = ' + sub.out + '，应为 4');
+  if (sub.st.done) ok('状态记录：done=' + sub.st.done + '，crossed=' + sub.st.crossed);
+  else bad('状态没记成完成：' + JSON.stringify(sub.st));
   if (/12/.test(sub.readout)) ok('读数：' + sub.readout);
   else bad('读数不对：' + sub.readout);
+
+  /* 有名字的 12 格不能划 —— 这个限制本身就是内容 */
+  const keptLocked = await evalJs(`document.querySelectorAll('.sub__cell--kept[role="button"]').length`);
+  if (keptLocked === 0) ok('有名字的 12 格不可点（史料里确有的十二套，不能删）');
+  else bad('有 ' + keptLocked + ' 个有名字的格子也能点 —— 它们不该能删');
 
   // 录音机：拖到 80%
   await evalJs(`document.getElementById('recorder-host').scrollIntoView({block:'center'})`);

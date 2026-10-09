@@ -13,6 +13,9 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Crect x='12' y='4' width='8' height='8' fill='%233a2b28'/%3E%3Crect x='12' y='12' width='8' height='8' fill='%23c08a3e'/%3E%3Crect x='12' y='20' width='8' height='8' fill='%23a33b28'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="../styles.css">
 <link rel="stylesheet" href="../styles/chapter.css">
+<!-- 拉萨它尔那一块的样式。单独一份：一次性组件，
+     塞进 chapter.css 会和别的章节规则纠缠。 -->
+<link rel="stylesheet" href="../styles/satar-bow.css">
 </head>
 <!-- data-part 指明用 part-data.js 里的哪一份内容，页面骨架由 js/lib/part.js 生成 -->
 <body class="chapter" data-part="qon" data-render="pending">
@@ -31,6 +34,23 @@
   <section class="chapter-hero" id="part-hero" data-act="0"></section>
   <section class="plate-act" id="part-hero-image" data-act="1"></section>
   <div id="part-body"></div>
+
+  <!-- 拉萨它尔：拖弓出声。
+       正文讲的是「散板：节奏自由」和「萨它尔是定调者」——
+       这两句话用手体会，比读一遍有用。 -->
+  <section class="act bow-act" id="bow-act" data-act="8">
+    <div class="act__inner">
+      <span class="act__num" aria-hidden="true">七</span>
+      <h2 class="act__title reveal">拉萨它尔：散板是没有节拍的</h2>
+      <p class="body reveal" data-delay="1">
+        穹乃额曼开篇是<strong>散板序唱</strong>——没有伴唱，不打手鼓，节奏自由。
+        所以下面这把琴<strong>没有节拍器</strong>：你拖多快，它就多快；你停，它就停。
+        <br>底下的持续音是<strong>母调</strong>，你拉出的音走在它上面。
+      </p>
+    </div>
+    <div id="bow-host"></div>
+  </section>
+
   <nav class="chapter-nav" aria-label="章节导航"></nav>
 </main>
 

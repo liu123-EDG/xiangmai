@@ -5,9 +5,24 @@ import { renderPart } from '../lib/part.js';
 import { bootChapter } from '../lib/chapter.js';
 import { buildThroughline, createDrone } from '../lib/throughline.js';
 import { PART_TONE } from '../lib/part-data.js';
+import { buildSatarBow } from '../lib/satar-bow.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'qon', soundBand: 0 });
+
+/* ---- 拉萨它尔（拖弓出声）----
+   正文里两句天生该用手体会的话：
+     「散板序唱……没有伴唱，不打手鼓，**节奏自由**」→ 拖多快，声音就多快
+     「萨它尔的角色是**定调者**……确立了母调」→ 底下那层 drone 就是母调
+
+   它自带一套音频（弓弦要连续滑音，和手鼓那套打击乐不是一回事），
+   但**和 drone 是同一个"母调"**：音高范围以 drone 的基音 110Hz 为基准算的
+   （见 satar-bow.js 的 DRONE_HZ）。所以听起来是"在上面走"，不是各弹各的。 */
+const bow = buildSatarBow({
+  host: document.getElementById('bow-host'),
+  reduced: ctx.REDUCED,
+});
+window.__XM_BOW__ = bow;   // 自检用
 
 /* ---- 纵贯线 ---- */
 const heroTitle = document.querySelector('#part-hero h1');

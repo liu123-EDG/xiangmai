@@ -1,0 +1,109 @@
+/* --------------------------------------------------------------------------
+   拉萨它尔（第二章）
+   --------------------------------------------------------------------------
+   正文里两句天生该用手体会的话：
+     「散板序唱……没有伴唱，不打手鼓，**节奏自由**」——拖多快，声音就多快
+     「萨它尔的角色是**定调者**……确立了整部木卡姆的母调」
+       ——底下那层 drone 就是母调，你拉出的音走在它上面
+
+   放在正文之后、章节导航之前。
+   -------------------------------------------------------------------------- */
+
+.bow {
+  width: min(62rem, 92vw);
+  margin: clamp(2rem, 5vh, 3rem) auto 0;
+}
+
+.bow__stage {
+  border: 1px solid rgba(221, 213, 199, 0.14);
+  border-radius: 3px;
+  /* 和章末按钮同一个理由：这一页有全出血图片，透明底会糊 */
+  background: rgba(10, 9, 8, 0.86);
+  backdrop-filter: blur(4px);
+  padding: clamp(0.8rem, 2vw, 1.2rem);
+}
+
+.bow__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: grab;
+  touch-action: none;          /* 手机上拖动时别让页面跟着滚 */
+}
+.bow__svg.is-bowing { cursor: grabbing; }
+
+/* 琴颈与共鸣箱。**不画写实乐器** —— 没有参考图，
+   照着记忆画一定是错的。只留能读懂的形：细长颈 + 瓢形箱 + 两根弦。 */
+.bow__neck {
+  fill: rgba(222, 214, 200, 0.16);
+  stroke: rgba(222, 214, 200, 0.22);
+  stroke-width: 1;
+}
+.bow__box {
+  fill: rgba(192, 138, 62, 0.18);
+  stroke: rgba(192, 138, 62, 0.5);
+  stroke-width: 1.4;
+}
+.bow__string {
+  stroke: rgba(242, 228, 196, 0.75);
+  stroke-width: 1.2;
+}
+
+/* 弓毛与手：随拖动左右移动（位置由 --bow-at 和 JS 的 x 属性一起给） */
+.bow__bowhair {
+  stroke: rgba(222, 214, 200, 0.55);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.bow__hand {
+  fill: rgba(242, 228, 196, 0.9);
+  stroke: rgba(10, 9, 8, 0.6);
+  stroke-width: 1.5;
+  transition: fill .3s var(--ease-slow);
+}
+.bow__svg.is-bowing .bow__hand { fill: var(--amber); }
+
+/* 拉弓时弦上荡出的圈 */
+.bow__ripple {
+  fill: none;
+  stroke: rgba(242, 228, 196, 0.7);
+  stroke-width: 1.4;
+  animation: bowRipple .9s var(--ease-slow) forwards;
+}
+@keyframes bowRipple {
+  0%   { opacity: 0.85; r: 5; }
+  100% { opacity: 0; r: 30; }
+}
+
+/* 读数：告诉人现在在干什么 */
+.bow__readout {
+  margin: 0.7rem 0 0;
+  min-height: 1.6em;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  line-height: 1.9;
+  color: rgba(222, 214, 200, 0.62);
+  transition: color .3s var(--ease-slow);
+}
+.bow__svg.is-bowing ~ .bow__readout { color: var(--amber); }
+
+.bow__note {
+  margin: 1rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid rgba(192, 138, 62, 0.4);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  line-height: 1.95;
+  color: rgba(222, 214, 200, 0.5);
+}
+.bow__note strong { color: rgba(242, 228, 196, 0.82); font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bow__ripple { animation: none; opacity: 0; }
+}
+
+/* 第二节的音高刻度：给"我在哪个位置"一个参照，不画成格子 */
+.bow__scale {
+  stroke: rgba(222, 214, 200, 0.14);
+  stroke-width: 1;
+}

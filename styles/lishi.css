@@ -180,14 +180,43 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
    原来用 opacity 0.12 + scaleY 0.35 塌下去，结果几乎看不见 ——
    页面看着就是"12 个方块"，而不是"16 个里剔掉了 4 个"（用户直接指出来了：
    "怎么是12个空白"）。
-   删掉的东西要**留着痕迹**，才能看出这是一次减法。 */
+   删掉的东西要**留着痕迹**，才能看出这是一次减法。
+
+   现在这 4 格还是**可点的**：要你自己按掉（A8⑤）。
+   所以它们得有"能按"的样子 —— 手型光标、悬停亮一点、键盘能 Tab 到。 */
+.sub__cell--drop {
+  cursor: pointer;
+  transition: background .3s var(--ease-slow), border-color .3s var(--ease-slow),
+              transform .3s var(--ease-slow);
+}
+.sub__cell--drop:hover,
+.sub__cell--drop:focus-visible {
+  border-color: rgba(232, 201, 143, 0.75);
+  background: rgba(192, 138, 62, 0.14);
+  outline: none;
+}
+.sub__cell--drop:focus-visible { box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.45); }
+/* 还没划掉时，中间那个破折号像一个"待办的空位"，不是已经删掉的痕迹 */
+.sub__cell--drop .sub__cell-mark { opacity: 0.5; }
+.sub__cell--drop.is-out .sub__cell-mark { opacity: 1; }
+
+/* 划下去那一下的弹动 —— 手感的全部就在这里 */
+.sub__cell.is-crossing { animation: subCross .32s var(--ease-slow); }
+@keyframes subCross {
+  0%   { transform: scale(1.1); }
+  55%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
 .sub__cell.is-out {
   position: relative;
   opacity: 0.92;
   background: rgba(224, 226, 232, 0.03);
   border-color: rgba(158, 160, 168, 0.5);
   border-style: dashed;
+  cursor: default;
 }
+.sub__cell.is-out:hover { background: rgba(224, 226, 232, 0.03); }
 /* 斜着划一道：一眼看出"这个不要了" */
 .sub__cell.is-out::after {
   content: '';
@@ -207,6 +236,42 @@ body.chapter[data-render] .act__inner { max-width: 62rem; }
   color: rgba(196, 198, 206, 0.45);
 }
 .sub__cell.is-out .sub__cell-mark { color: rgba(196, 198, 206, 0.62); }
+
+/* 邀请语 + 「一次划完」 */
+.sub__hint {
+  margin: 0 0 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  line-height: 2;
+  color: rgba(222, 214, 200, 0.62);
+}
+.sub__hint strong { color: var(--amber); font-weight: 500; }
+.sub__hint.is-done strong { color: rgba(158, 208, 176, 0.95); }
+.sub__hint-fine {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: rgba(222, 214, 200, 0.46);
+}
+.sub__all {
+  min-height: 44px;
+  margin-bottom: 1.2rem;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid rgba(221, 213, 199, 0.24);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--bone-dim);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: border-color .35s var(--ease-slow), color .35s var(--ease-slow);
+}
+.sub__all:hover, .sub__all:focus-visible {
+  border-color: rgba(232, 201, 143, 0.5);
+  color: var(--bone);
+  outline: none;
+}
 
 .sub__readout {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.7rem 1.1rem;

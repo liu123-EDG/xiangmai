@@ -143,40 +143,119 @@ export function buildSubtract(host, opts) {
 
   const readout = el('div', 'sub__readout');
   wrap.appendChild(readout);
-  host.appendChild(wrap);
+
+  /* --------------------------------------------------------------------
+     「自己划掉」这一版
+     --------------------------------------------------------------------
+     指导老师：「但是只是简单的点击」「可以做一些沉浸式的体验」。
+     原来这一段是滚到就自动塌 —— 用户只是**看**那 4 部消失。
+
+     现在改成：**那 4 部要你自己按掉。** 手上有"删掉"的动作，
+     才谈得上"这是个减法"，而不是"页面上有个动画"。
+
+     ——为什么只有这 4 格能动——
+     留下来的 12 格**有名字**（拉克、且比亚特……），是史料里确有的十二套；
+     被剔掉的 4 格**没有名字** —— 因为史料里没有「16 部」的名录，我不能编。
+     所以：有名字的不能删，没名字的才是能划掉的那 4 个。
+     这个限制本身就是内容的一部分。
+     -------------------------------------------------------------------- */
+  const hint = el('p', 'sub__hint',
+    '这 4 部还没有名字 —— <strong>按一下划掉它</strong>，' +
+    '看看留下来的十二套是哪十二套。');
+  grid.after(hint);
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let done = false;
+  /* 划掉的记号用 Set 不数数：将来若加"再点一下撤销"，数数就错了 */
+  const out = new Set();
 
-  function run() {
-    if (done) return;
-    done = true;
+  function paint() {
     cells.forEach((c, i) => {
-      if (i < from - drop) return;
-      const delay = (i - (from - drop)) * 140;
-      if (reduced) { c.classList.add('is-out'); return; }
-      setTimeout(() => c.classList.add('is-out'), 700 + delay);
+      if (i < to) return;
+      c.classList.toggle('is-out', out.has(i));
+      c.setAttribute('aria-pressed', out.has(i) ? 'true' : 'false');
     });
-    setTimeout(() => {
+    const left = drop - out.size;
+    if (out.size === 0) {
+      readout.innerHTML =
+        '<span class="sub__n"><b>' + from + '</b>部</span>' +
+        '<span class="sub__cap">最初整理的规模。划掉那 4 部。</span>';
+      readout.classList.remove('is-in');
+    } else if (left > 0) {
+      readout.innerHTML =
+        '<span class="sub__n"><b>' + (from - out.size) + '</b>部</span>' +
+        '<span class="sub__cap">还剩 ' + left + ' 部没划掉</span>';
+      readout.classList.add('is-in');
+    } else {
       readout.innerHTML =
         '<span class="sub__n"><b>' + from + '</b>部</span>' +
         '<span class="sub__arrow" aria-hidden="true">→</span>' +
         '<span class="sub__n sub__n--to"><b>' + to + '</b>套</span>' +
         '<span class="sub__cap">剔除 4 部，定名「十二木卡姆」</span>';
       readout.classList.add('is-in');
-    }, reduced ? 0 : 700 + drop * 140 + 200);
+      hint.innerHTML = '划完了 —— 留下来的十二套，名字都在上面。' +
+        '<br><span class="sub__hint-fine">被剔掉那 4 部没有名字：' +
+        '史料里没有「16 部」的名录，所以这里也不替它们编。</span>';
+      hint.classList.add('is-done');
+    }
   }
 
-  readout.innerHTML =
-    '<span class="sub__n"><b>' + from + '</b>部</span>' +
-    '<span class="sub__cap">最初整理的规模</span>';
+  function cross(i) {
+    if (i < to || out.has(i)) return false;
+    out.add(i);
+    paint();
+    /* 划下去那一下给点手感：格子先弹一下再定住 */
+    if (!reduced) {
+      const c = cells[i];
+      c.classList.remove('is-crossing');
+      void c.offsetWidth;
+      c.classList.add('is-crossing');
+      setTimeout(() => c.classList.remove('is-crossing'), 320);
+    }
+    return true;
+  }
 
-  const io = new IntersectionObserver((ents) => {
-    ents.forEach((e) => { if (e.isIntersecting) { run(); io.disconnect(); } });
-  }, { threshold: 0.45 });
-  io.observe(wrap);
+  /* 4 格做成按钮 —— 可点、可 Tab、回车能按 */
+  cells.forEach((c, i) => {
+    if (i < to) return;
+    c.setAttribute('role', 'button');
+    c.setAttribute('tabindex', '0');
+    c.setAttribute('aria-pressed', 'false');
+    c.setAttribute('aria-label', '划掉这一部（第 ' + (i + 1) + ' 部，无名录）');
+    c.addEventListener('click', () => cross(i));
+    c.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cross(i); }
+    });
+  });
 
-  return { run, state: () => ({ done, from, to, dropped: drop }) };
+  /* 「一次划完」：不想一下下点的人有这个捷径，
+     但**不默认这么做** —— 默认要留下"我划掉了它"这个动作。 */
+  const allBtn = el('button', 'sub__all', '一次划完');
+  allBtn.type = 'button';
+  allBtn.addEventListener('click', () => {
+    cells.forEach((c, i) => { if (i >= to) cross(i); });
+  });
+  hint.after(allBtn);
+
+  host.appendChild(wrap);
+  paint();
+
+  /* run() 保留：自检和旧调用还在用。
+     现在它等价于"一次划完"，不再自动触发。 */
+  function run() {
+    cells.forEach((c, i) => { if (i >= to) cross(i); });
+  }
+
+  return {
+    run,
+    cross,
+    state: () => ({
+      done: out.size === drop,
+      from, to, dropped: drop,
+      crossed: out.size,
+      /* 留给自检：哪几格是可划的 */
+      droppable: cells.map((c, i) => i).filter((i) => i >= to),
+    }),
+  };
 }
 
 /* --------------------------------------------------- 三 · 手摇钢丝录音机 */
