@@ -4418,9 +4418,16 @@ function buildRhythmLab(host, opts = {}) {
   const xOf = (beat) => PAD + beat * COL;
 
   /* 轨道名与底线 */
+  /* 轨道名带上 data-lane —— 悬停时靠它高亮。
+     原来 CSS 用 :nth-of-type(1/3/5) 数位置，那是数不对的：
+     nth-of-type 数的是**同类型元素**的第几个，
+     而这一组里 text 和 line 是两种类型，各数各的。
+     于是只有手鼓那一行会亮（它是第一个 text），另外两行永远不亮。
+     标上名字就不用数位置了（用户报的就是"萨帕依那一行不亮"）。 */
   lanesG.innerHTML = LANES.map((L) =>
-    '<text class="rlab__lane" x="8" y="' + (L.y + 4) + '">' + L.label + '</text>' +
-    '<line class="rlab__lane-line" x1="' + PAD + '" y1="' + L.y +
+    '<text class="rlab__lane" data-lane="' + L.key + '" x="8" y="' + (L.y + 4) + '">' +
+      L.label + '</text>' +
+    '<line class="rlab__lane-line" data-lane="' + L.key + '" x1="' + PAD + '" y1="' + L.y +
       '" x2="' + (640 - PAD + 14) + '" y2="' + L.y + '" />').join('');
 
   /* 记号：按当前节奏型重建 */
