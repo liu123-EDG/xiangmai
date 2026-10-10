@@ -4638,11 +4638,9 @@ function buildRhythmLab(host, opts = {}) {
   let strikeCount = 0;
   let judgeTimer = 0;
 
-  function laneOfX(frac) {
-    if (frac < 0.34) return 'dum';
-    if (frac > 0.67) return 'tek';
-    return 'sapayi';
-  }
+  /* 第一版的 laneOfX（按横向位置分乐器）已经删掉了 ——
+     它和画面（三条分开的横排）对不上，是用户"点不到"的根因。
+     现在命中按行判定，见 laneAtY。 */
 
   function judgeWord(diffMs) {
     const a = Math.abs(diffMs);
@@ -4651,26 +4649,36 @@ function buildRhythmLab(host, opts = {}) {
     return diffMs < 0 ? '早了' : '晚了';
   }
 
-  function strike(frac, source) {
+  /**
+   * 敲一下。
+   * @param {number} frac   横向位置（0..1）——印记画在哪里
+   * @param {string} source 'pointer' | 'key' | 'test'
+   * @param {string} [kind] 乐器。**不传就按 frac 猜**（键盘和自检用），
+   *                        鼠标点击一律由调用方传入行判定结果。
+   */
+  function strike(frac, source, kind) {
     if (!ensureCtx()) return;
     if (ctx.state === 'suspended') ctx.resume();
     const t = ctx.currentTime + 0.012;
-    const kind = laneOfX(frac);
-    if (kind === 'dum') dum(t, 0.85);
-    else if (kind === 'tek') tek(t, 0.5);
+    /* 乐器：调用方给了就用它（鼠标点击按行判定），
+       没给就按横向位置猜（键盘 F/J/空格、以及自检）。 */
+    const k = kind || (frac < 0.34 ? 'dum' : frac > 0.67 ? 'tek' : 'sapayi');
+    if (k === 'dum') dum(t, 0.85);
+    else if (k === 'tek') tek(t, 0.5);
     else sapayi(t, 0.32);
     strikeCount++;
     /* 敲过一下就把「在轨道上敲」那句提示收掉 —— 已经会了，不用再教 */
     if (strikeCount === 1) wrap.classList.add('is-struck');
 
-    /* 落在轨道上留个印。用 CSS 动画让它自己淡掉，不用 JS 清理。 */
-    const lane = LANES.find((L) => L.key === kind) || LANES[0];
+    /* 落在轨道上留个印 —— 印子画在**你点的那一行**上（k），
+       横向落在你点的位置（frac）。这样"我敲在哪儿"是看得见的。 */
+    const lane = LANES.find((L) => L.key === k) || LANES[0];
     const x = PAD + frac * (640 - PAD * 2);
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     g.setAttribute('cx', x);
     g.setAttribute('cy', lane.y);
     g.setAttribute('r', 16);
-    g.setAttribute('class', 'rlab__strike rlab__strike--' + kind);
+    g.setAttribute('class', 'rlab__strike rlab__strike--' + k);
     strikesG.appendChild(g);
     setTimeout(() => { if (g.parentNode) g.parentNode.removeChild(g); }, 620);
 
@@ -4683,7 +4691,7 @@ function buildRhythmLab(host, opts = {}) {
       const beatNow = elapsed / spb;
       const nearest = Math.round(beatNow);
       const diffMs = (beatNow - nearest) * spb * 1000;
-      judgeEl.textContent = (kind === 'dum' ? '咚' : kind === 'tek' ? '哒' : '沙') +
+      judgeEl.textContent = (k === 'dum' ? '咚' : k === 'tek' ? '哒' : '沙') +
         '　' + judgeWord(diffMs) +
         (Math.abs(diffMs) > 55 ? '（' + Math.abs(Math.round(diffMs)) + 'ms）' : '');
       judgeEl.className = 'rlab__judge is-on';
@@ -4694,7 +4702,7 @@ function buildRhythmLab(host, opts = {}) {
       }, 900);
     } else {
       /* 没在示范：只说"出什么声"，不谈准不准 —— 没有参照就没有对错 */
-      judgeEl.textContent = (kind === 'dum' ? '咚' : kind === 'tek' ? '哒' : '沙') +
+      judgeEl.textContent = (k === 'dum' ? '咚' : k === 'tek' ? '哒' : '沙') +
         (source === 'key' ? '　（键盘）' : '');
       judgeEl.className = 'rlab__judge is-on';
       clearTimeout(judgeTimer);
@@ -4705,35 +4713,61 @@ function buildRhythmLab(host, opts = {}) {
     }
   }
 
-  /* 在轨道上点/拖：pointerdown 之后按住不放会连续敲，
-     这比"一下一下点"更像真在打鼓。
+  /* --------------------------------------------------------------------
+     命中的模型：**行决定乐器，列决定敲在哪一拍**
+     --------------------------------------------------------------------
+     用户反馈（原话）：
+     「我的鼠标在手鼓的下面才显示手鼓，到了三行下面才到了萨帕伊和铁环，
+       而且明显你的感应框在你画的这个实体横线和圆的下面，
+       而且萨帕伊前面两个圆点是点不到的……铁环只有到第四个圆那里才会亮。」
 
-     **加了悬停预览**（用户反馈"萨帕依我点是点不出来的"）：
-     命中测试是通的，问题是**看不出来能点** ——
-     三条轨道没有任何反馈，用户不知道该点哪儿、也不知道会出什么声。
-     所以现在鼠标在图上动，最近的那条轨道就亮起来，
-     并在提示行里写明"点这里出「沙」"。 */
-  let heldTimer = 0;
-  let hoverLane = null;
-  /* 正在按住敲的状态。拖动中不换悬停预览 —— 那时候手在打鼓，
-     提示行不该跟着鼠标乱跳。 */
-  let dragging = false;
-  function fracOf(ev) {
+     根因是我第一版把命中**只按横向位置(x)分乐器**：
+       frac < 0.34 → 手鼓，0.34..0.67 → 萨帕依，> 0.67 → 铁环
+     而画面是**三条分开的横排**。于是：
+       · 想敲铁环，点在左边那一列 → 出来的是手鼓
+       · 想敲萨帕依，必须点在中间那一列，跟哪一行无关
+     图和命中对不上，用户完全没法预判。这是我的设计错，不是实现错。
+
+     现在改成和画面一致：**点在哪一行，就响那一行的乐器**；
+     横向位置只决定"敲在这一拍的哪儿"（也就是印记画在哪里）。
+     这样"看得见什么、点到什么"是一致的。
+     -------------------------------------------------------------------- */
+  /** 屏幕坐标 → 落在哪一行。用最近的轨道线判断，不是按顺序切块。 */
+  function laneAtY(clientY) {
     const r = svg.getBoundingClientRect();
-    const px = (ev.clientX - r.left) / r.width * 640;
+    const vy = (clientY - r.top) / r.height * svg.viewBox.baseVal.height;
+    let best = LANES[0], bestD = Infinity;
+    LANES.forEach((L) => {
+      const d = Math.abs(vy - L.y);
+      if (d < bestD) { bestD = d; best = L; }
+    });
+    return best;
+  }
+
+  /** 屏幕坐标 → 横向位置（0..1，对应十二拍里的第几拍） */
+  function fracOfX(clientX) {
+    const r = svg.getBoundingClientRect();
+    const px = (clientX - r.left) / r.width * 640;
     return Math.min(1, Math.max(0, (px - PAD) / (640 - PAD * 2)));
   }
 
-  const LANE_SAY = { dum: '咚（手鼓）', sapayi: '沙（萨帕依·铁环）', tek: '哒（铁环）' };
+  const SAY = { dum: '咚（手鼓）', sapayi: '沙（萨帕依·铁环）', tek: '哒（铁环）' };
+
+  /* 悬停：高亮鼠标**所在的那一行**，并说出会出什么声。
+     提示里带上"这一行"，用户才知道是按行判定的。 */
+  let hoverLane = null;
+  let dragging = false;
+  /* 按住连打用的定时器（pointerdown 里设，抬手清） */
+  let heldTimer = 0;
 
   function previewAt(ev) {
-    const kind = laneOfX(fracOf(ev));
-    if (kind === hoverLane) return;
-    hoverLane = kind;
+    const lane = laneAtY(ev.clientY);
+    if (lane.key === hoverLane) return;
+    hoverLane = lane.key;
     wrap.className = wrap.className.replace(/\s*is-hover-\S+/g, '');
-    wrap.classList.add('is-hover-' + kind);
+    wrap.classList.add('is-hover-' + lane.key);
     svg.classList.add('is-hovering');
-    cue.textContent = '点这里出「' + LANE_SAY[kind] + '」';
+    cue.textContent = '点这一行出「' + SAY[lane.key] + '」';
   }
 
   function clearPreview() {
@@ -4741,7 +4775,7 @@ function buildRhythmLab(host, opts = {}) {
     wrap.className = wrap.className.replace(/\s*is-hover-\S+/g, '');
     svg.classList.remove('is-hovering');
     cue.textContent = mode === 'manual'
-      ? '在轨道上敲，或按空格 / F / J。每一下都出声。'
+      ? '在三条轨道上敲，或按空格 / F / J。点哪一行就响哪一行。'
       : STAGES[stage].hint;
   }
 
@@ -4757,16 +4791,20 @@ function buildRhythmLab(host, opts = {}) {
     ev.preventDefault();
     svg.setPointerCapture && svg.setPointerCapture(ev.pointerId);
     dragging = true;
-    const f = fracOf(ev);
-    strike(f, 'pointer');
+    /* **行决定乐器，列决定敲在哪一拍。**
+       行锁定在按下的那一刻 —— 手指按住来回划的时候不该换乐器，
+       那是"在一条弦上滑动"，不是"跳到另一条弦"。 */
+    const laneKey = laneAtY(ev.clientY).key;
+    const f = fracOfX(ev.clientX);
+    strike(f, 'pointer', laneKey);
     /* 按住 = 连打。节奏 190ms 一下，接近手鼓的连击。 */
     let last = f;
-    const move = (e) => { last = fracOf(e); };
+    const move = (e) => { last = fracOfX(e.clientX); };
     svg.addEventListener('pointermove', move);
     clearInterval(heldTimer);
     heldTimer = setInterval(() => {
       if (mode !== 'manual') { clearInterval(heldTimer); return; }
-      strike(last, 'pointer');
+      strike(last, 'pointer', laneKey);
     }, 190);
     const up = () => {
       dragging = false;

@@ -165,33 +165,18 @@ try {
   if (s1 > s0) console.log('  ✓ 空格没被按钮吃掉');
   else hoverFails.push('空格在按钮焦点上被吃掉');
 
-  /* ---- 悬停预览：鼠标移到中段，应该亮起"萨帕依"那一条并给提示 ---- */
-  console.log('');
-  await evalJs(`document.querySelector('.rlab__svg').classList.remove('is-hovering')`);
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: geo.x50, y: geo.midY });
-  await sleep(350);
-  const hovSap = JSON.parse(await evalJs(`JSON.stringify({
-    cls: document.querySelector('.rlab').className,
-    cue: document.querySelector('.rlab__cue').textContent,
-  })`));
-  console.log('  移到中段：' + hovSap.cls.split(' ').filter(function (c) {
-    return c.indexOf('is-hover') === 0; }).join(',') + '   提示「' + hovSap.cue + '」');
-  if (/is-hover-sapayi/.test(hovSap.cls)) console.log('  ✓ 萨帕依那条亮起来了');
-  else hoverFails.push('中段没亮起萨帕依');
-
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: geo.x90, y: geo.midY });
-  await sleep(350);
-  const hovTek = JSON.parse(await evalJs(`JSON.stringify({
-    cls: document.querySelector('.rlab').className,
-    cue: document.querySelector('.rlab__cue').textContent,
-  })`));
-  if (/is-hover-tek/.test(hovTek.cls)) console.log('  ✓ 右段亮起铁环（提示「' + hovTek.cue + '」）');
-  else hoverFails.push('右段没亮起铁环');
+  /* 悬停预览**不在这里测**。
+     原来这里有两条断言，是按旧模型写的（"移到中段应该亮萨帕依"）——
+     那个模型是"横向位置决定乐器"，已经废掉了。
+     现在乐器按**行**判定，悬停按行高亮，
+     覆盖在 tools/lab-row-test.mjs（那边用真实鼠标在每一行上过一遍）。
+     留着旧断言只会得到一个假失败。 */
 
   if (hoverFails.length) {
     console.log('\n  ★ 有 ' + hoverFails.length + ' 项不对：' + hoverFails.join('；') + '\n');
   } else {
-    console.log('\n  ✓ 真实命中、键盘、焦点、悬停预览 全部正常\n');
+    console.log('\n  ✓ 真实命中、键盘、焦点 全部正常' +
+      '（悬停见 lab-row-test）\n');
   }
 
   ws.close();
