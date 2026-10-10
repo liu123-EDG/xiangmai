@@ -14,6 +14,7 @@ import { bootChapter } from '../lib/chapter.js';
 import { createTheme, autoPlayOnGesture } from '../lib/theme.js';
 import { HERITAGE } from '../lib/heritage-data.js';
 import { mountVoiceJourney } from '../lib/voice-journey.js';
+import { mountBrightFinale } from '../lib/bright-finale.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -92,6 +93,7 @@ if (grid) {
 }
 
 mountVoiceJourney(document.getElementById('voice-journey'));
+mountBrightFinale(document.getElementById('bright-finale'));
 
 /* ---------------------------------------------------------------- 配乐 */
 

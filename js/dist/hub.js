@@ -12,6 +12,7 @@
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
      js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage, heritageImages
      js/lib/voice-journey.js  → mountVoiceJourney, heritageExperienceMarkup, mountHeritageExperience
+     js/lib/bright-finale.js  → mountBrightFinale
      js/pages/hub.js
 */
 (function () {
@@ -32,6 +33,7 @@ __XM[9] = {};
 __XM[10] = {};
 __XM[11] = {};
 __XM[12] = {};
+__XM[13] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -3857,13 +3859,86 @@ __ns.mount_heritageExperienceMarkup = function () { return heritageExperienceMar
 __ns.mount_mountHeritageExperience = function () { return mountHeritageExperience; };
 }
 
-/* ── js/pages/hub.js ── */
+/* ── js/lib/bright-finale.js ── */
 function __M12__() {
+/* Native scroll, reversible layers; no wheel interception or perpetual animation. */
+function mountBrightFinale(host) {
+  if (!host) return;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const chapters = [...host.querySelectorAll('[data-finale-step]')];
+  let progress = 0, phase = -1, pending = false;
+  const clamp = (n) => Math.max(0, Math.min(1, n));
+  const rise = (start, end) => {
+    const t = clamp((progress - start) / (end - start));
+    return t * t * (3 - 2 * t);
+  };
+  function paint() {
+    pending = false;
+    const rect = host.getBoundingClientRect();
+    const scene = host.querySelector('.bf-scene');
+    const distance = Math.max(1, host.offsetHeight - scene.offsetHeight);
+    progress = reduced.matches ? 1 : clamp(-rect.top / distance);
+    const next = progress < .22 ? 0 : progress < .45 ? 1 : progress < .71 ? 2 : 3;
+    const vars = {
+      '--bf-dawn': 1 - rise(0, .17),
+      '--bf-cloud-opacity': rise(.04, .22),
+      '--bf-cloud-x': `${(1 - rise(.04, .5)) * 8}%`,
+      '--bf-cloud-y': `${(1 - progress) * 40}px`,
+      '--bf-note-opacity': rise(.2, .36),
+      '--bf-note-y': `${(1 - rise(.2, .8)) * 100}px`,
+      '--bf-people-opacity': rise(.43, .54),
+      '--bf-people-mask': `${(1 - rise(.43, .88)) * 50}%`,
+      '--bf-people-y': `${(1 - rise(.43, .86)) * 65}px`,
+      '--bf-progress': `${progress * 100}%`,
+    };
+    for (const [key, value] of Object.entries(vars)) host.style.setProperty(key, value);
+    if (next !== phase) {
+      phase = next;
+      host.dataset.phase = String(phase);
+      chapters.forEach((chapter, i) => {
+        chapter.setAttribute('aria-hidden', String(i !== phase));
+        chapter.inert = i !== phase;
+      });
+    }
+    const finished = progress >= .92;
+    host.classList.toggle('is-finished', finished);
+    host.classList.toggle('has-dawn', progress < .09);
+    const link = host.querySelector('.bf-return');
+    link.inert = !finished;
+    link.setAttribute('aria-hidden', String(!finished));
+    document.body.classList.toggle('finale-view', rect.top < 80 && rect.bottom > 80);
+  }
+  function schedule() {
+    if (!pending) { pending = true; requestAnimationFrame(paint); }
+  }
+  function configure() {
+    host.classList.add('is-enhanced');
+    host.classList.toggle('is-reduced', reduced.matches);
+    paint();
+  }
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', schedule, { passive: true });
+  reduced.addEventListener('change', configure);
+  configure();
+  window.__XM_FINALE__ = {
+    state: () => ({progress, phase, reduced: reduced.matches,
+      images: [...host.querySelectorAll('img')].map(img => ({src: img.getAttribute('src'), loaded: img.complete && img.naturalWidth > 0})),
+    }),
+  };
+}
+
+__ns = __XM[12];
+__ns.mount_mountBrightFinale = function () { return mountBrightFinale; };
+}
+
+/* ── js/pages/hub.js ── */
+function __M13__() {
 var bootChapter = __XM[8]["bootChapter"];
 var createTheme = __XM[9]["createTheme"];
 var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
 var HERITAGE = __XM[10]["HERITAGE"];
 var mountVoiceJourney = __XM[11]["mountVoiceJourney"];
+var mountBrightFinale = __XM[12]["mountBrightFinale"];
 
 /* ==========================================================================
    弦脉 · 八音总页面
@@ -3877,6 +3952,7 @@ var mountVoiceJourney = __XM[11]["mountVoiceJourney"];
 
    声部（配乐）与档案页一致：只有主题曲，没有手鼓。
    ========================================================================== */
+
 
 
 
@@ -3959,6 +4035,7 @@ if (grid) {
 }
 
 mountVoiceJourney(document.getElementById('voice-journey'));
+mountBrightFinale(document.getElementById('bright-finale'));
 
 /* ---------------------------------------------------------------- 配乐 */
 
@@ -4089,11 +4166,20 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/voice-journey.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/pages/hub.js */
+/* js/lib/bright-finale.js */
 try {
   __ns = __XM[12];
   __M12__();
   for (var k in __XM[12]) { if (k.indexOf("mount_") === 0) __XM[12][k.slice(6)] = __XM[12][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/bright-finale.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/pages/hub.js */
+try {
+  __ns = __XM[13];
+  __M13__();
+  for (var k in __XM[13]) { if (k.indexOf("mount_") === 0) __XM[13][k.slice(6)] = __XM[13][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/hub.js" + " :: " + (e && e.stack || e));
 }
