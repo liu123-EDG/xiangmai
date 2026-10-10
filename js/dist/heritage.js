@@ -4092,6 +4092,7 @@ const id = document.body.dataset.ethnic || HERITAGE[0].id;
 const item = heritageById(id);
 
 const ctx = bootChapter({
+  base: '../../',           // heritage/<id>/ 比普通章节深一层，导航需回到站点根目录
   active: 'fulu',            // 顶栏高亮挂在附录那一格（这八页是附录伸出来的）
   drums: false,
   /* 这几页正文不长，地火再压一档 —— 和第五章同一个理由：
@@ -4107,13 +4108,13 @@ if (item) {
   if (host) {
     host.innerHTML = '<p class="h-notice__t">没有这一族</p>' +
       '<p class="h-notice__b">地址里的民族标识不认识。' +
-      '<a href="../fulu/index.html#melody-act">回到旋律图</a>挑一个吧。</p>';
+      '<a href="../../fulu/index.html#melody-act">回到旋律图</a>挑一个吧。</p>';
   }
 }
 
 /* 配乐：复用附录那首主题曲（站内只有三首 mp3，不复用就得再加文件）。
-   **路径是三层 ../**：这一页在 heritage/<id>/ 下，比别的章节还深一层。
-   写成两层会 404 —— 而且 createTheme 的 catch 会把它吞成一句 warning，
+   **路径是两层 ../**：这一页在 heritage/<id>/ 下，比别的章节还深一层。
+   写成一层会 404 —— 而且 createTheme 的 catch 会把它吞成一句 warning，
    页面看着正常、就是没声（这个坑在第五章踩过一次，八页自检又抓了一次）。 */
 const theme = createTheme('../../assets/audio/mashrap/theme.mp3');
 theme.setVolume(0.26);       // 比第五章更轻 —— 这一页是读文字，不是看场面
