@@ -8,6 +8,7 @@
    ========================================================================== */
 
 import { Renderer } from './renderer.js';
+import { mountCompanion } from './companion.js';
 import { DapSequencer } from './sequencer.js';
 import { mountShell, mountChapterNav, revealOnScroll, mountSlots, mountSoundButton } from './site.js';
 
@@ -167,6 +168,7 @@ export function bootChapter(opts = {}) {
   requestAnimationFrame(loop);
   requestAnimationFrame(() => document.body.classList.add('is-ready'));
 
+  mountCompanion({ active: opts.active });
   return { renderer, seq, REDUCED, syncSize };
 }
 
