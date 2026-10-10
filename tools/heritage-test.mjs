@@ -129,6 +129,15 @@ try {
     /* 资料配图：**验图真的显示出来了**，不是只验 DOM 里有 <img>。
        要 complete && naturalWidth > 0 —— 文件 404 或解码失败时是 0。
        （上一次"改了但没生效"就是只验了类名，这次验渲染结果。） */
+    // With the new scroll experience, photos are farther down. Visit each lazy image
+    // before checking its decoded size, as a reader scrolling the page would.
+    await evalJs(`(async () => {
+      for (const im of document.querySelectorAll('.h-fig img')) {
+        im.scrollIntoView({block:'center',behavior:'instant'});
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await Promise.race([im.decode().catch(() => {}), new Promise(resolve => setTimeout(resolve,4000))]);
+      }
+    })()`);
     const figs = JSON.parse(await evalJs(`(() => {
       const imgs = [...document.querySelectorAll('.h-fig img')];
       return JSON.stringify({

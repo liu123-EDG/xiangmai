@@ -18,6 +18,7 @@
    ========================================================================== */
 
 import { heritageImages } from './heritage-data.js';
+import { heritageExperienceMarkup, mountHeritageExperience } from './voice-journey.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
 
@@ -140,6 +141,8 @@ export function buildHeritagePage(opts) {
       '</div>' +
     '</section>' +
 
+    heritageExperienceMarkup(item) +
+
     '<section class="h-block h-block--body">' +
       '<h2 class="h-h2">它是什么</h2>' +
       bodyHtml +
@@ -165,7 +168,9 @@ export function buildHeritagePage(opts) {
 
     relatedHtml +
 
-    '<nav class="h-back"><a href="../fulu/index.html#melody-act">← 回到旋律图</a></nav>';
+    '<nav class="h-back"><a href="../index.html#hub">← 回八音总览</a> · <a href="../../fulu/index.html#melody-act">回到旋律图</a></nav>';
+
+  mountHeritageExperience(item, host);
 
   // 自检用
   window.__XM_HERITAGE__ = {

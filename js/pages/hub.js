@@ -13,6 +13,7 @@
 import { bootChapter } from '../lib/chapter.js';
 import { createTheme, autoPlayOnGesture } from '../lib/theme.js';
 import { HERITAGE } from '../lib/heritage-data.js';
+import { mountVoiceJourney } from '../lib/voice-journey.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -89,6 +90,8 @@ if (grid) {
       '</a>';
   }).join('');
 }
+
+mountVoiceJourney(document.getElementById('voice-journey'));
 
 /* ---------------------------------------------------------------- 配乐 */
 
