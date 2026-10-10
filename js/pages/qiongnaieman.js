@@ -6,6 +6,7 @@ import { bootChapter } from '../lib/chapter.js';
 import { buildThroughline, createDrone } from '../lib/throughline.js';
 import { PART_TONE } from '../lib/part-data.js';
 import { buildSatarBow } from '../lib/satar-bow.js';
+import { mountInstrumentPerformer } from '../lib/instrument-performer.js';
 
 renderPart();
 const ctx = bootChapter({ active: 'qon', soundBand: 0 });
@@ -22,7 +23,10 @@ const bow = buildSatarBow({
   host: document.getElementById('bow-host'),
   reduced: ctx.REDUCED,
 });
-window.__XM_BOW__ = bow;   // 自检用
+window.__XM_BOW__ = bow;
+const performerHost=document.createElement('div');document.getElementById('bow-host').before(performerHost);
+mountInstrumentPerformer({host:performerHost,kind:'satar',bow,reduced:ctx.REDUCED});
+document.querySelector('.chapter-hero__inner')?.insertAdjacentHTML('beforeend','<nav class="mesh-entry" aria-label="乐师演示入口"><a href="#instrument-stage">看弦歌演奏 <span>扶琴、运弓，再跟着试 ↗</span></a></nav>');
 
 /* ---- 纵贯线 ---- */
 const heroTitle = document.querySelector('#part-hero h1');

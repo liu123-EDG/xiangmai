@@ -518,6 +518,7 @@ export function buildRhythmLab(host, opts = {}) {
     else if (k === 'tek') tek(t, 0.5);
     else sapayi(t, 0.32);
     strikeCount++;
+    host.dispatchEvent(new CustomEvent('xm:rhythm-strike',{bubbles:true,detail:{kind:k,source}}));
     /* 敲过一下就把「在轨道上敲」那句提示收掉 —— 已经会了，不用再教 */
     if (strikeCount === 1) wrap.classList.add('is-struck');
 

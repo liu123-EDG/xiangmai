@@ -1283,7 +1283,7 @@ var createGuideMotion = __XM[2]["createGuideMotion"];
 var GUIDE_RIGS = __XM[3]["GUIDE_RIGS"];
 
 /* A continuous layered puppet: no whole-person pose swaps or dissolve ghosts. */
-function createGuideActor({ host, image, source, reduced = false, preview = false }) {
+function createGuideActor({ host, image, source, reduced = false, preview = false, performance = null }) {
   const name = Object.keys(GUIDE_RIGS).find(id => source.includes(id));
   const rig = GUIDE_RIGS[name];
   const canvas = document.createElement('canvas');
@@ -1329,6 +1329,7 @@ function createGuideActor({ host, image, source, reduced = false, preview = fals
   }
   function render(p) {
     if(!loaded)return;
+    if(performance)p=performance.pose(p,rig);
     ctx.clearRect(0,0,420,630);ctx.save();
     ctx.translate(210,600);ctx.rotate(p.body);ctx.translate(-210,-600);
     const rise=p.breath,waist=310-rise;
@@ -1344,6 +1345,7 @@ function createGuideActor({ host, image, source, reduced = false, preview = fals
     ctx.save();ctx.translate(210,174-rise);
     if(rig.torsoClip){ctx.beginPath();rig.torsoClip.forEach(([x,y],i)=>{const px=(x-.5)*rig.torso.width,py=y*rig.torso.height;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.closePath();ctx.clip();}
     part(1,0,0,rig.torso.width,rig.torso.height);ctx.restore();
+    performance?.draw(ctx,rig,p);
     arm(0,p.leftUpper,p.leftLower);arm(1,p.rightUpper,p.rightLower);
     const head=rig.head;
     ctx.save();ctx.translate(210,185-rise);ctx.rotate(p.head);
@@ -1372,6 +1374,7 @@ function createGuideActor({ host, image, source, reduced = false, preview = fals
   return {
     setMode(value){mode=value;motion.setMode(value);resume()},
     wave(){motion.wave();resume()},
+    refresh(){if(loaded)render(motion.step(0));resume()},
     state:()=>({loaded,mode,animated:!!raf,source,renderer:'layered-rig-v3',draws,...motion.state()}),
     destroy(){destroyed=true;pause();observer?.disconnect();document.removeEventListener('visibilitychange',onVisibility);media.removeEventListener?.('change',onMedia);sheet.onload=null;sheet.onerror=null;canvas.remove();image.hidden=false;host.classList.remove('has-guide-actor')},
   };

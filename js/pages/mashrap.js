@@ -12,10 +12,11 @@ import { buildCircle } from '../lib/circle.js';
 import { createTheme, autoPlayOnGesture, unlock } from '../lib/theme.js';
 import { buildFullCircleFilm } from '../lib/fullfilm.js';
 import { buildRhythmLab } from '../lib/rhythm-lab.js';
+import { mountInstrumentPerformer } from '../lib/instrument-performer.js';
 
 renderPart();
 const heroInner=document.querySelector('.chapter-hero__inner');
-if(heroInner)heroInner.insertAdjacentHTML('beforeend','<nav class="mesh-entry reveal" aria-label="本章体验入口"><a href="#mq-act">进入舞圈 <span>让人物与鼓点一起动起来 ↗</span></a><a href="#rlab-act">试奏节奏 <span>自己敲，听见从疏到密 ↗</span></a></nav>');
+if(heroInner)heroInner.insertAdjacentHTML('beforeend','<nav class="mesh-entry reveal" aria-label="本章体验入口"><a href="#mq-act">进入舞圈 <span>让人物与鼓点一起动起来 ↗</span></a><a href="#instrument-stage">看弦歌敲鼓 <span>托鼓、敲击，再跟着试 ↗</span></a><a href="#rlab-act">试奏节奏 <span>自己敲，听见从疏到密 ↗</span></a></nav>');
 const ensembleSection=document.querySelectorAll('#part-body > .act')[1];
 if(ensembleSection){
 const items=[
@@ -41,7 +42,9 @@ const readout = document.getElementById('mq-readout');
 const lab = buildRhythmLab(document.getElementById('rlab-host'), {
   reduced: ctx.REDUCED,
 });
-window.__XM_LAB__ = lab;   // 自检用
+window.__XM_LAB__ = lab;
+const performerHost=document.createElement('div');document.getElementById('rlab-host').before(performerHost);
+mountInstrumentPerformer({host:performerHost,kind:'dap',lab,reduced:ctx.REDUCED});
 
 /* 满圈之后那支片子。
    在这里建（而不是等满圈时才建）：元素提前进 DOM，满圈时只是加个类，
