@@ -2,6 +2,8 @@
    本页模块（依依赖序）：
      js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MASHRAQ_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
+     js/lib/guide-motion.js  → createGuideMotion
+     js/lib/guide-rigs.js  → GUIDE_RIGS
      js/lib/guide-actor.js  → createGuideActor
      js/lib/companion.js  → mountCompanion
      js/lib/sequencer.js  → DapSequencer, PATTERNS
@@ -28,6 +30,8 @@ __XM[7] = {};
 __XM[8] = {};
 __XM[9] = {};
 __XM[10] = {};
+__XM[11] = {};
+__XM[12] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -1180,110 +1184,187 @@ __ns.mount_BREATH = function () { return BREATH; };
 __ns.mount_Renderer = function () { return Renderer; };
 }
 
-/* ── js/lib/guide-actor.js ── */
+/* ── js/lib/guide-motion.js ── */
 function __M2__() {
-/* Six-pose 2.5D actor. Animation follows conversation state and pauses offscreen. */
-function createGuideActor({ host, image, source, reduced = false, preview = false }) {
-  const canvas = document.createElement('canvas');
-  canvas.className = 'guide-actor';
-  canvas.width = 420;
-  canvas.height = 630;
-  canvas.setAttribute('aria-hidden', 'true');
-  host.insertBefore(canvas, image);
-  canvas.hidden = true;
-  const context = canvas.getContext('2d');
-  const sheet = new Image();
-  let loaded = false, raf = 0, mode = 'idle', frame = 0, previous = 0;
-  let changed = 0, started = performance.now(), lastDraw = 0, visible = !preview;
-  let gestureUntil = 0;
-  const phase = preview ? Math.random() * 5000 : 0;
-  const frameAt = now => {
-    if (reduced) return 0;
-    if (gestureUntil > now) return 3;
-    if (mode === 'talking') return [4, 5, 4, 2][Math.floor((now - started) / 850) % 4];
-    if (mode === 'hint') return [3, 2, 0][Math.floor((now - started) / 1800) % 3];
-    const t = (now - started + phase) % 16000;
-    if (t > 2500 && t < 2670) return 1;
-    if (t > 6700 && t < 8200) return 2;
-    if (t > 11700 && t < 13200) return 3;
-    return 0;
-  };
-  function drawPose(index, opacity) {
-    const cellW = sheet.naturalWidth / 3, cellH = sheet.naturalHeight / 2;
-    const bounds = /qinglan/.test(source) ? [[0,0,449,627],[449,0,385,627],[834,0,420,627],[0,627,449,627],[449,627,385,627],[834,627,420,627]] : null;
-    const rect = bounds?.[index] || [(index % 3) * cellW, Math.floor(index / 3) * cellH, cellW, cellH];
-    const [sx,sy,w,h] = rect;
-    const scale = Math.min((canvas.width - 22) / w, (canvas.height - 28) / h);
-    const width = w * scale, height = h * scale;
-    context.globalAlpha = opacity;
-    context.drawImage(sheet, sx, sy, w, h,
-      (canvas.width - width) / 2, canvas.height - height - 14, width, height);
-  }
-  function draw(now) {
-    if (!loaded) return;
-    const next = frameAt(now);
-    if (next !== frame) { previous = frame; frame = next; changed = now; }
-    canvas.dataset.frame = String(frame);
-    canvas.dataset.mode = mode;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.save();
-    if (!reduced) {
-      const breathe = Math.sin(now / 1500) * 1.8;
-      context.translate(canvas.width / 2, canvas.height - 15);
-      context.scale(1 + breathe / 1000, 1 - breathe / 900);
-      context.translate(-canvas.width / 2, -(canvas.height - 15));
-    }
-    const mix = reduced ? 1 : Math.min(1, (now - changed) / 180);
-    if (mix < 1 && previous !== frame) drawPose(previous, 1 - mix);
-    drawPose(frame, mix < 1 && previous !== frame ? mix : 1);
-    context.restore();
-    context.globalAlpha = 1;
-  }
-  function loop(now) {
-    raf = 0;
-    if (!loaded || document.hidden || !visible || reduced) return;
-    if (now - lastDraw >= 1000 / 24) { draw(now); lastDraw = now; }
-    raf = requestAnimationFrame(loop);
-  }
-  function resume() { if (!raf && loaded && visible && !document.hidden && !reduced) raf = requestAnimationFrame(loop); }
-  function pause() { cancelAnimationFrame(raf); raf = 0; }
-  const onVisibility = () => document.hidden ? pause() : resume();
-  document.addEventListener('visibilitychange', onVisibility);
-  const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting;
-    if (visible) resume(); else pause();
-  }) : null;
-  observer?.observe(host);
-  if (!observer) visible = true;
-  sheet.onload = () => {
-    loaded = true; image.hidden = true; canvas.hidden = false;
-    host.classList.add('has-guide-actor');
-    draw(performance.now()); resume();
-  };
-  // Retain the approved still as a graceful fallback if an atlas cannot load.
-  sheet.onerror = () => { image.hidden = false; canvas.hidden = true; };
-  sheet.src = source;
+/* Continuous joint animation. All clips enter and leave the same resting pose. */
+const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+const bump = (time, start, duration) => time < start || time > start + duration ? 0 : Math.sin(Math.PI * (time - start) / duration) ** 2;
+const rest = () => ({ head: 0, body: 0, leftUpper: .08, leftLower: -.12, rightUpper: -.08, rightLower: .12, skirt: 0, breath: 0, blink: 0, mouth: 0 });
+function createGuideMotion({ reduced = false, phase = 0 } = {}) {
+  let elapsed = phase, requested = 'idle', speaking = 0, hinting = 0, waveTime = -1;
+  let pose = rest(), clip = 'rest', progress = 0;
   return {
-    setMode(value) { mode = value; started = performance.now(); if (loaded) draw(performance.now()); resume(); },
-    wave() { if (reduced) return; gestureUntil = performance.now() + 1300; resume(); },
-    state: () => ({ loaded, frame, mode, animated: !!raf, source }),
-    destroy() { pause(); observer?.disconnect(); document.removeEventListener('visibilitychange', onVisibility); sheet.onload = null; sheet.onerror = null; canvas.remove(); image.hidden = false; host.classList.remove('has-guide-actor'); },
+    setMode(value) { requested = value; },
+    wave() { if (!reduced && waveTime < 0) waveTime = 0; },
+    step(dt) {
+      if (reduced) { pose = rest(); return pose; }
+      dt = Math.max(0, Math.min(.064, dt));
+      elapsed += dt;
+      const blend = 1 - Math.exp(-dt * 7);
+      speaking += ((requested === 'talking' ? 1 : 0) - speaking) * blend;
+      hinting += ((requested === 'hint' ? 1 : 0) - hinting) * blend;
+      const cycle = elapsed % 22;
+      const look = bump(cycle, 5.5, 3.5), sleeve = bump(cycle, 9, 4);
+      let greeting = bump(cycle, 13, 3);
+      clip = look > .01 ? 'look' : sleeve > .01 ? 'sleeve' : greeting > .01 ? 'greet' : 'rest';
+      progress = cycle / 22;
+      if (waveTime >= 0) {
+        waveTime += dt;
+        greeting = Math.max(greeting, Math.sin(Math.PI * Math.min(1, waveTime / 2.8)) ** 2);
+        if (waveTime >= 2.8) waveTime = -1;
+        else { clip = 'greet'; progress = waveTime / 2.8; }
+      }
+      const talkBeat = Math.sin(elapsed * 2.7), whisper = hinting * (.7 + .3 * Math.sin(elapsed * 2));
+      const calm = 1 - speaking;
+      pose = {
+        head: .017 * Math.sin(elapsed * .9) + .075 * look * calm + .035 * speaking * Math.sin(elapsed * 3.1),
+        body: .008 * Math.sin(elapsed * .8),
+        leftUpper: .08 + .10 * greeting + .10 * sleeve * calm,
+        leftLower: -.12 + greeting * (2.65 + .16 * Math.sin(elapsed * 9)) - .65 * sleeve * calm,
+        rightUpper: -.08 - speaking * (.13 + .03 * talkBeat) - .12 * whisper,
+        rightLower: .12 - speaking * (.94 + .12 * talkBeat) - .5 * sleeve * calm - .75 * whisper,
+        skirt: .008 * Math.sin(elapsed * 1.1 - .6),
+        breath: 1.35 * Math.sin(elapsed * 1.55),
+        blink: bump(elapsed % 4.9, 3.9, .23),
+        mouth: speaking * (.20 + .78 * (.5 + .5 * Math.sin(elapsed * 11 + .6 * Math.sin(elapsed * 3)))) ,
+      };
+      if (speaking > .1) { clip = 'speak'; progress = (elapsed % 2.4) / 2.4; }
+      return pose;
+    },
+    state: () => ({ pose: { ...pose }, clip, progress, elapsed, requested }),
   };
 }
 
 __ns = __XM[2];
+__ns.mount_createGuideMotion = function () { return createGuideMotion; };
+}
+
+/* ── js/lib/guide-rigs.js ── */
+function __M3__() {
+/* Atlas rectangles and neck/shoulder anchors in the continuous puppet. */
+const GUIDE_RIGS = {
+  qinglan: {
+    parts:[[47,129,283,500],[347,125,324,346],[685,132,223,255],[983,313,227,343],[69,690,250,280],[358,879,198,325],[550,663,390,541],[940,699,304,497]],
+    head:{width:130,height:230,neck:[.43,.66],eyes:[.30,.26,.40,.09],mouth:[.41,.39,.19,.065],expressionEyes:[.27,.29,.44,.09],expressionMouth:[.45,.39,.19,.07]},
+    torso:{width:144,height:145},lower:{width:215,height:289},
+    upper:{width:55,height:87},forearm:{width:60,height:106},shoulder:64,armY:214,upperPivots:[[.7,.16],[.4,.12]],
+  },
+  xiange: {
+    parts: [[24,110,302,488],[350,154,333,333],[700,96,189,270],[982,294,217,304],[54,666,232,277],[323,871,217,320],[543,628,390,592],[938,690,300,488]],
+    head: { width:126,height:204,neck:[.53,.69],eyes:[.22,.32,.58,.095],mouth:[.41,.466,.20,.065],expressionEyes:[.28,.345,.56,.095],expressionMouth:[.44,.482,.20,.07] },
+    torso: { width:137,height:155 },lower:{ width:228,height:289 },
+    upper: { width:53,height:87 },forearm:{ width:59,height:106 },shoulder:56,armY:214,upperPivots:[[.61,.14],[.45,.12]],
+  },
+  yinling: {
+    parts: [[0,120,325,441],[335,147,352,287],[709,117,208,275],[1020,317,189,302],[30,684,238,278],[334,882,198,330],[551,673,400,539],[942,695,305,421]],
+    head: { width:132,height:179,neck:[.48,.975],eyes:[.26,.61,.43,.105],mouth:[.405,.742,.17,.06],expressionEyes:[.28,.61,.45,.105],expressionMouth:[.425,.755,.17,.065] },
+    headClip:[[0,0],[1,0],[1,.43],[.90,.55],[.89,.87],[.80,1],[.15,1],[.02,.55]],
+    torso: { width:150,height:151 },lower:{width:221,height:292},
+    upper:{width:52,height:87},forearm:{width:59,height:106},shoulder:60,armY:210,upperPivots:[[.51,.12],[.43,.12]],
+    torsoClip:[[.34,0],[.67,0],[.83,.14],[.78,.64],[.95,1],[.05,1],[.23,.64],[.17,.14]],
+  },
+};
+
+__ns = __XM[3];
+__ns.mount_GUIDE_RIGS = function () { return GUIDE_RIGS; };
+}
+
+/* ── js/lib/guide-actor.js ── */
+function __M4__() {
+var createGuideMotion = __XM[2]["createGuideMotion"];
+var GUIDE_RIGS = __XM[3]["GUIDE_RIGS"];
+
+/* A continuous layered puppet: no whole-person pose swaps or dissolve ghosts. */
+function createGuideActor({ host, image, source, reduced = false, preview = false }) {
+  const name = Object.keys(GUIDE_RIGS).find(id => source.includes(id));
+  const rig = GUIDE_RIGS[name];
+  const canvas = document.createElement('canvas');
+  canvas.className = 'guide-actor'; canvas.width = 420; canvas.height = 630;
+  canvas.setAttribute('aria-hidden','true'); canvas.hidden = true;
+  host.insertBefore(canvas,image);
+  const ctx = canvas.getContext('2d'), sheet = new Image();
+  const motion = createGuideMotion({reduced:false,phase:preview?Math.random()*22:0});
+  let loaded=false,raf=0,visible=!preview,last=0,mode='idle',destroyed=false,draws=0;
+  const media=matchMedia('(prefers-reduced-motion: reduce)');
+  let disabled=reduced;
+  function part(index,x,y,width,height,pivot=[.5,0],angle=0) {
+    const r=rig.parts[index]; ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+    if(index===0&&rig.headClip){ctx.beginPath();rig.headClip.forEach(([px,py],i)=>{const dx=(px-pivot[0])*width,dy=(py-pivot[1])*height;i?ctx.lineTo(dx,dy):ctx.moveTo(dx,dy)});ctx.closePath();ctx.clip();}
+    ctx.drawImage(sheet,...r,-width*pivot[0],-height*pivot[1],width,height);ctx.restore();
+  }
+  function patch(rect,expressionRect,alpha,w,h,pivot) {
+    if(alpha<.015)return;
+    const normal=rig.parts[0],expression=rig.parts[7];
+    const [x,y,rw,rh]=rect,[ex,ey,ew,eh]=expressionRect;
+    ctx.save();ctx.globalAlpha=Math.min(1,alpha);
+    // Restrict facial patches to their own rounded area; hair and face contour stay fixed.
+    ctx.beginPath();ctx.ellipse((x+rw/2-pivot[0])*w,(y+rh/2-pivot[1])*h,rw*w/2,rh*h/2,0,0,Math.PI*2);ctx.clip();
+    ctx.drawImage(sheet,expression[0]+ex*expression[2],expression[1]+ey*expression[3],ew*expression[2],eh*expression[3],(x-pivot[0])*w,(y-pivot[1])*h,rw*w,rh*h);
+    ctx.restore();
+  }
+  function render(p) {
+    if(!loaded)return;
+    ctx.clearRect(0,0,420,630);ctx.save();
+    ctx.translate(210,600);ctx.rotate(p.body);ctx.translate(-210,-600);
+    const rise=p.breath,waist=310-rise;
+    part(6,210,waist,rig.lower.width,rig.lower.height,[.5,0],p.skirt);
+    const arm=(side,upperAngle,lowerAngle)=>{
+      const left=side===0,x=210+(left?-rig.shoulder:rig.shoulder),y=(rig.armY||210)-rise;
+      const jointY=rig.upper.height-12;
+      ctx.save();ctx.translate(x,y);ctx.rotate(upperAngle);
+      part(left?2:4,0,0,rig.upper.width,rig.upper.height,rig.upperPivots?.[side]||[.5,.08]);
+      ctx.translate(0,jointY);ctx.rotate(lowerAngle);
+      part(left?3:5,0,0,rig.forearm.width,rig.forearm.height,[.5,.10]);ctx.restore();
+    };
+    ctx.save();ctx.translate(210,174-rise);
+    if(rig.torsoClip){ctx.beginPath();rig.torsoClip.forEach(([x,y],i)=>{const px=(x-.5)*rig.torso.width,py=y*rig.torso.height;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});ctx.closePath();ctx.clip();}
+    part(1,0,0,rig.torso.width,rig.torso.height);ctx.restore();
+    arm(0,p.leftUpper,p.leftLower);arm(1,p.rightUpper,p.rightLower);
+    const head=rig.head;
+    ctx.save();ctx.translate(210,185-rise);ctx.rotate(p.head);
+    part(0,0,0,head.width,head.height,head.neck);
+    patch(head.eyes,head.expressionEyes,p.blink,head.width,head.height,head.neck);
+    patch(head.mouth,head.expressionMouth,p.mouth,head.width,head.height,head.neck);
+    ctx.restore();ctx.restore();draws++;
+    canvas.dataset.clip=motion.state().clip;canvas.dataset.mode=mode;
+  }
+  function loop(now){
+    raf=0;if(!loaded||!visible||document.hidden||disabled||destroyed)return;
+    if(!last)last=now;
+    if(now-last>=1000/30){const dt=(now-last)/1000;last=now;render(motion.step(dt));}
+    raf=requestAnimationFrame(loop);
+  }
+  function pause(){cancelAnimationFrame(raf);raf=0;last=0;}
+  function resume(){if(!raf&&loaded&&visible&&!document.hidden&&!disabled&&!destroyed){last=0;raf=requestAnimationFrame(loop);}}
+  const onVisibility=()=>document.hidden?pause():resume();
+  const onMedia=()=>{disabled=media.matches;if(disabled){pause();render({head:0,body:0,leftUpper:.08,leftLower:-.12,rightUpper:-.08,rightLower:.12,skirt:0,breath:0,blink:0,mouth:0})}else resume()};
+  document.addEventListener('visibilitychange',onVisibility);media.addEventListener?.('change',onMedia);
+  const observer='IntersectionObserver' in window?new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;visible?resume():pause()}):null;
+  observer?.observe(host);if(!observer)visible=true;
+  sheet.onload=()=>{if(destroyed||!rig)return;loaded=true;image.hidden=true;canvas.hidden=false;host.classList.add('has-guide-actor');render(motion.step(0));resume()};
+  sheet.onerror=()=>{if(!destroyed){image.hidden=false;canvas.hidden=true;pause()}};
+  if(rig)sheet.src=source;
+  return {
+    setMode(value){mode=value;motion.setMode(value);resume()},
+    wave(){motion.wave();resume()},
+    state:()=>({loaded,mode,animated:!!raf,source,renderer:'layered-rig-v3',draws,...motion.state()}),
+    destroy(){destroyed=true;pause();observer?.disconnect();document.removeEventListener('visibilitychange',onVisibility);media.removeEventListener?.('change',onMedia);sheet.onload=null;sheet.onerror=null;canvas.remove();image.hidden=false;host.classList.remove('has-guide-actor')},
+  };
+}
+
+__ns = __XM[4];
 __ns.mount_createGuideActor = function () { return createGuideActor; };
 }
 
 /* ── js/lib/companion.js ── */
-function __M3__() {
-var createGuideActor = __XM[2]["createGuideActor"];
+function __M5__() {
+var createGuideActor = __XM[4]["createGuideActor"];
 
 /* Virtual companions: local, curated chapter conversations. No remote chat service. */
 const CHARACTERS = [
-  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-motion-v2.png' },
-  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-motion-v2.png' },
-  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-motion-v2.png' },
+  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-rig-v3.png' },
+  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-rig-v3.png' },
+  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-rig-v3.png' },
 ];
 const KEY = 'xiangmai.guide.v1';
 const AUTO_KEY = 'xiangmai.guide.auto.v1';
@@ -1456,6 +1537,7 @@ function mountCompanion({ active }) {
     if (chosen) arrivalLines[0] = selected.intro + ' ' + arrivalLines[0];
     arrivalIndex = -1;
     arrivalActive = true;
+    actor?.wave();
     nextArrival();
   }
 
@@ -1567,7 +1649,7 @@ function mountCompanion({ active }) {
     topics.querySelector('button')?.focus();
   }
   launcher.addEventListener('pointerenter', () => actor?.wave());
-  launcher.addEventListener('click', () => shown ? closePanel() : openPanel());
+  launcher.addEventListener('click', () => { actor?.wave(); shown ? closePanel() : openPanel(); });
   dock.querySelector('.guide-hint__next').addEventListener('click', nextArrival);
   dock.querySelector('.guide-dialog__close').addEventListener('click', () => closePanel());
   dock.querySelector('.guide-hint__close').addEventListener('click', () => { dismissHint(); lastInteraction = performance.now(); });
@@ -1638,12 +1720,12 @@ function mountCompanion({ active }) {
   return api;
 }
 
-__ns = __XM[3];
+__ns = __XM[5];
 __ns.mount_mountCompanion = function () { return mountCompanion; };
 }
 
 /* ── js/lib/sequencer.js ── */
-function __M4__() {
+function __M6__() {
 /* ==========================================================================
    弦脉 · 手鼓音序器
    --------------------------------------------------------------------------
@@ -2293,13 +2375,13 @@ class DapSequencer {  /**
   }
 }
 
-__ns = __XM[4];
+__ns = __XM[6];
 __ns.mount_DapSequencer = function () { return DapSequencer; };
 __ns.mount_PATTERNS = function () { return PATTERNS; };
 }
 
 /* ── js/lib/site.js ── */
-function __M5__() {
+function __M7__() {
 /* ==========================================================================
    弦脉 · 站点外壳
    --------------------------------------------------------------------------
@@ -2610,7 +2692,7 @@ function mountSlots() {
   });
 }
 
-__ns = __XM[5];
+__ns = __XM[7];
 __ns.mount_NAV = function () { return NAV; };
 __ns.mount_mountShell = function () { return mountShell; };
 __ns.mount_mountSoundButton = function () { return mountSoundButton; };
@@ -2620,15 +2702,15 @@ __ns.mount_mountSlots = function () { return mountSlots; };
 }
 
 /* ── js/lib/chapter.js ── */
-function __M6__() {
+function __M8__() {
 var Renderer = __XM[1]["Renderer"];
-var mountCompanion = __XM[3]["mountCompanion"];
-var DapSequencer = __XM[4]["DapSequencer"];
-var mountShell = __XM[5]["mountShell"];
-var mountChapterNav = __XM[5]["mountChapterNav"];
-var revealOnScroll = __XM[5]["revealOnScroll"];
-var mountSlots = __XM[5]["mountSlots"];
-var mountSoundButton = __XM[5]["mountSoundButton"];
+var mountCompanion = __XM[5]["mountCompanion"];
+var DapSequencer = __XM[6]["DapSequencer"];
+var mountShell = __XM[7]["mountShell"];
+var mountChapterNav = __XM[7]["mountChapterNav"];
+var revealOnScroll = __XM[7]["revealOnScroll"];
+var mountSlots = __XM[7]["mountSlots"];
+var mountSoundButton = __XM[7]["mountSoundButton"];
 
 /* ==========================================================================
    弦脉 · 章节页公共启动
@@ -2804,13 +2886,13 @@ function bootChapter(opts = {}) {
   return { renderer, seq, REDUCED, syncSize };
 }
 
-__ns = __XM[6];
+__ns = __XM[8];
 __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
 /* ── js/lib/theme.js ── */
-function __M7__() {
+function __M9__() {
 /* ==========================================================================
    弦脉 · 主题曲播放
    --------------------------------------------------------------------------
@@ -3365,14 +3447,14 @@ const unlock = {
   },
 };
 
-__ns = __XM[7];
+__ns = __XM[9];
 __ns.mount_createTheme = function () { return createTheme; };
 __ns.mount_autoPlayOnGesture = function () { return autoPlayOnGesture; };
 __ns.mount_unlock = function () { return unlock; };
 }
 
 /* ── js/lib/heritage-data.js ── */
-function __M8__() {
+function __M10__() {
 /* ==========================================================================
    弦脉 · 各民族音乐非遗
    --------------------------------------------------------------------------
@@ -3633,7 +3715,7 @@ function heritageImages(id) {
   return out;
 }
 
-__ns = __XM[8];
+__ns = __XM[10];
 __ns.mount_HERITAGE = function () { return HERITAGE; };
 __ns.mount_heritageHref = function () { return heritageHref; };
 __ns.mount_heritageById = function () { return heritageById; };
@@ -3642,8 +3724,8 @@ __ns.mount_heritageImages = function () { return heritageImages; };
 }
 
 /* ── js/lib/heritage-page.js ── */
-function __M9__() {
-var heritageImages = __XM[8]["heritageImages"];
+function __M11__() {
+var heritageImages = __XM[10]["heritageImages"];
 
 /* ==========================================================================
    弦脉 · 民族分页的渲染
@@ -3832,18 +3914,18 @@ function buildHeritagePage(opts) {
   return window.__XM_HERITAGE__;
 }
 
-__ns = __XM[9];
+__ns = __XM[11];
 __ns.mount_buildHeritagePage = function () { return buildHeritagePage; };
 }
 
 /* ── js/pages/heritage.js ── */
-function __M10__() {
-var bootChapter = __XM[6]["bootChapter"];
-var createTheme = __XM[7]["createTheme"];
-var autoPlayOnGesture = __XM[7]["autoPlayOnGesture"];
-var heritageById = __XM[8]["heritageById"];
-var HERITAGE = __XM[8]["HERITAGE"];
-var buildHeritagePage = __XM[9]["buildHeritagePage"];
+function __M12__() {
+var bootChapter = __XM[8]["bootChapter"];
+var createTheme = __XM[9]["createTheme"];
+var autoPlayOnGesture = __XM[9]["autoPlayOnGesture"];
+var heritageById = __XM[10]["heritageById"];
+var HERITAGE = __XM[10]["HERITAGE"];
+var buildHeritagePage = __XM[11]["buildHeritagePage"];
 
 /* ==========================================================================
    弦脉 · 民族分页的入口（八个页面共用）
@@ -3920,83 +4002,101 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/renderer.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/guide-actor.js */
+/* js/lib/guide-motion.js */
 try {
   __ns = __XM[2];
   __M2__();
   for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/guide-motion.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/guide-rigs.js */
+try {
+  __ns = __XM[3];
+  __M3__();
+  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/guide-rigs.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/guide-actor.js */
+try {
+  __ns = __XM[4];
+  __M4__();
+  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/guide-actor.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/companion.js */
 try {
-  __ns = __XM[3];
-  __M3__();
-  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
+  __ns = __XM[5];
+  __M5__();
+  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/companion.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/sequencer.js */
 try {
-  __ns = __XM[4];
-  __M4__();
-  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
+  __ns = __XM[6];
+  __M6__();
+  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sequencer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/site.js */
 try {
-  __ns = __XM[5];
-  __M5__();
-  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/site.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/chapter.js */
 try {
-  __ns = __XM[6];
-  __M6__();
-  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+  __ns = __XM[8];
+  __M8__();
+  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/theme.js */
 try {
-  __ns = __XM[7];
-  __M7__();
-  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
+  __ns = __XM[9];
+  __M9__();
+  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/theme.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/heritage-data.js */
 try {
-  __ns = __XM[8];
-  __M8__();
-  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
+  __ns = __XM[10];
+  __M10__();
+  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-data.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/heritage-page.js */
 try {
-  __ns = __XM[9];
-  __M9__();
-  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
+  __ns = __XM[11];
+  __M11__();
+  for (var k in __XM[11]) { if (k.indexOf("mount_") === 0) __XM[11][k.slice(6)] = __XM[11][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/heritage-page.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/heritage.js */
 try {
-  __ns = __XM[10];
-  __M10__();
-  for (var k in __XM[10]) { if (k.indexOf("mount_") === 0) __XM[10][k.slice(6)] = __XM[10][k](); }
+  __ns = __XM[12];
+  __M12__();
+  for (var k in __XM[12]) { if (k.indexOf("mount_") === 0) __XM[12][k.slice(6)] = __XM[12][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/heritage.js" + " :: " + (e && e.stack || e));
 }

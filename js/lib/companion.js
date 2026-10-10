@@ -1,9 +1,9 @@
 import { createGuideActor } from './guide-actor.js';
 /* Virtual companions: local, curated chapter conversations. No remote chat service. */
 const CHARACTERS = [
-  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-motion-v2.png' },
-  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-motion-v2.png' },
-  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-motion-v2.png' },
+  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-rig-v3.png' },
+  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-rig-v3.png' },
+  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-rig-v3.png' },
 ];
 const KEY = 'xiangmai.guide.v1';
 const AUTO_KEY = 'xiangmai.guide.auto.v1';
@@ -176,6 +176,7 @@ export function mountCompanion({ active }) {
     if (chosen) arrivalLines[0] = selected.intro + ' ' + arrivalLines[0];
     arrivalIndex = -1;
     arrivalActive = true;
+    actor?.wave();
     nextArrival();
   }
 
@@ -287,7 +288,7 @@ export function mountCompanion({ active }) {
     topics.querySelector('button')?.focus();
   }
   launcher.addEventListener('pointerenter', () => actor?.wave());
-  launcher.addEventListener('click', () => shown ? closePanel() : openPanel());
+  launcher.addEventListener('click', () => { actor?.wave(); shown ? closePanel() : openPanel(); });
   dock.querySelector('.guide-hint__next').addEventListener('click', nextArrival);
   dock.querySelector('.guide-dialog__close').addEventListener('click', () => closePanel());
   dock.querySelector('.guide-hint__close').addEventListener('click', () => { dismissHint(); lastInteraction = performance.now(); });
