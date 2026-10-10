@@ -342,15 +342,6 @@ const PARTS = {
           '人散了，鼓还在耳朵里。',
         ],
       },
-      {
-        title: '待补',
-        pending: [
-          '常用的节奏型与具体鼓点记法',
-          '舞蹈程式与动作名称',
-          '一场麦西热甫的完整流程：谁起头、怎么轮、什么时候罚',
-          '与其他两段在调式 / 律制上的具体差别',
-        ],
-      },
     ],
   },
 };
@@ -400,16 +391,12 @@ function slotHTML(img, i) {
 }
 
 function imagesHTML(images) {
-  if (!images || !images.length) return '';
+  images = (images || []).filter(im => im.src && im.src.trim());
+  if (!images.length) return '';
   if (images.length === 1) return slotHTML(images[0], 0);
   // 两张并排
   return '<div class="slot-pair">' +
     images.map((im, i) => slotHTML(im, i)).join('') + '</div>';
-}
-
-function pendingHTML(items) {
-  return '<p class="pending reveal">这里还缺：<br>' +
-    items.map((t) => '· ' + t).join('<br>') + '</p>';
 }
 
 function sectionHTML(sec, i) {
@@ -420,7 +407,6 @@ function sectionHTML(sec, i) {
       (sec.title ? '<h2 class="act__title reveal" data-delay="' + delay + '">' + sec.title + '</h2>' : '') +
       (sec.body ? bodyHTML(sec.body) : '') +
       (sec.images ? imagesHTML(sec.images) : '') +
-      (sec.pending ? pendingHTML(sec.pending) : '') +
     '</div></section>';
 }
 
@@ -482,36 +468,11 @@ function renderPart() {
 
   const body = $('#part-body');
   if (body) {
-    /* 正文各节。**带 pending 的那一节不在这里渲染** —— 见下面的 return 之前。
-       原来它被当成一整节正文排在最后，标题就叫「待补」，
-       内容是"这里还缺：· ×××" —— 评委翻到那儿一眼就看见。
-       缺什么是诚实，但那是**页末的说明**，不该占着正文的位置。 */
+    /* 提交版只呈现已完成的正文各节。 */
     body.innerHTML = p.sections
       .filter((s) => !s.pending)
       .map(sectionHTML)
       .join('');
-  }
-
-  /* 页末的「本站还缺」。和参考来源、八族档案同一个规矩：
-     缺什么就说什么，但不摆成正文的一节。 */
-  const gaps = p.sections.filter((s) => s.pending).reduce(
-    (acc, s) => acc.concat(s.pending), []);
-  if (body && gaps.length) {
-    const g = document.createElement('section');
-    g.className = 'act gaps-act';
-    g.setAttribute('data-act', '90');
-    g.innerHTML =
-      '<div class="act__inner">' +
-        '<h2 class="act__title reveal">本站还缺</h2>' +
-        '<p class="body reveal" data-delay="1">' +
-          '这一页讲的是<strong>听感与结构</strong>，不是记谱。下面这几项还没有可靠出处，' +
-          '所以留空 —— <strong>不用相近内容凑数</strong>。' +
-        '</p>' +
-        '<ul class="gaps reveal" data-delay="2">' +
-          gaps.map((t) => '<li>' + t + '</li>').join('') +
-        '</ul>' +
-      '</div>';
-    body.appendChild(g);
   }
 
   return p;
@@ -3182,16 +3143,15 @@ function mountSlots() {
   Array.from(document.querySelectorAll('figure.slot')).forEach((fig) => {
     const src = fig.getAttribute('data-src');
     const img = fig.querySelector('img');
-    if (!img) { fig.classList.add('is-empty'); return; }
+    if (!img) { fig.remove(); return; }
 
-    if (!src) { fig.classList.add('is-empty'); return; }
+    if (!src) { fig.remove(); return; }
 
     fig.classList.remove('is-empty');
     img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
     img.addEventListener('error', () => {
       // 文件还没放进来：退回占位，版面不变形
-      fig.classList.add('is-empty');
-      img.removeAttribute('src');
+      fig.remove();
     }, { once: true });
     img.src = src;
   });

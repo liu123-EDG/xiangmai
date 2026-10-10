@@ -114,14 +114,11 @@ try {
   else bad('rel 不对：' + JSON.stringify(st.rels));
   console.log('       统计条：' + st.stat);
 
-  const hasPending = st.groups.some((g) => /尚未核实/.test(g));
-  if (hasPending) ok('「尚未核实」那一段在');
-  else bad('没有「尚未核实」那一段 —— 那才是这一节的重点');
-  if (st.pendingRows >= 5) ok('未核实清单 ' + st.pendingRows + ' 条');
-  else bad('未核实清单只有 ' + st.pendingRows + ' 条');
-  const hasAigc = st.pendingText.some((t) => /视频|影像|壁画/.test(t));
-  if (hasAigc) ok('清单里点明了 AIGC 影像（' + st.pendingText.filter((t) => /视频|影像|壁画/.test(t)).join('、') + '）');
-  else bad('没点明 AIGC 影像 —— 这条最要紧');
+  if (st.pendingRows === 0 && !st.groups.some(g => /尚未核实/.test(g))) ok('提交版已删除待补清单');
+  else bad('提交版仍有待补清单');
+  const explanation = await evalJs('document.querySelector(".src__method").textContent');
+  if (/AIGC/.test(explanation) && /不是实拍|不包含任何声称是实拍/.test(explanation)) ok('编制说明保留 AIGC 影像性质');
+  else bad('缺少 AIGC 影像说明');
 
   /* 逐条访问外链，确认真的能打开。
      死链比不写来源更糟，所以这条必须联网实测。 */

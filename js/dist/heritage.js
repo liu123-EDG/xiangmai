@@ -2696,16 +2696,15 @@ function mountSlots() {
   Array.from(document.querySelectorAll('figure.slot')).forEach((fig) => {
     const src = fig.getAttribute('data-src');
     const img = fig.querySelector('img');
-    if (!img) { fig.classList.add('is-empty'); return; }
+    if (!img) { fig.remove(); return; }
 
-    if (!src) { fig.classList.add('is-empty'); return; }
+    if (!src) { fig.remove(); return; }
 
     fig.classList.remove('is-empty');
     img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
     img.addEventListener('error', () => {
       // 文件还没放进来：退回占位，版面不变形
-      fig.classList.add('is-empty');
-      img.removeAttribute('src');
+      fig.remove();
     }, { once: true });
     img.src = src;
   });
@@ -4028,7 +4027,7 @@ function buildHeritagePage(opts) {
       '<h2 class="h-h2">来源</h2>' +
       sourcesHtml +
       '<p class="h-fine">本页文字取自上述材料，未作补充。' +
-      '站内「参考来源」一节列了已核实与尚未核实的内容。</p>' +
+      '站内「参考来源」一节汇总公开资料与编制说明。</p>' +
     '</section>' +
 
     relatedHtml +

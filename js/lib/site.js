@@ -293,16 +293,15 @@ export function mountSlots() {
   Array.from(document.querySelectorAll('figure.slot')).forEach((fig) => {
     const src = fig.getAttribute('data-src');
     const img = fig.querySelector('img');
-    if (!img) { fig.classList.add('is-empty'); return; }
+    if (!img) { fig.remove(); return; }
 
-    if (!src) { fig.classList.add('is-empty'); return; }
+    if (!src) { fig.remove(); return; }
 
     fig.classList.remove('is-empty');
     img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
     img.addEventListener('error', () => {
       // 文件还没放进来：退回占位，版面不变形
-      fig.classList.add('is-empty');
-      img.removeAttribute('src');
+      fig.remove();
     }, { once: true });
     img.src = src;
   });

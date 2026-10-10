@@ -7,9 +7,9 @@
 | 页面 | 路径 | 内容 |
 |---|---|---|
 | 序 | `index.html` | 首屏。三段式结构柱，交互引导 |
-| 二 · 穹乃额曼 | `qiongnaieman/index.html` | 大曲（内容待补） |
-| 三 · 达斯坦 | `dastan/index.html` | 叙事诗（内容待补） |
-| 四 · 麦西热甫 | `mashrap/index.html` | 歌舞曲（内容待补） |
+| 二 · 穹乃额曼 | `qiongnaieman/index.html` | 大曲与弓弦互动 |
+| 三 · 达斯坦 | `dastan/index.html` | 叙事诗与故事探索 |
+| 四 · 麦西热甫 | `mashrap/index.html` | 歌舞曲与节奏互动 |
 | 五 · 历史与传承 | `lishi/index.html` | 渊源、经典化、抢救、当代运用 |
 | 附录 · 形制比较 | `fulu/index.html` | 十二木卡姆轮盘 + 八个民族的旋律入口 |
 

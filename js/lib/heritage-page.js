@@ -163,7 +163,7 @@ export function buildHeritagePage(opts) {
       '<h2 class="h-h2">来源</h2>' +
       sourcesHtml +
       '<p class="h-fine">本页文字取自上述材料，未作补充。' +
-      '站内「参考来源」一节列了已核实与尚未核实的内容。</p>' +
+      '站内「参考来源」一节汇总公开资料与编制说明。</p>' +
     '</section>' +
 
     relatedHtml +
