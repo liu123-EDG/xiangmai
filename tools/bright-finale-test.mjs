@@ -30,7 +30,11 @@ try{
 
 
 
-await visit('heritage/index.html');
+await visit('heritage/index.html#bright-finale');
+await sleep(700);
+console.log('Anchor position',await evaluate('({top:document.querySelector("#bright-finale").getBoundingClientRect().top,phase:window.__XM_FINALE__.state().phase})'));
+check(await evaluate('Math.abs(document.querySelector("#bright-finale").getBoundingClientRect().top)<4'), '直接打开尾声链接定位正确');
+await screenshot('finale-anchor-entry');
 const scrollToProgress = async (p) => {
  await evaluate(`(()=>{const h=document.querySelector('#bright-finale');const y=scrollY+h.getBoundingClientRect().top;scrollTo({top:y+(h.offsetHeight-h.querySelector('.bf-scene').offsetHeight)*${p},behavior:'instant'})})()`);
  await sleep(750);
@@ -48,6 +52,8 @@ check(await evaluate('getComputedStyle(document.querySelector(".bf-people")).cli
 check(await evaluate('getComputedStyle(document.querySelector(".bf-return")).display==="inline-flex" && !document.querySelector(".bf-return").inert'),'终点入口可点击');
 check(await evaluate('document.querySelector("main").lastElementChild.id==="bright-finale"'),'新尾声位于网站最后');
 await scrollToProgress(.3);check((await evaluate('window.__XM_FINALE__.state()')).phase===1,'向上滚动可还原之前一幕');
+await click('.bf-entry');await sleep(500);
+check(await evaluate('Math.abs(document.querySelector("#bright-finale").getBoundingClientRect().top)<4'),'点击明显入口直达尾声');
 await send('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});
 await scrollToProgress(1);await screenshot('finale-laptop');
 check(await evaluate('(()=>{const h=document.querySelector(".bf-chapter--last").getBoundingClientRect();const m=document.querySelector(".bf-mission").getBoundingClientRect();const i=document.querySelector(".bf-people").getBoundingClientRect();return h.top>70&&m.bottom<i.top+i.height*.18})()'),'笔记本标题区域避开人物头部');

@@ -3920,6 +3920,26 @@ function mountBrightFinale(host) {
   addEventListener('resize', schedule, { passive: true });
   reduced.addEventListener('change', configure);
   configure();
+  // Chapter navigation and the long scroll scene change layout during boot.
+  // Re-align a direct fragment visit after those changes, without stealing user scroll.
+  let interacted = false;
+  const markInteraction = () => { interacted = true; };
+  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) {
+    addEventListener(event, markInteraction, { once: true, passive: true });
+  }
+  const alignAnchor = (explicit = false) => {
+    if (location.hash !== '#bright-finale' || (!explicit && interacted)) return;
+    host.scrollIntoView({ block: 'start', behavior: 'instant' });
+    paint();
+  };
+  if (location.hash === '#bright-finale') {
+    requestAnimationFrame(() => requestAnimationFrame(() => alignAnchor()));
+    if (document.readyState !== 'complete') {
+      addEventListener('load', () => requestAnimationFrame(() => alignAnchor()), { once: true });
+    }
+    document.fonts?.ready.then(() => requestAnimationFrame(() => alignAnchor()));
+  }
+  addEventListener('hashchange', () => alignAnchor(true));
   window.__XM_FINALE__ = {
     state: () => ({progress, phase, reduced: reduced.matches,
       images: [...host.querySelectorAll('img')].map(img => ({src: img.getAttribute('src'), loaded: img.complete && img.naturalWidth > 0})),
