@@ -2,6 +2,7 @@
    本页模块（依依赖序）：
      js/lib/materials.js  → VERT_SRC, NOISE_GLSL, MATERIAL_GLSL, SCENE_FRAG, DUST_FRAG, EMBER_FRAG, CHAPTER_AIR_FRAG, MASHRAQ_FRAG, WALL_FRAG
      js/lib/renderer.js  → COLORS, SEG_H, SEG_BOUNDS, BREATH, Renderer
+     js/lib/guide-actor.js  → createGuideActor
      js/lib/companion.js  → mountCompanion
      js/lib/sequencer.js  → DapSequencer, PATTERNS
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
@@ -24,6 +25,7 @@ __XM[5] = {};
 __XM[6] = {};
 __XM[7] = {};
 __XM[8] = {};
+__XM[9] = {};
 
 /* ── js/lib/materials.js ── */
 function __M0__() {
@@ -1176,13 +1178,110 @@ __ns.mount_BREATH = function () { return BREATH; };
 __ns.mount_Renderer = function () { return Renderer; };
 }
 
-/* ── js/lib/companion.js ── */
+/* ── js/lib/guide-actor.js ── */
 function __M2__() {
+/* Six-pose 2.5D actor. Animation follows conversation state and pauses offscreen. */
+function createGuideActor({ host, image, source, reduced = false, preview = false }) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'guide-actor';
+  canvas.width = 420;
+  canvas.height = 630;
+  canvas.setAttribute('aria-hidden', 'true');
+  host.insertBefore(canvas, image);
+  canvas.hidden = true;
+  const context = canvas.getContext('2d');
+  const sheet = new Image();
+  let loaded = false, raf = 0, mode = 'idle', frame = 0, previous = 0;
+  let changed = 0, started = performance.now(), lastDraw = 0, visible = !preview;
+  let gestureUntil = 0;
+  const phase = preview ? Math.random() * 5000 : 0;
+  const frameAt = now => {
+    if (reduced) return 0;
+    if (gestureUntil > now) return 3;
+    if (mode === 'talking') return [4, 5, 4, 2][Math.floor((now - started) / 850) % 4];
+    if (mode === 'hint') return [3, 2, 0][Math.floor((now - started) / 1800) % 3];
+    const t = (now - started + phase) % 16000;
+    if (t > 2500 && t < 2670) return 1;
+    if (t > 6700 && t < 8200) return 2;
+    if (t > 11700 && t < 13200) return 3;
+    return 0;
+  };
+  function drawPose(index, opacity) {
+    const cellW = sheet.naturalWidth / 3, cellH = sheet.naturalHeight / 2;
+    const bounds = /qinglan/.test(source) ? [[0,0,449,627],[449,0,385,627],[834,0,420,627],[0,627,449,627],[449,627,385,627],[834,627,420,627]] : null;
+    const rect = bounds?.[index] || [(index % 3) * cellW, Math.floor(index / 3) * cellH, cellW, cellH];
+    const [sx,sy,w,h] = rect;
+    const scale = Math.min((canvas.width - 22) / w, (canvas.height - 28) / h);
+    const width = w * scale, height = h * scale;
+    context.globalAlpha = opacity;
+    context.drawImage(sheet, sx, sy, w, h,
+      (canvas.width - width) / 2, canvas.height - height - 14, width, height);
+  }
+  function draw(now) {
+    if (!loaded) return;
+    const next = frameAt(now);
+    if (next !== frame) { previous = frame; frame = next; changed = now; }
+    canvas.dataset.frame = String(frame);
+    canvas.dataset.mode = mode;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.save();
+    if (!reduced) {
+      const breathe = Math.sin(now / 1500) * 1.8;
+      context.translate(canvas.width / 2, canvas.height - 15);
+      context.scale(1 + breathe / 1000, 1 - breathe / 900);
+      context.translate(-canvas.width / 2, -(canvas.height - 15));
+    }
+    const mix = reduced ? 1 : Math.min(1, (now - changed) / 180);
+    if (mix < 1 && previous !== frame) drawPose(previous, 1 - mix);
+    drawPose(frame, mix < 1 && previous !== frame ? mix : 1);
+    context.restore();
+    context.globalAlpha = 1;
+  }
+  function loop(now) {
+    raf = 0;
+    if (!loaded || document.hidden || !visible || reduced) return;
+    if (now - lastDraw >= 1000 / 24) { draw(now); lastDraw = now; }
+    raf = requestAnimationFrame(loop);
+  }
+  function resume() { if (!raf && loaded && visible && !document.hidden && !reduced) raf = requestAnimationFrame(loop); }
+  function pause() { cancelAnimationFrame(raf); raf = 0; }
+  const onVisibility = () => document.hidden ? pause() : resume();
+  document.addEventListener('visibilitychange', onVisibility);
+  const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+    visible = entries[0].isIntersecting;
+    if (visible) resume(); else pause();
+  }) : null;
+  observer?.observe(host);
+  if (!observer) visible = true;
+  sheet.onload = () => {
+    loaded = true; image.hidden = true; canvas.hidden = false;
+    host.classList.add('has-guide-actor');
+    draw(performance.now()); resume();
+  };
+  // Retain the approved still as a graceful fallback if an atlas cannot load.
+  sheet.onerror = () => { image.hidden = false; canvas.hidden = true; };
+  sheet.src = source;
+  return {
+    setMode(value) { mode = value; started = performance.now(); if (loaded) draw(performance.now()); resume(); },
+    wave() { if (reduced) return; gestureUntil = performance.now() + 1300; resume(); },
+    state: () => ({ loaded, frame, mode, animated: !!raf, source }),
+    destroy() { pause(); observer?.disconnect(); document.removeEventListener('visibilitychange', onVisibility); sheet.onload = null; sheet.onerror = null; canvas.remove(); image.hidden = false; host.classList.remove('has-guide-actor'); },
+  };
+}
+
+__ns = __XM[2];
+__ns.mount_createGuideActor = function () { return createGuideActor; };
+}
+
+/* ── js/lib/companion.js ── */
+function __M3__() {
+var createGuideActor = __XM[2]["createGuideActor"];
+
 /* Virtual companions: local, curated chapter conversations. No remote chat service. */
 const CHARACTERS = [
-  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png' },
-  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png' },
-  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png' },
+  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-motion-v2.png' },
+  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-motion-v2.png' },
+  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-motion-v2.png' },
 ];
 const KEY = 'xiangmai.guide.v1';
 const AUTO_KEY = 'xiangmai.guide.auto.v1';
@@ -1263,6 +1362,11 @@ function mountCompanion({ active }) {
   let shown = false;
   let timer = 0;
   let stateTimer = 0;
+  let actor = null;
+  let arrivalTimer = 0;
+  let arrivalLines = [];
+  let arrivalIndex = -1;
+  let arrivalActive = false;
   let lastHint = -Infinity;
   let lastInteraction = -Infinity;
   const seen = new Set();
@@ -1272,7 +1376,7 @@ function mountCompanion({ active }) {
   dock.className = 'guide-dock';
   dock.hidden = !selected;
   dock.dataset.state = 'idle';
-  dock.innerHTML = '<div class="guide-hint" hidden><button class="guide-hint__close" type="button" aria-label="关闭这条提示">×</button><p aria-live="polite"></p><button class="guide-hint__talk" type="button">继续聊聊 ↗</button></div>' +
+  dock.innerHTML = '<div class="guide-hint" hidden><button class="guide-hint__close" type="button" aria-label="关闭这条提示">×</button><span class="guide-hint__eyebrow">同行者的悄悄话</span><p aria-live="polite"></p><div class="guide-hint__steps" hidden><span></span><button type="button" class="guide-hint__next">下一句 →</button></div><button class="guide-hint__talk" type="button">继续聊聊 ↗</button></div>' +
     '<section class="guide-dialog" id="guide-dialog" aria-label="同行者对话" hidden>' +
     '<header><div><span class="guide-dialog__eyebrow">你的同行者</span><h2></h2></div><button class="guide-dialog__close" type="button" aria-label="收起对话">×</button></header>' +
     '<p class="guide-dialog__chapter"></p><p class="guide-dialog__reply" aria-live="polite"></p>' +
@@ -1311,12 +1415,56 @@ function mountCompanion({ active }) {
     }
     return TOPICS[active] || TOPICS.bain;
   }
+
+  function chapterLines() {
+    const lines = {
+      qon: ['我们来到穹乃额曼。先不用急着记名称，听它怎样从自由的散板展开。', '这一章的线索是：从舒缓走向明朗，手鼓进入后，音乐开始有了节拍。', '往后还有拉琴体验。你可以直接问我“带我试试拉琴”，亲手感受节奏自由。'],
+      dastan: ['第三章，我们一起走进达斯坦的故事。这里的音乐开始带着叙事往前走。', '留意歌曲与器乐间奏的交替：一段讲述之后，器乐接过情绪，继续推进。', '这一章可以慢慢看场景，也可以点我聊聊“间奏只是休息吗”。'],
+      mashrap: ['来到麦西热甫，轮到我们下场参与了！人物会加入舞圈，鼓点也会逐渐热闹起来。', '先试节奏台：亲手敲一段，看声音与记号怎样一起变化。', '然后一起进入舞圈。打开“跟着鼓点跳”，试着在鼓点上加入。'],
+      lishi: ['这一章换个角度，看看音乐怎样走到今天，又怎样继续传下去。', '沿时间轴读渊源，再看记录、整理与传习，把它们连成一条线。', '读到后面的当代案例时，我们再一起想想：换了场景，音乐的哪些部分还在？'],
+      fulu: ['走到附录，我们可以用轮盘与旋律，重新看一遍前面的结构。', '先选一个轮盘条目，把名称和你刚才听过、玩过的内容连起来。', '八音还连着不同民族的档案。选一个感兴趣的，我们一起继续探索。'],
+      bain: ['这里是八族档案，一张卡片就是一段新的音乐旅程。', '可以按乐器、声音或故事选一个入口；每一页都写了自己的形式和资料来源。', '不用一次读完。选你最感兴趣的一张，我会继续陪你。'],
+    };
+    if (document.body.dataset.ethnic) return ['我们来到'+page().title+'。这一页要先看它自己的地区与音乐形式。', '留意正文介绍的演唱、乐器与传承场景，和前面熟悉的内容有什么不同。', '资料来源在页末。想先抓住重点，可以点我问“这页讲的是什么”。'];
+    if (document.getElementById('inherit-act')) return ['我们进入传承之路的情境体验了。先读眼前的故事，再做自己的选择。', '每一个选择都有反馈。看看你的做法怎样影响这个故事里的传承。', '这里的影像是虚构概念影像。体验结束后，可以再想想真实传承需要怎样的实践。'];
+    return lines[active] || [page().hello, '想知道这一页的重点，可以随时点我。', '我们按自己的节奏慢慢探索。'];
+  }
+  function cancelArrival() {
+    clearTimeout(arrivalTimer);
+    arrivalActive = false;
+    hint.querySelector('.guide-hint__steps').hidden = true;
+  }
+  function nextArrival() {
+    clearTimeout(arrivalTimer);
+    if (!arrivalActive || !selected || !auto || shown) { cancelArrival(); return; }
+    arrivalIndex++;
+    if (arrivalIndex >= arrivalLines.length) { dismissHint(); return; }
+    showHint(arrivalLines[arrivalIndex], true);
+    const steps = hint.querySelector('.guide-hint__steps');
+    steps.hidden = false;
+    steps.querySelector('span').textContent = (arrivalIndex + 1) + ' / ' + arrivalLines.length;
+    steps.querySelector('button').textContent = arrivalIndex === arrivalLines.length - 1 ? '开始探索 ✓' : '下一句 →';
+    const duration = Math.max(6500, Math.min(10000, arrivalLines[arrivalIndex].length * 120 + 2000));
+    arrivalTimer = setTimeout(() => document.hidden ? cancelArrival() : nextArrival(), duration);
+  }
+  function startArrival(chosen = false) {
+    if (!selected || !auto || shown || document.hidden) return;
+    cancelArrival();
+    arrivalLines = chapterLines();
+    if (chosen) arrivalLines[0] = selected.intro + ' ' + arrivalLines[0];
+    arrivalIndex = -1;
+    arrivalActive = true;
+    nextArrival();
+  }
+
   function state(value, ms = 0) {
     clearTimeout(stateTimer);
     dock.dataset.state = value;
-    if (ms) stateTimer = setTimeout(() => { dock.dataset.state = 'idle'; }, ms);
+    actor?.setMode(value);
+    if (ms) stateTimer = setTimeout(() => { dock.dataset.state = 'idle'; actor?.setMode('idle'); }, ms);
   }
   function dismissHint() {
+    cancelArrival();
     clearTimeout(timer);
     hint.hidden = true;
     if (!shown) state('idle');
@@ -1325,7 +1473,7 @@ function mountCompanion({ active }) {
     reply.textContent = text;
     destination = target ? document.querySelector(target) : null;
     go.hidden = !destination;
-    state('talking', 2200);
+    state('talking', Math.max(3500, Math.min(11000, text.length * 85)));
   }
   function renderTopics() {
     topics.replaceChildren();
@@ -1365,17 +1513,20 @@ function mountCompanion({ active }) {
     if (!force && (performance.now() - lastHint < 25000 || performance.now() - lastInteraction < 12000)) return false;
     hint.querySelector('p').textContent = selected.name + '：' + text;
     hint.hidden = false;
-    state('hint');
+    state(arrivalActive ? 'talking' : 'hint');
     lastHint = performance.now();
     clearTimeout(timer);
-    timer = setTimeout(dismissHint, 12000);
+    if (!arrivalActive) timer = setTimeout(dismissHint, 12000);
     return true;
   }
   function updateCharacter() {
     dock.hidden = !selected;
     if (!selected) return;
     dock.style.setProperty('--guide-color', selected.color);
-    launcher.querySelector('img').src = asset(selected.file);
+    actor?.destroy();
+    const portrait = launcher.querySelector('img');
+    portrait.src = asset(selected.file);
+    actor = createGuideActor({ host: launcher, image: portrait, source: asset(selected.atlas), reduced });
     launcher.querySelector('span').textContent = selected.name + ' · 聊聊';
     launcher.setAttribute('aria-label', '与同行者' + selected.name + '聊聊本章');
     dock.querySelector('.guide-dialog h2').textContent = selected.name;
@@ -1393,7 +1544,7 @@ function mountCompanion({ active }) {
     updateCharacter();
     const status = selectionRegion?.querySelector('.guide-selection__status');
     if (status) status.textContent = '已选择' + selected.name + '。后面的章节，我会继续陪你；想聊聊时，点右下角的我。';
-    showHint(selected.intro + ' 想聊聊，随时点我。', true);
+    startArrival(true);
   }
   function showSwitch() {
     closePanel(false);
@@ -1413,7 +1564,9 @@ function mountCompanion({ active }) {
     }
     topics.querySelector('button')?.focus();
   }
+  launcher.addEventListener('pointerenter', () => actor?.wave());
   launcher.addEventListener('click', () => shown ? closePanel() : openPanel());
+  dock.querySelector('.guide-hint__next').addEventListener('click', nextArrival);
   dock.querySelector('.guide-dialog__close').addEventListener('click', () => closePanel());
   dock.querySelector('.guide-hint__close').addEventListener('click', () => { dismissHint(); lastInteraction = performance.now(); });
   dock.querySelector('.guide-hint__talk').addEventListener('click', () => openPanel());
@@ -1459,7 +1612,12 @@ function mountCompanion({ active }) {
         heroInner.appendChild(link);
       }
       updateCharacter();
+      selectionRegion.querySelectorAll('.guide-card').forEach(button => {
+        const character = CHARACTERS.find(c => c.id === button.dataset.guide);
+        createGuideActor({ host: button.querySelector('.guide-card__stage'), image: button.querySelector('img'), source: asset(character.atlas), reduced, preview: true });
+      });
     }
+    arrivalTimer = setTimeout(() => startArrival(), 1600);
     if ('IntersectionObserver' in window) {
       const observer = new IntersectionObserver(entries => {
         for (const entry of entries) {
@@ -1473,17 +1631,17 @@ function mountCompanion({ active }) {
       }
     }
   });
-  const api = { choose, open: openPanel, close: closePanel, state: () => ({ selected: selected?.id || null, auto, open: shown, chapter: page().title, mode: dock.dataset.state }) };
+  const api = { choose, open: openPanel, close: closePanel, actor: () => actor?.state(), state: () => ({ selected: selected?.id || null, auto, open: shown, chapter: page().title, mode: dock.dataset.state, arrival: arrivalActive, arrivalIndex }) };
   window.__XM_GUIDE__ = api;
   return api;
 }
 
-__ns = __XM[2];
+__ns = __XM[3];
 __ns.mount_mountCompanion = function () { return mountCompanion; };
 }
 
 /* ── js/lib/sequencer.js ── */
-function __M3__() {
+function __M4__() {
 /* ==========================================================================
    弦脉 · 手鼓音序器
    --------------------------------------------------------------------------
@@ -2133,13 +2291,13 @@ class DapSequencer {  /**
   }
 }
 
-__ns = __XM[3];
+__ns = __XM[4];
 __ns.mount_DapSequencer = function () { return DapSequencer; };
 __ns.mount_PATTERNS = function () { return PATTERNS; };
 }
 
 /* ── js/lib/site.js ── */
-function __M4__() {
+function __M5__() {
 /* ==========================================================================
    弦脉 · 站点外壳
    --------------------------------------------------------------------------
@@ -2450,7 +2608,7 @@ function mountSlots() {
   });
 }
 
-__ns = __XM[4];
+__ns = __XM[5];
 __ns.mount_NAV = function () { return NAV; };
 __ns.mount_mountShell = function () { return mountShell; };
 __ns.mount_mountSoundButton = function () { return mountSoundButton; };
@@ -2460,15 +2618,15 @@ __ns.mount_mountSlots = function () { return mountSlots; };
 }
 
 /* ── js/lib/chapter.js ── */
-function __M5__() {
+function __M6__() {
 var Renderer = __XM[1]["Renderer"];
-var mountCompanion = __XM[2]["mountCompanion"];
-var DapSequencer = __XM[3]["DapSequencer"];
-var mountShell = __XM[4]["mountShell"];
-var mountChapterNav = __XM[4]["mountChapterNav"];
-var revealOnScroll = __XM[4]["revealOnScroll"];
-var mountSlots = __XM[4]["mountSlots"];
-var mountSoundButton = __XM[4]["mountSoundButton"];
+var mountCompanion = __XM[3]["mountCompanion"];
+var DapSequencer = __XM[4]["DapSequencer"];
+var mountShell = __XM[5]["mountShell"];
+var mountChapterNav = __XM[5]["mountChapterNav"];
+var revealOnScroll = __XM[5]["revealOnScroll"];
+var mountSlots = __XM[5]["mountSlots"];
+var mountSoundButton = __XM[5]["mountSoundButton"];
 
 /* ==========================================================================
    弦脉 · 章节页公共启动
@@ -2644,13 +2802,13 @@ function bootChapter(opts = {}) {
   return { renderer, seq, REDUCED, syncSize };
 }
 
-__ns = __XM[5];
+__ns = __XM[6];
 __ns.mount_bootChapter = function () { return bootChapter; };
 __ns.mount_REDUCED = function () { return REDUCED; };
 }
 
 /* ── js/lib/levels-data.js ── */
-function __M6__() {
+function __M7__() {
 /* ==========================================================================
    弦脉 · 传承之路 · 关卡数据
    --------------------------------------------------------------------------
@@ -2816,7 +2974,7 @@ function levelByKey(key) {
   return LEVELS.find((L) => L.level === key) || null;
 }
 
-__ns = __XM[6];
+__ns = __XM[7];
 __ns.mount_LEVELS = function () { return LEVELS; };
 __ns.mount_playableLevels = function () { return playableLevels; };
 __ns.mount_allLevels = function () { return allLevels; };
@@ -2824,10 +2982,10 @@ __ns.mount_levelByKey = function () { return levelByKey; };
 }
 
 /* ── js/lib/inherit-game.js ── */
-function __M7__() {
-var LEVELS = __XM[6]["LEVELS"];
-var levelByKey = __XM[6]["levelByKey"];
-var playableLevels = __XM[6]["playableLevels"];
+function __M8__() {
+var LEVELS = __XM[7]["LEVELS"];
+var levelByKey = __XM[7]["levelByKey"];
+var playableLevels = __XM[7]["playableLevels"];
 
 /* ==========================================================================
    弦脉 · 传承之路 · 游戏引擎
@@ -3087,17 +3245,17 @@ function levelSummary() {
   return { playable, pending, total: LEVELS.length };
 }
 
-__ns = __XM[7];
+__ns = __XM[8];
 __ns.mount_buildInheritGame = function () { return buildInheritGame; };
 __ns.mount_levelSummary = function () { return levelSummary; };
 }
 
 /* ── js/pages/game.js ── */
-function __M8__() {
-var bootChapter = __XM[5]["bootChapter"];
-var buildInheritGame = __XM[7]["buildInheritGame"];
-var levelByKey = __XM[6]["levelByKey"];
-var playableLevels = __XM[6]["playableLevels"];
+function __M9__() {
+var bootChapter = __XM[6]["bootChapter"];
+var buildInheritGame = __XM[8]["buildInheritGame"];
+var levelByKey = __XM[7]["levelByKey"];
+var playableLevels = __XM[7]["playableLevels"];
 
 /* ==========================================================================
    传承之路 · 页面入口
@@ -3173,65 +3331,74 @@ try {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/renderer.js" + " :: " + (e && e.stack || e));
 }
 
-/* js/lib/companion.js */
+/* js/lib/guide-actor.js */
 try {
   __ns = __XM[2];
   __M2__();
   for (var k in __XM[2]) { if (k.indexOf("mount_") === 0) __XM[2][k.slice(6)] = __XM[2][k](); }
+} catch (e) {
+  (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/guide-actor.js" + " :: " + (e && e.stack || e));
+}
+
+/* js/lib/companion.js */
+try {
+  __ns = __XM[3];
+  __M3__();
+  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/companion.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/sequencer.js */
 try {
-  __ns = __XM[3];
-  __M3__();
-  for (var k in __XM[3]) { if (k.indexOf("mount_") === 0) __XM[3][k.slice(6)] = __XM[3][k](); }
+  __ns = __XM[4];
+  __M4__();
+  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/sequencer.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/site.js */
 try {
-  __ns = __XM[4];
-  __M4__();
-  for (var k in __XM[4]) { if (k.indexOf("mount_") === 0) __XM[4][k.slice(6)] = __XM[4][k](); }
+  __ns = __XM[5];
+  __M5__();
+  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/site.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/chapter.js */
 try {
-  __ns = __XM[5];
-  __M5__();
-  for (var k in __XM[5]) { if (k.indexOf("mount_") === 0) __XM[5][k.slice(6)] = __XM[5][k](); }
+  __ns = __XM[6];
+  __M6__();
+  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/chapter.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/levels-data.js */
 try {
-  __ns = __XM[6];
-  __M6__();
-  for (var k in __XM[6]) { if (k.indexOf("mount_") === 0) __XM[6][k.slice(6)] = __XM[6][k](); }
+  __ns = __XM[7];
+  __M7__();
+  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/levels-data.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/lib/inherit-game.js */
 try {
-  __ns = __XM[7];
-  __M7__();
-  for (var k in __XM[7]) { if (k.indexOf("mount_") === 0) __XM[7][k.slice(6)] = __XM[7][k](); }
+  __ns = __XM[8];
+  __M8__();
+  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/lib/inherit-game.js" + " :: " + (e && e.stack || e));
 }
 
 /* js/pages/game.js */
 try {
-  __ns = __XM[8];
-  __M8__();
-  for (var k in __XM[8]) { if (k.indexOf("mount_") === 0) __XM[8][k.slice(6)] = __XM[8][k](); }
+  __ns = __XM[9];
+  __M9__();
+  for (var k in __XM[9]) { if (k.indexOf("mount_") === 0) __XM[9][k.slice(6)] = __XM[9][k](); }
 } catch (e) {
   (window.__XM_BOOT_ERR__ = window.__XM_BOOT_ERR__ || []).push("js/pages/game.js" + " :: " + (e && e.stack || e));
 }

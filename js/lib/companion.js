@@ -1,8 +1,9 @@
+import { createGuideActor } from './guide-actor.js';
 /* Virtual companions: local, curated chapter conversations. No remote chat service. */
 const CHARACTERS = [
-  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png' },
-  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png' },
-  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png' },
+  { id: 'uyghur', name: '弦歌', culture: '维吾尔族主题', role: '听见旋律的变化', color: '#81b69c', intro: '从一声琴音开始，我陪你听完这一程。', file: 'xiange.png', atlas: 'xiange-motion-v2.png' },
+  { id: 'miao', name: '银铃', culture: '苗族主题', role: '发现音乐里的故事', color: '#a4b7e1', intro: '每一段音乐都有故事，我们一起慢慢发现。', file: 'yinling.png', atlas: 'yinling-motion-v2.png' },
+  { id: 'mongol', name: '青岚', culture: '蒙古族主题', role: '探索声音的联系', color: '#d6af70', intro: '跟着声音往前走，看看不同的音乐如何相遇。', file: 'qinglan.png', atlas: 'qinglan-motion-v2.png' },
 ];
 const KEY = 'xiangmai.guide.v1';
 const AUTO_KEY = 'xiangmai.guide.auto.v1';
@@ -83,6 +84,11 @@ export function mountCompanion({ active }) {
   let shown = false;
   let timer = 0;
   let stateTimer = 0;
+  let actor = null;
+  let arrivalTimer = 0;
+  let arrivalLines = [];
+  let arrivalIndex = -1;
+  let arrivalActive = false;
   let lastHint = -Infinity;
   let lastInteraction = -Infinity;
   const seen = new Set();
@@ -92,7 +98,7 @@ export function mountCompanion({ active }) {
   dock.className = 'guide-dock';
   dock.hidden = !selected;
   dock.dataset.state = 'idle';
-  dock.innerHTML = '<div class="guide-hint" hidden><button class="guide-hint__close" type="button" aria-label="关闭这条提示">×</button><p aria-live="polite"></p><button class="guide-hint__talk" type="button">继续聊聊 ↗</button></div>' +
+  dock.innerHTML = '<div class="guide-hint" hidden><button class="guide-hint__close" type="button" aria-label="关闭这条提示">×</button><span class="guide-hint__eyebrow">同行者的悄悄话</span><p aria-live="polite"></p><div class="guide-hint__steps" hidden><span></span><button type="button" class="guide-hint__next">下一句 →</button></div><button class="guide-hint__talk" type="button">继续聊聊 ↗</button></div>' +
     '<section class="guide-dialog" id="guide-dialog" aria-label="同行者对话" hidden>' +
     '<header><div><span class="guide-dialog__eyebrow">你的同行者</span><h2></h2></div><button class="guide-dialog__close" type="button" aria-label="收起对话">×</button></header>' +
     '<p class="guide-dialog__chapter"></p><p class="guide-dialog__reply" aria-live="polite"></p>' +
@@ -131,12 +137,56 @@ export function mountCompanion({ active }) {
     }
     return TOPICS[active] || TOPICS.bain;
   }
+
+  function chapterLines() {
+    const lines = {
+      qon: ['我们来到穹乃额曼。先不用急着记名称，听它怎样从自由的散板展开。', '这一章的线索是：从舒缓走向明朗，手鼓进入后，音乐开始有了节拍。', '往后还有拉琴体验。你可以直接问我“带我试试拉琴”，亲手感受节奏自由。'],
+      dastan: ['第三章，我们一起走进达斯坦的故事。这里的音乐开始带着叙事往前走。', '留意歌曲与器乐间奏的交替：一段讲述之后，器乐接过情绪，继续推进。', '这一章可以慢慢看场景，也可以点我聊聊“间奏只是休息吗”。'],
+      mashrap: ['来到麦西热甫，轮到我们下场参与了！人物会加入舞圈，鼓点也会逐渐热闹起来。', '先试节奏台：亲手敲一段，看声音与记号怎样一起变化。', '然后一起进入舞圈。打开“跟着鼓点跳”，试着在鼓点上加入。'],
+      lishi: ['这一章换个角度，看看音乐怎样走到今天，又怎样继续传下去。', '沿时间轴读渊源，再看记录、整理与传习，把它们连成一条线。', '读到后面的当代案例时，我们再一起想想：换了场景，音乐的哪些部分还在？'],
+      fulu: ['走到附录，我们可以用轮盘与旋律，重新看一遍前面的结构。', '先选一个轮盘条目，把名称和你刚才听过、玩过的内容连起来。', '八音还连着不同民族的档案。选一个感兴趣的，我们一起继续探索。'],
+      bain: ['这里是八族档案，一张卡片就是一段新的音乐旅程。', '可以按乐器、声音或故事选一个入口；每一页都写了自己的形式和资料来源。', '不用一次读完。选你最感兴趣的一张，我会继续陪你。'],
+    };
+    if (document.body.dataset.ethnic) return ['我们来到'+page().title+'。这一页要先看它自己的地区与音乐形式。', '留意正文介绍的演唱、乐器与传承场景，和前面熟悉的内容有什么不同。', '资料来源在页末。想先抓住重点，可以点我问“这页讲的是什么”。'];
+    if (document.getElementById('inherit-act')) return ['我们进入传承之路的情境体验了。先读眼前的故事，再做自己的选择。', '每一个选择都有反馈。看看你的做法怎样影响这个故事里的传承。', '这里的影像是虚构概念影像。体验结束后，可以再想想真实传承需要怎样的实践。'];
+    return lines[active] || [page().hello, '想知道这一页的重点，可以随时点我。', '我们按自己的节奏慢慢探索。'];
+  }
+  function cancelArrival() {
+    clearTimeout(arrivalTimer);
+    arrivalActive = false;
+    hint.querySelector('.guide-hint__steps').hidden = true;
+  }
+  function nextArrival() {
+    clearTimeout(arrivalTimer);
+    if (!arrivalActive || !selected || !auto || shown) { cancelArrival(); return; }
+    arrivalIndex++;
+    if (arrivalIndex >= arrivalLines.length) { dismissHint(); return; }
+    showHint(arrivalLines[arrivalIndex], true);
+    const steps = hint.querySelector('.guide-hint__steps');
+    steps.hidden = false;
+    steps.querySelector('span').textContent = (arrivalIndex + 1) + ' / ' + arrivalLines.length;
+    steps.querySelector('button').textContent = arrivalIndex === arrivalLines.length - 1 ? '开始探索 ✓' : '下一句 →';
+    const duration = Math.max(6500, Math.min(10000, arrivalLines[arrivalIndex].length * 120 + 2000));
+    arrivalTimer = setTimeout(() => document.hidden ? cancelArrival() : nextArrival(), duration);
+  }
+  function startArrival(chosen = false) {
+    if (!selected || !auto || shown || document.hidden) return;
+    cancelArrival();
+    arrivalLines = chapterLines();
+    if (chosen) arrivalLines[0] = selected.intro + ' ' + arrivalLines[0];
+    arrivalIndex = -1;
+    arrivalActive = true;
+    nextArrival();
+  }
+
   function state(value, ms = 0) {
     clearTimeout(stateTimer);
     dock.dataset.state = value;
-    if (ms) stateTimer = setTimeout(() => { dock.dataset.state = 'idle'; }, ms);
+    actor?.setMode(value);
+    if (ms) stateTimer = setTimeout(() => { dock.dataset.state = 'idle'; actor?.setMode('idle'); }, ms);
   }
   function dismissHint() {
+    cancelArrival();
     clearTimeout(timer);
     hint.hidden = true;
     if (!shown) state('idle');
@@ -145,7 +195,7 @@ export function mountCompanion({ active }) {
     reply.textContent = text;
     destination = target ? document.querySelector(target) : null;
     go.hidden = !destination;
-    state('talking', 2200);
+    state('talking', Math.max(3500, Math.min(11000, text.length * 85)));
   }
   function renderTopics() {
     topics.replaceChildren();
@@ -185,17 +235,20 @@ export function mountCompanion({ active }) {
     if (!force && (performance.now() - lastHint < 25000 || performance.now() - lastInteraction < 12000)) return false;
     hint.querySelector('p').textContent = selected.name + '：' + text;
     hint.hidden = false;
-    state('hint');
+    state(arrivalActive ? 'talking' : 'hint');
     lastHint = performance.now();
     clearTimeout(timer);
-    timer = setTimeout(dismissHint, 12000);
+    if (!arrivalActive) timer = setTimeout(dismissHint, 12000);
     return true;
   }
   function updateCharacter() {
     dock.hidden = !selected;
     if (!selected) return;
     dock.style.setProperty('--guide-color', selected.color);
-    launcher.querySelector('img').src = asset(selected.file);
+    actor?.destroy();
+    const portrait = launcher.querySelector('img');
+    portrait.src = asset(selected.file);
+    actor = createGuideActor({ host: launcher, image: portrait, source: asset(selected.atlas), reduced });
     launcher.querySelector('span').textContent = selected.name + ' · 聊聊';
     launcher.setAttribute('aria-label', '与同行者' + selected.name + '聊聊本章');
     dock.querySelector('.guide-dialog h2').textContent = selected.name;
@@ -213,7 +266,7 @@ export function mountCompanion({ active }) {
     updateCharacter();
     const status = selectionRegion?.querySelector('.guide-selection__status');
     if (status) status.textContent = '已选择' + selected.name + '。后面的章节，我会继续陪你；想聊聊时，点右下角的我。';
-    showHint(selected.intro + ' 想聊聊，随时点我。', true);
+    startArrival(true);
   }
   function showSwitch() {
     closePanel(false);
@@ -233,7 +286,9 @@ export function mountCompanion({ active }) {
     }
     topics.querySelector('button')?.focus();
   }
+  launcher.addEventListener('pointerenter', () => actor?.wave());
   launcher.addEventListener('click', () => shown ? closePanel() : openPanel());
+  dock.querySelector('.guide-hint__next').addEventListener('click', nextArrival);
   dock.querySelector('.guide-dialog__close').addEventListener('click', () => closePanel());
   dock.querySelector('.guide-hint__close').addEventListener('click', () => { dismissHint(); lastInteraction = performance.now(); });
   dock.querySelector('.guide-hint__talk').addEventListener('click', () => openPanel());
@@ -279,7 +334,12 @@ export function mountCompanion({ active }) {
         heroInner.appendChild(link);
       }
       updateCharacter();
+      selectionRegion.querySelectorAll('.guide-card').forEach(button => {
+        const character = CHARACTERS.find(c => c.id === button.dataset.guide);
+        createGuideActor({ host: button.querySelector('.guide-card__stage'), image: button.querySelector('img'), source: asset(character.atlas), reduced, preview: true });
+      });
     }
+    arrivalTimer = setTimeout(() => startArrival(), 1600);
     if ('IntersectionObserver' in window) {
       const observer = new IntersectionObserver(entries => {
         for (const entry of entries) {
@@ -293,7 +353,7 @@ export function mountCompanion({ active }) {
       }
     }
   });
-  const api = { choose, open: openPanel, close: closePanel, state: () => ({ selected: selected?.id || null, auto, open: shown, chapter: page().title, mode: dock.dataset.state }) };
+  const api = { choose, open: openPanel, close: closePanel, actor: () => actor?.state(), state: () => ({ selected: selected?.id || null, auto, open: shown, chapter: page().title, mode: dock.dataset.state, arrival: arrivalActive, arrivalIndex }) };
   window.__XM_GUIDE__ = api;
   return api;
 }
