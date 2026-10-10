@@ -1733,19 +1733,19 @@ function __M5__() {
 const GUIDE_RIGS = {
   qinglan: {
     parts:[[47,129,283,500],[347,125,324,346],[685,132,223,255],[983,313,227,343],[69,690,250,280],[358,879,198,325],[550,663,390,541],[940,699,304,497]],
-    head:{width:130,height:230,neck:[.43,.66],eyes:[.30,.26,.40,.09],mouth:[.41,.39,.19,.065],expressionEyes:[.27,.29,.44,.09],expressionMouth:[.45,.39,.19,.07]},
+    head:{width:130,height:230,neck:[.43,.66],eyes:[.30,.26,.40,.09],mouth:[.385,.36,.24,.12],expressionEyes:[.27,.29,.44,.09]},
     torso:{width:144,height:145},lower:{width:215,height:289},
     upper:{width:55,height:87},forearm:{width:60,height:106},shoulder:64,armY:214,upperPivots:[[.7,.16],[.4,.12]],
   },
   xiange: {
     parts: [[24,110,302,488],[350,154,333,333],[700,96,189,270],[982,294,217,304],[54,666,232,277],[323,871,217,320],[543,628,390,592],[938,690,300,488]],
-    head: { width:126,height:204,neck:[.53,.69],eyes:[.22,.32,.58,.095],mouth:[.41,.466,.20,.065],expressionEyes:[.28,.345,.56,.095],expressionMouth:[.44,.482,.20,.07] },
+    head: { width:126,height:204,neck:[.53,.69],eyes:[.22,.32,.58,.095],mouth:[.417,.455,.232,.098],expressionEyes:[.28,.345,.56,.095] },
     torso: { width:137,height:155 },lower:{ width:228,height:289 },
     upper: { width:53,height:87 },forearm:{ width:59,height:106 },shoulder:56,armY:214,upperPivots:[[.61,.14],[.45,.12]],
   },
   yinling: {
     parts: [[0,120,325,441],[335,147,352,287],[709,117,208,275],[1020,317,189,302],[30,684,238,278],[334,882,198,330],[551,673,400,539],[942,695,305,421]],
-    head: { width:132,height:179,neck:[.48,.975],eyes:[.26,.61,.43,.105],mouth:[.405,.742,.17,.06],expressionEyes:[.28,.61,.45,.105],expressionMouth:[.425,.755,.17,.065] },
+    head: { width:132,height:179,neck:[.48,.975],eyes:[.26,.61,.43,.105],mouth:[.385,.72,.19,.108],expressionEyes:[.28,.61,.45,.105] },
     headClip:[[0,0],[1,0],[1,.43],[.90,.55],[.89,.87],[.80,1],[.15,1],[.02,.55]],
     torso: { width:150,height:151 },lower:{width:221,height:292},
     upper:{width:52,height:87},forearm:{width:59,height:106},shoulder:60,armY:210,upperPivots:[[.51,.12],[.43,.12]],
@@ -1790,6 +1790,23 @@ function createGuideActor({ host, image, source, reduced = false, preview = fals
     ctx.drawImage(sheet,expression[0]+ex*expression[2],expression[1]+ey*expression[3],ew*expression[2],eh*expression[3],(x-pivot[0])*w,(y-pivot[1])*h,rw*w,rh*h);
     ctx.restore();
   }
+  function mouth(amount,w,h,pivot) {
+    if(amount<.015)return;
+    const [x,y,rw,rh]=rig.head.mouth;
+    const face=rig.parts[0];
+    const sx=face[0]+x*face[2],sy=face[1]+y*face[3];
+    const sw=rw*face[2],sh=rh*face[3];
+    const dx=(x-pivot[0])*w,dy=(y-pivot[1])*h,dw=rw*w,dh=rh*h;
+    // Opaque replacement covers the entire original mouth, including its corners.
+    // Deform only the central lip band; surrounding skin fills the same area.
+    const lipHeight=dh*.44*(1+.65*Math.max(0,Math.min(1,amount)));
+    const rim=(dh-lipHeight)/2;
+    ctx.save();ctx.globalAlpha=1;
+    ctx.drawImage(sheet,sx,sy,sw,sh*.28,dx,dy,dw,rim);
+    ctx.drawImage(sheet,sx,sy+sh*.28,sw,sh*.44,dx,dy+rim,dw,lipHeight);
+    ctx.drawImage(sheet,sx,sy+sh*.72,sw,sh*.28,dx,dy+rim+lipHeight,dw,rim);
+    ctx.restore();
+  }
   function render(p) {
     if(!loaded)return;
     ctx.clearRect(0,0,420,630);ctx.save();
@@ -1812,7 +1829,7 @@ function createGuideActor({ host, image, source, reduced = false, preview = fals
     ctx.save();ctx.translate(210,185-rise);ctx.rotate(p.head);
     part(0,0,0,head.width,head.height,head.neck);
     patch(head.eyes,head.expressionEyes,p.blink,head.width,head.height,head.neck);
-    patch(head.mouth,head.expressionMouth,p.mouth,head.width,head.height,head.neck);
+    mouth(p.mouth,head.width,head.height,head.neck);
     ctx.restore();ctx.restore();draws++;
     canvas.dataset.clip=motion.state().clip;canvas.dataset.mode=mode;
   }

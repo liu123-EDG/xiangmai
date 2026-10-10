@@ -28,6 +28,23 @@ export function createGuideActor({ host, image, source, reduced = false, preview
     ctx.drawImage(sheet,expression[0]+ex*expression[2],expression[1]+ey*expression[3],ew*expression[2],eh*expression[3],(x-pivot[0])*w,(y-pivot[1])*h,rw*w,rh*h);
     ctx.restore();
   }
+  function mouth(amount,w,h,pivot) {
+    if(amount<.015)return;
+    const [x,y,rw,rh]=rig.head.mouth;
+    const face=rig.parts[0];
+    const sx=face[0]+x*face[2],sy=face[1]+y*face[3];
+    const sw=rw*face[2],sh=rh*face[3];
+    const dx=(x-pivot[0])*w,dy=(y-pivot[1])*h,dw=rw*w,dh=rh*h;
+    // Opaque replacement covers the entire original mouth, including its corners.
+    // Deform only the central lip band; surrounding skin fills the same area.
+    const lipHeight=dh*.44*(1+.65*Math.max(0,Math.min(1,amount)));
+    const rim=(dh-lipHeight)/2;
+    ctx.save();ctx.globalAlpha=1;
+    ctx.drawImage(sheet,sx,sy,sw,sh*.28,dx,dy,dw,rim);
+    ctx.drawImage(sheet,sx,sy+sh*.28,sw,sh*.44,dx,dy+rim,dw,lipHeight);
+    ctx.drawImage(sheet,sx,sy+sh*.72,sw,sh*.28,dx,dy+rim+lipHeight,dw,rim);
+    ctx.restore();
+  }
   function render(p) {
     if(!loaded)return;
     ctx.clearRect(0,0,420,630);ctx.save();
@@ -50,7 +67,7 @@ export function createGuideActor({ host, image, source, reduced = false, preview
     ctx.save();ctx.translate(210,185-rise);ctx.rotate(p.head);
     part(0,0,0,head.width,head.height,head.neck);
     patch(head.eyes,head.expressionEyes,p.blink,head.width,head.height,head.neck);
-    patch(head.mouth,head.expressionMouth,p.mouth,head.width,head.height,head.neck);
+    mouth(p.mouth,head.width,head.height,head.neck);
     ctx.restore();ctx.restore();draws++;
     canvas.dataset.clip=motion.state().clip;canvas.dataset.mode=mode;
   }

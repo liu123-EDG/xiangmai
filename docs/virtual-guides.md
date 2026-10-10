@@ -83,3 +83,6 @@ The head's ornament must not touch the cell edge. Preserve natural human anatomy
 - node tools/guide-motion-test.mjs：动作与中断期间逐帧角度变化、招手回到待机、表情值范围、减弱动效和图集采样边界。
 - node tools/companion-test.mjs：实际浏览器中的连续手势、嘴部变化、章节介绍、跨页记忆、手机、后台暂停恢复、file:// 与存储降级。
 - shots/guide-continuous-v3.webm：实际网页绘制的三人连续动作录制。
+## 嘴部定位修正
+
+嘴部改用同一张原脸上的嘴进行连续局部形变，整块区域不透明覆盖；开合不再通过另一张表情脸的半透明嘴片叠加。三个角色分别扩大并校正嘴部采样范围，覆盖完整嘴角；已放大查看实际说话画面，确认无双嘴和脸部轮廓串入。
