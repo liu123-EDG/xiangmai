@@ -542,6 +542,38 @@ export class DapSequencer {  /**
     }
   }
 
+  /* --------------------------------------------------- 现在踩在哪一拍上
+     给「跟着鼓点跳」那个开关用（指导老师：要沉浸式的交互）。
+     判断一次点击准不准，就得知道"现在离最近的拍有多远" ——
+     这只有音频时钟知道，页面自己算不出来。
+
+     **为什么用 nextT 反推，而不是另记一个"当前拍"变量**：
+     _tick() 是提前排的（LOOKAHEAD 秒之前就把鼓点排进音频时间轴），
+     所以"刚排的那一拍"在未来，不是"现在"。
+     nextT 是**下一个要排的时刻**；从它往回退，才能还原出此刻在第几拍。
+     这样对出来的拍和耳朵听到的鼓是同一个时钟。 */
+  phase() {
+    if (!this.ctx || !this.ready) return null;
+    const pat = PATTERNS[this.band];
+    if (!pat) return null;
+    const phrase = pat.phrases[this.phrase];
+    if (!phrase) return null;
+    const spb = 60 / pat.bpm / phrase.div;
+    const ahead = this.nextT - this.ctx.currentTime;
+    const beatFloat = this.step - ahead / spb;
+    /* 归一化到 [0,1)：0 = 正落在拍上 */
+    return ((beatFloat % 1) + 1) % 1;
+  }
+
+  /** 一拍多长（毫秒）。给"容差多少毫秒算踩上"用 */
+  beatMs() {
+    const pat = PATTERNS[this.band];
+    if (!pat) return null;
+    const phrase = pat.phrases[this.phrase];
+    if (!phrase) return null;
+    return 60000 / pat.bpm / phrase.div;
+  }
+
   /* ------------------------------------------------------------ 敲一下
      给「用户自己打」用的（指导老师：只是简单的点击 → 沉浸式的体验）。
      原来只有内部 _hit 那一套，外面没法让手鼓**立刻**响一声 ——

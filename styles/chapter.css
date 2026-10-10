@@ -1597,6 +1597,84 @@ body.is-cut .mq__floor {
   .chapter-nav .cbtn--next { align-items: flex-start; text-align: left; }
 }
 
+/* --------------------------------------------------------------------------
+   「跟着鼓点跳」开关（第四章圆圈下面）
+   --------------------------------------------------------------------------
+   默认关。理由：这一页正文写着「谁想跳谁下场，没有报名，没有顺序，
+   也不评比谁跳得好」—— 做成必须踩拍就是偷偷加回评比。
+   所以它是个**开关**：想看热闹的人随便点，想体会节奏的人自己开。
+   -------------------------------------------------------------------------- */
+.mq-mode {
+  margin-top: clamp(0.9rem, 2.4vh, 1.4rem);
+  text-align: center;
+}
+.mq-mode__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 48px;                /* 和站里其他按钮一个尺度 */
+  padding: 0.7rem 1.3rem;
+  border: 1px solid rgba(221, 213, 199, 0.24);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--bone-dim);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color .35s var(--ease-slow), background .35s var(--ease-slow),
+              color .35s var(--ease-slow);
+}
+.mq-mode__btn:hover, .mq-mode__btn:focus-visible {
+  border-color: rgba(232, 201, 143, 0.5);
+  color: var(--bone);
+  outline: none;
+}
+.mq-mode__btn:focus-visible { box-shadow: 0 0 0 2px rgba(232, 201, 143, 0.45); }
+/* 小圆点：关着是空心，开着填成琥珀色 —— 一眼看出状态 */
+.mq-mode__dot {
+  width: 9px; height: 9px;
+  border: 1px solid rgba(221, 213, 199, 0.5);
+  border-radius: 50%;
+  transition: background .3s var(--ease-slow), border-color .3s var(--ease-slow);
+}
+.mq-mode.is-on .mq-mode__btn {
+  border-color: var(--amber);
+  background: rgba(192, 138, 62, 0.16);
+  color: #f0d9ae;
+}
+.mq-mode.is-on .mq-mode__dot { background: var(--amber); border-color: var(--amber); }
+.mq-mode__hint {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  color: rgba(222, 214, 200, 0.42);
+}
+.mq-mode.is-on .mq-mode__hint { color: rgba(240, 217, 174, 0.72); }
+
+/* 判定反馈：一声脆响 / 一声闷响，配一行字 */
+.mq-mode__judge {
+  margin: 0.6rem 0 0;
+  min-height: 1.4em;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: rgba(222, 214, 200, 0.6);
+  opacity: 0;
+  transition: opacity .2s var(--ease-slow);
+}
+.mq-mode__judge.is-on { opacity: 1; }
+.mq-mode__judge.is-good { color: rgba(158, 208, 176, 0.95); }
+
+/* 踩偏时圆圈抖一下 —— 不进人，但让人知道"刚才没踩上" */
+.mq.is-miss { animation: mqMiss .34s var(--ease-slow); }
+@keyframes mqMiss {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  70%      { transform: translateX(4px); }
+}
+/* 开着节奏模式时，中心读数换成踩拍提示（sync() 里改文案） */
+.mq.is-rhythm .mq__cap { fill: var(--amber); }
+
 /* 后续内容的位置提示：给"待插入"的分页面用 */
 .pending {
   margin: 1.6rem 0 0;

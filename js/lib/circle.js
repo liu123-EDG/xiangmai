@@ -295,19 +295,84 @@ export function buildCircle(opts) {
     });
   };
 
+  /* --------------------------------------------------------------------
+     「跟着鼓点跳」——一个**可开关**的模式
+     --------------------------------------------------------------------
+     指导老师要沉浸式的交互。落点准不准是个自然的强交互：
+     进圈要踩在鼓点上，才谈得上"跟着跳"。
+
+     但**默认关着**，而且理由要写清楚：
+     这一页的正文说「谁想跳谁下场，没有报名，没有顺序，也不评比谁跳得好」。
+     把它做成必须踩拍，等于**把评比偷偷加回来了** —— 和正文自相矛盾。
+     所以：想看热闹的人随便点，想体会节奏的人自己开。
+
+     容差取一拍的 26%（约 ±100ms @ 120bpm）：
+     太严会变成音游（那不是这一页要讲的事），太松就感觉不到"踩上了"。
+     判准了给一声脆响（snap），踩偏了给一声闷的（mute）——
+     用声音告诉人，不用弹框打分。
+     -------------------------------------------------------------------- */
+  let rhythmOn = false;
+  /* 容差：一拍的 26%。120bpm 下一拍 500ms，也就是 ±130ms ——
+     比"手感准不准"宽，比"随便点"严。 */
+  const TOL = 0.26;
+
+  /** 现在离最近的拍有多远（0 = 正落在拍上，0.5 = 正好在两拍中间） */
+  const offBeat = () => {
+    if (!opts.beatPhase) return 0;
+    const p = opts.beatPhase();
+    if (p === null || p === undefined) return 0;
+    return Math.min(p, 1 - p);      // 折到 0..0.5
+  };
+
+  /** 这一下踩上了没有 */
+  const onBeat = () => {
+    const p = opts.beatPhase ? opts.beatPhase() : null;
+    if (p === null || p === undefined) return null;   // 鼓还没起，不判
+    return Math.min(p, 1 - p) <= TOL;
+  };
+
   const sync = () => {
     num.textContent = String(count);
-    cap.textContent = count === 0 ? '点一下，进圈'
-      : count >= MAX ? '圈满了' : '再点一下';
+    /* 提示语跟着模式走 —— 开着节奏模式时要告诉人"踩拍"，
+       不然用户不知道自己为什么点不进去（那会变成困惑，不是难度）。 */
+    if (rhythmOn) {
+      cap.textContent = count === 0 ? '踩在鼓点上，进圈'
+        : count >= MAX ? '圈满了' : '再踩一拍';
+    } else {
+      cap.textContent = count === 0 ? '点一下，进圈'
+        : count >= MAX ? '圈满了' : '再点一下';
+    }
     svg.style.setProperty('--mq-heat', (count / MAX).toFixed(3));
     if (opts.onChange) opts.onChange(count, MAX);
   };
 
-  hit.addEventListener('click', () => { if (!add()) reset(); });
+  /* 点一下。**节奏模式下要踩在拍上才进人。**
+     踩偏了不算失败 —— 给一声闷响、圈里不进人，用户自然再试。
+     不弹提示、不扣分：这一页的正文写着"不评比谁跳得好"。 */
+  const attempt = () => {
+    if (!rhythmOn) return add();
+    const okBeat = onBeat();
+    if (okBeat === null) return add();      // 鼓还没起（比如声音关着）→ 放行
+    if (okBeat) {
+      if (opts.onHit) opts.onHit('on');
+      return add();
+    }
+    if (opts.onHit) opts.onHit('off', offBeat());
+    /* 踩偏：圈子抖一下，但不进人 */
+    if (!opts.reduced) {
+      svg.classList.remove('is-miss');
+      void svg.getBoundingClientRect();
+      svg.classList.add('is-miss');
+      setTimeout(() => svg.classList.remove('is-miss'), 340);
+    }
+    return false;
+  };
+
+  hit.addEventListener('click', () => { if (!attempt()) { /* 满了才 reset */ if (count >= MAX) reset(); } });
   hit.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (!add()) reset();
+      if (!attempt() && count >= MAX) reset();
     }
   });
 
@@ -361,11 +426,77 @@ export function buildCircle(opts) {
 
   sync();
 
+  /* --------------------------------------------------------------------
+     开关：放在圆圈下面，**默认关**
+     --------------------------------------------------------------------
+     指导老师要沉浸式交互，落点准不准是个自然的强交互。
+     但这一页的正文写着「谁想跳谁下场，没有报名，没有顺序，也不评比谁跳得好」——
+     做成必须踩拍，等于**把评比偷偷加回来了**，和正文自相矛盾。
+     所以：想看热闹的人随便点，想体会节奏的人自己开。
+     -------------------------------------------------------------------- */
+  const modeBox = document.createElement('div');
+  modeBox.className = 'mq-mode';
+  const modeBtn = document.createElement('button');
+  modeBtn.type = 'button';
+  modeBtn.className = 'mq-mode__btn';
+  modeBtn.setAttribute('aria-pressed', 'false');
+  modeBtn.innerHTML = '<span class="mq-mode__dot" aria-hidden="true"></span>' +
+    '<span class="mq-mode__label">跟着鼓点跳</span>' +
+    '<span class="mq-mode__hint">踩在拍上才进人</span>';
+  modeBox.appendChild(modeBtn);
+  /* 判定反馈：一声脆响 / 一声闷响。用声音说话，不弹框打分。 */
+  const judge = document.createElement('p');
+  judge.className = 'mq-mode__judge';
+  judge.setAttribute('aria-live', 'polite');
+  modeBox.appendChild(judge);
+  /* 挂在 host 里（svg 下面）。
+     `.mq-host` 没有 pointer-events: none（那是 .drum-host 才有），
+     所以这个开关是能点的。 */
+  host.appendChild(modeBox);
+
+  let lastJudgeAt = 0;
+  function say(text, good) {
+    const now = performance.now();
+    if (now - lastJudgeAt < 260) return;    // 别刷屏
+    lastJudgeAt = now;
+    judge.textContent = text;
+    judge.classList.toggle('is-good', !!good);
+    judge.classList.add('is-on');
+    setTimeout(() => {
+      judge.classList.remove('is-on');
+      judge.classList.remove('is-good');
+    }, 700);
+  }
+
+  modeBtn.addEventListener('click', () => {
+    rhythmOn = !rhythmOn;
+    modeBtn.setAttribute('aria-pressed', rhythmOn ? 'true' : 'false');
+    modeBox.classList.toggle('is-on', rhythmOn);
+    svg.classList.toggle('is-rhythm', rhythmOn);
+    sync();
+    if (rhythmOn) say('开着呢 —— 踩在鼓点上点', true);
+    else say('关了 —— 随便点');
+  });
+
   return {
     add, reset,
     celebrate: startBurst,
     get count() { return count; },
     get max() { return MAX; },
+    /** 开关节奏模式（页面和自检都能用） */
+    setRhythm: (v) => { if (!!v !== rhythmOn) modeBtn.click(); },
+    /** 自检用：走完整判定路径尝试进一个人 */
+    attempt,
+    state: () => ({
+      count, max: MAX,
+      rhythm: rhythmOn,
+      /* 这一下踩没踩上 */
+      onBeat: onBeat(),
+      offBeat: +offBeat().toFixed(3),
+      tol: TOL,
+      cap: cap.textContent,
+      judge: judge.textContent,
+    }),
     destroy() { if (raf) cancelAnimationFrame(raf); },
   };
 }

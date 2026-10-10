@@ -115,6 +115,16 @@ function pageCut() {
 const circle = buildCircle({
   host,
   reduced: ctx.REDUCED,
+  /* 「跟着鼓点跳」模式要用它判断"现在离最近的拍有多远"。
+     这个数只有音频时钟知道，页面自己算不出来（见 sequencer.phase 的注释）。 */
+  beatPhase: () => (ctx.seq ? ctx.seq.phase() : null),
+  /* 踩上 / 踩偏各给一声：用声音告诉人，不弹框打分。
+     踩上用 snap（脆），踩偏用 mute（闷）。 */
+  onHit: (kind) => {
+    if (!ctx.seq) return;
+    if (kind === 'on') ctx.seq.hit('snap');
+    else ctx.seq.hit('mute');
+  },
   // 满圈：砸一声，把"人散了鼓还在耳朵里"那个结尾感做出来
   onFull: () => {
       if (ctx.seq) {
