@@ -125,6 +125,26 @@ try {
     const wantLinks = (item.sources || []).filter(([, u]) => u).length;
 
     const problems = [];
+
+    /* 资料配图：**验图真的显示出来了**，不是只验 DOM 里有 <img>。
+       要 complete && naturalWidth > 0 —— 文件 404 或解码失败时是 0。
+       （上一次"改了但没生效"就是只验了类名，这次验渲染结果。） */
+    const figs = JSON.parse(await evalJs(`(() => {
+      const imgs = [...document.querySelectorAll('.h-fig img')];
+      return JSON.stringify({
+        n: imgs.length,
+        loaded: imgs.filter(function (im) {
+          return im.complete && im.naturalWidth > 0; }).length,
+        broken: imgs.filter(function (im) {
+          return im.complete && im.naturalWidth === 0; })
+          .map(function (im) { return im.getAttribute('src'); }),
+      });
+    })()`));
+    if (figs.n && figs.loaded !== figs.n) {
+      problems.push('配图 ' + figs.n + ' 张只加载出 ' + figs.loaded + ' 张：' +
+        figs.broken.slice(0, 2).join('，'));
+    }
+    if (figs.broken.length) problems.push('有破图 ' + figs.broken.length + ' 张');
     if (!r.title) problems.push('标题是空的');
     else if (r.title !== item.name) problems.push('标题不对：' + r.title);
     /* **内容判据** */

@@ -230,6 +230,38 @@
 }
 .h-out { margin-left: 0.35em; font-size: 0.8em; color: var(--eh-accent); opacity: 0.75; }
 
+/* 资料配图：一行两张，窄屏一张。
+   **不做花哨的处理** —— 这一节是佐证材料，图本身该是主角。 */
+.h-figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: clamp(0.6rem, 1.6vw, 1rem);
+  margin-bottom: 0.9rem;
+}
+.h-fig {
+  margin: 0;
+  border: 1px solid rgba(222, 214, 200, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(12, 11, 10, 0.6);
+}
+.h-fig img {
+  display: block;
+  width: 100%;
+  height: clamp(11rem, 26vh, 15rem);
+  object-fit: cover;              /* 统一高度，版面不因原图比例乱掉 */
+  transition: transform .6s var(--ease-slow);
+}
+.h-fig:hover img { transform: scale(1.03); }
+.h-fig figcaption {
+  padding: 0.5rem 0.7rem;
+  border-top: 1px solid rgba(222, 214, 200, 0.08);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: rgba(222, 214, 200, 0.5);
+}
+
 /* 「读之前先知道」：资料里指出的口径问题。
    放在正文之前，用左侧族色竖条 + 轻微底色，但不做成警告框 ——
    它不是错误提示，是阅读前提。 */

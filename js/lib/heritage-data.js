@@ -220,3 +220,40 @@ export function heritageById(id) {
 export function collectedHeritage() {
   return HERITAGE.filter((h) => h.collected);
 }
+
+/* --------------------------------------------------------------------------
+   资料配图
+   --------------------------------------------------------------------------
+   来源：作者提供的民族资料 docx 里**自带的插图**
+   （tools/docx-images.mjs 抽出，tools/wire-docx-images.mjs 接进来）。
+   所以它没有版权问题 —— 是作者素材的一部分，不是从网上抓的。
+
+   **图上拍的是什么，这里不做断言。** 文件名 image1/2/3 就是文档里的原顺序，
+   它对应哪一段文字只有作者知道。所以页面上统一写成「资料配图」+ 来源，
+   不编内容说明。
+
+   只有明确对得上单一民族的文档才接。那份混了多族的《少数民族文化》
+   （里面有唐卡、侗族大歌、苗族银饰……）**先不接** ——
+   硬塞给某一个民族就是错的。
+   -------------------------------------------------------------------------- */
+const DOC_IMAGES = {
+  'zhuang-tianqin': 4,
+  'mongol-morinhuur': 3,
+  'manchu-xinchengxi': 3,
+  'miao-guge': 3,
+  'yi-shan-ge': 3,
+  'dai-zhangha': 4,
+};
+
+/** 取某一族有哪些资料配图 */
+export function heritageImages(id) {
+  const n = DOC_IMAGES[id] || 0;
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    out.push({
+      src: '../../assets/img/heritage/' + id + '/doc-' + i + '.webp',
+      caption: '资料配图',
+    });
+  }
+  return out;
+}

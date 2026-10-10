@@ -12,11 +12,12 @@
    **八个风格的落法**：用每族自己的色相 --eh 驱动整页的强调色 ——
    标题下划线、字段标签、正文里的小标记、页脚线条，全部跟着走。
    壮族偏金、傣族偏孔雀青、苗族偏朱、蒙古族偏草绿……同一套骨架，八种气质。
-
    两条纪律（同「参考来源」那一节）：
      ① 正文只写 heritage-data.js 里有的，这里不做任何补充。
      ② 未收录的那两族**明说未收录**，并且不用相近内容凑数。
    ========================================================================== */
+
+import { heritageImages } from './heritage-data.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
 
@@ -60,6 +61,16 @@ export function buildHeritagePage(opts) {
   ].filter(([, v]) => v);
 
   const bodyHtml = (item.body || []).map((p) => '<p class="h-p">' + rich(p) + '</p>').join('');
+
+  /* 资料配图。来源是作者提供的 docx 里自带的插图（见 heritage-data.js），
+     图注统一「资料配图」—— 图上拍的是什么只有作者知道，编图注就是替资料说话。 */
+  const imgs = heritageImages(item.id);
+  const imagesHtml = imgs.map((im) =>
+    '<figure class="h-fig">' +
+      '<img src="' + esc(im.src) + '" alt="' + esc(item.group + ' ' + item.name + ' 资料配图') +
+        '" loading="lazy" decoding="async">' +
+      '<figcaption>' + esc(im.caption) + '</figcaption>' +
+    '</figure>').join('');
 
   /* 资料里明确指出的口径问题。
      单独一块、放在正文之前 —— 读者按错的口径去理解，
@@ -133,6 +144,17 @@ export function buildHeritagePage(opts) {
       '<h2 class="h-h2">它是什么</h2>' +
       bodyHtml +
     '</section>' +
+
+    /* 资料配图。**放在正文之后** —— 它是佐证，不是开场。
+       图注统一「资料配图」：图上拍的是什么只有作者知道，
+       编一句图注就等于替资料说话（这一站的规矩是不编）。 */
+    (imagesHtml
+      ? '<section class="h-block">' +
+          '<h2 class="h-h2">资料配图</h2>' +
+          '<div class="h-figs">' + imagesHtml + '</div>' +
+          '<p class="h-fine">以上图片取自作者提供的民族资料文档，随该文档一并收录。</p>' +
+        '</section>'
+      : '') +
 
     '<section class="h-block">' +
       '<h2 class="h-h2">来源</h2>' +

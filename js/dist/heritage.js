@@ -6,7 +6,7 @@
      js/lib/site.js  → NAV, mountShell, mountSoundButton, mountChapterNav, revealOnScroll, mountSlots
      js/lib/chapter.js  → bootChapter, REDUCED
      js/lib/theme.js  → createTheme, autoPlayOnGesture, unlock
-     js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage
+     js/lib/heritage-data.js  → HERITAGE, heritageHref, heritageById, collectedHeritage, heritageImages
      js/lib/heritage-page.js  → buildHeritagePage
      js/pages/heritage.js
 */
@@ -3127,15 +3127,55 @@ function collectedHeritage() {
   return HERITAGE.filter((h) => h.collected);
 }
 
+/* --------------------------------------------------------------------------
+   资料配图
+   --------------------------------------------------------------------------
+   来源：作者提供的民族资料 docx 里**自带的插图**
+   （tools/docx-images.mjs 抽出，tools/wire-docx-images.mjs 接进来）。
+   所以它没有版权问题 —— 是作者素材的一部分，不是从网上抓的。
+
+   **图上拍的是什么，这里不做断言。** 文件名 image1/2/3 就是文档里的原顺序，
+   它对应哪一段文字只有作者知道。所以页面上统一写成「资料配图」+ 来源，
+   不编内容说明。
+
+   只有明确对得上单一民族的文档才接。那份混了多族的《少数民族文化》
+   （里面有唐卡、侗族大歌、苗族银饰……）**先不接** ——
+   硬塞给某一个民族就是错的。
+   -------------------------------------------------------------------------- */
+const DOC_IMAGES = {
+  'zhuang-tianqin': 4,
+  'mongol-morinhuur': 3,
+  'manchu-xinchengxi': 3,
+  'miao-guge': 3,
+  'yi-shan-ge': 3,
+  'dai-zhangha': 4,
+};
+
+/** 取某一族有哪些资料配图 */
+function heritageImages(id) {
+  const n = DOC_IMAGES[id] || 0;
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    out.push({
+      src: '../../assets/img/heritage/' + id + '/doc-' + i + '.webp',
+      caption: '资料配图',
+    });
+  }
+  return out;
+}
+
 __ns = __XM[6];
 __ns.mount_HERITAGE = function () { return HERITAGE; };
 __ns.mount_heritageHref = function () { return heritageHref; };
 __ns.mount_heritageById = function () { return heritageById; };
 __ns.mount_collectedHeritage = function () { return collectedHeritage; };
+__ns.mount_heritageImages = function () { return heritageImages; };
 }
 
 /* ── js/lib/heritage-page.js ── */
 function __M7__() {
+var heritageImages = __XM[6]["heritageImages"];
+
 /* ==========================================================================
    弦脉 · 民族分页的渲染
    --------------------------------------------------------------------------
@@ -3150,11 +3190,12 @@ function __M7__() {
    **八个风格的落法**：用每族自己的色相 --eh 驱动整页的强调色 ——
    标题下划线、字段标签、正文里的小标记、页脚线条，全部跟着走。
    壮族偏金、傣族偏孔雀青、苗族偏朱、蒙古族偏草绿……同一套骨架，八种气质。
-
    两条纪律（同「参考来源」那一节）：
      ① 正文只写 heritage-data.js 里有的，这里不做任何补充。
      ② 未收录的那两族**明说未收录**，并且不用相近内容凑数。
    ========================================================================== */
+
+
 
 const $ = (s, r) => (r || document).querySelector(s);
 
@@ -3198,6 +3239,16 @@ function buildHeritagePage(opts) {
   ].filter(([, v]) => v);
 
   const bodyHtml = (item.body || []).map((p) => '<p class="h-p">' + rich(p) + '</p>').join('');
+
+  /* 资料配图。来源是作者提供的 docx 里自带的插图（见 heritage-data.js），
+     图注统一「资料配图」—— 图上拍的是什么只有作者知道，编图注就是替资料说话。 */
+  const imgs = heritageImages(item.id);
+  const imagesHtml = imgs.map((im) =>
+    '<figure class="h-fig">' +
+      '<img src="' + esc(im.src) + '" alt="' + esc(item.group + ' ' + item.name + ' 资料配图') +
+        '" loading="lazy" decoding="async">' +
+      '<figcaption>' + esc(im.caption) + '</figcaption>' +
+    '</figure>').join('');
 
   /* 资料里明确指出的口径问题。
      单独一块、放在正文之前 —— 读者按错的口径去理解，
@@ -3271,6 +3322,17 @@ function buildHeritagePage(opts) {
       '<h2 class="h-h2">它是什么</h2>' +
       bodyHtml +
     '</section>' +
+
+    /* 资料配图。**放在正文之后** —— 它是佐证，不是开场。
+       图注统一「资料配图」：图上拍的是什么只有作者知道，
+       编一句图注就等于替资料说话（这一站的规矩是不编）。 */
+    (imagesHtml
+      ? '<section class="h-block">' +
+          '<h2 class="h-h2">资料配图</h2>' +
+          '<div class="h-figs">' + imagesHtml + '</div>' +
+          '<p class="h-fine">以上图片取自作者提供的民族资料文档，随该文档一并收录。</p>' +
+        '</section>'
+      : '') +
 
     '<section class="h-block">' +
       '<h2 class="h-h2">来源</h2>' +

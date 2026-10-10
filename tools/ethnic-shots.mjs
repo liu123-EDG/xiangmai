@@ -56,7 +56,7 @@ try {
 
   await send('Page.enable'); await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride',
-    { width: 1440, height: 1500, deviceScaleFactor: 1, mobile: false });
+    { width: 1280, height: 2200, deviceScaleFactor: 1, mobile: false });
 
   /* --hub：拍八音总页面（而不是某一族的档案页） */
   if (process.argv.includes('--hub')) {
