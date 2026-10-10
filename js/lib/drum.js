@@ -299,10 +299,31 @@ export function buildDrum(opts = {}) {
   svg.style.cursor = 'pointer';
   svg.setAttribute('role', 'button');
   svg.setAttribute('tabindex', '0');
-  svg.setAttribute('aria-label', '手鼓：点一下或按回车敲一声');
+  svg.setAttribute('aria-label', '手鼓：点一下，或按空格 / 回车敲一声');
   svg.addEventListener('pointerdown', (e) => { e.preventDefault(); userStrike(); });
   svg.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); userStrike(); }
+  });
+
+  /* **空格在整页都能敲。**
+     原来只有"焦点正好在鼓上"时才响 —— 用户点了别的地方（比如声音开关、
+     三个情绪词），焦点跑了，再按空格就没反应，而且看不出原因。
+     节奏台（rhythm-lab.js）也踩过同一个坑，用户在第四章报了"按空格没反应"。
+     两处都改成"全页响应"，行为才一致 —— 这一站的约定是**空格 = 敲鼓**。
+
+     让路的只有真正的输入控件：在 input / textarea / 可编辑区里，空格是打字。
+     鼓上已经有一条 keydown 会处理，所以焦点在鼓上时这里跳过，免得敲两下。 */
+  const TYPE_INPUTS = ['INPUT', 'TEXTAREA', 'SELECT'];
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    const t = e.target;
+    const tag = (t && t.tagName) || '';
+    if (TYPE_INPUTS.indexOf(tag) >= 0) return;
+    if (t && t.isContentEditable) return;
+    /* 焦点已经在鼓上：交给上面那条处理，别重复 */
+    if (t === svg || svg.contains(t)) return;
+    if (!userStrike()) return;      // section < 0（还没到任何一段）不拦空格
+    e.preventDefault();
   });
 
   return {

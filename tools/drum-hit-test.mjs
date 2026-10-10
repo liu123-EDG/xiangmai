@@ -182,6 +182,21 @@ try {
   if (k1 > k0) ok('按回车也能敲（' + k0 + ' → ' + k1 + '）');
   else bad('键盘敲不了（' + k0 + ' → ' + k1 + '）');
 
+  /* ---- ④b 焦点跑了之后，空格还敲得响吗 ----
+     （用户在第四章报过"按空格没反应"，根因就是焦点被按钮吃掉。
+       序章原本也是同样的写法：keydown 只挂在鼓自己身上，
+       点了别处焦点一跑，空格就失效。这里一并验。） */
+  await evalJs(`document.getElementById('sound-toggle').focus()`);
+  const focusAt = await evalJs(`document.activeElement.id || document.activeElement.tagName`);
+  const f0 = await evalJs(`window.__XM_DRUM__.state().userHits`);
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', windowsVirtualKeyCode: 32, code: 'Space', key: ' ' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 32, code: 'Space', key: ' ' });
+  await sleep(320);
+  const f1 = await evalJs(`window.__XM_DRUM__.state().userHits`);
+  if (f1 > f0) {
+    ok('焦点跑到「' + focusAt + '」上，空格照样敲得响（' + f0 + ' → ' + f1 + '）');
+  } else bad('焦点一跑空格就失效（焦点在 ' + focusAt + '，' + f0 + ' → ' + f1 + '）');
+
   /* ---- ⑤ 无可访问性退化：有 role / label ---- */
   const a11y = JSON.parse(await evalJs(`(() => {
     const s = document.querySelector('.drum');

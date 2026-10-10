@@ -76,6 +76,26 @@
 }
 .rlab.is-playing .rlab__playhead { opacity: 1; }
 
+/* --------------------------------------------------------------------------
+   命中区提示：鼠标在图上动，最近的那条轨道亮起来
+   --------------------------------------------------------------------------
+   加这个是因为用户反馈"萨帕依我点是点不出来的"。
+   用真实鼠标事件测过：三条轨道都点得到（咚 / 沙 / 哒 都对）。
+   所以问题不是命中，是**看不出来能点** ——
+   三条轨道平时一模一样，用户不知道该点哪儿、也不知道会出什么声。
+   -------------------------------------------------------------------------- */
+.rlab__svg.is-hovering .rlab__m { opacity: 0.34; transition: opacity .18s linear; }
+.rlab.is-hover-dum .rlab__m--dum,
+.rlab.is-hover-sap .rlab__m--sap,
+.rlab.is-hover-tek .rlab__m--tek {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(246, 227, 184, 0.75));
+}
+/* 对应的轨道名也亮一点，让"这一条能被点"更明确 */
+.rlab.is-hover-dum .rlab__lane:nth-of-type(1),
+.rlab.is-hover-sap .rlab__lane:nth-of-type(3),
+.rlab.is-hover-tek .rlab__lane:nth-of-type(5) { fill: var(--amber); }
+
 /* 切断的那一下：整块闪一下暗，标记"停" */
 .rlab.is-cut .rlab__stage {
   background: rgba(6, 5, 4, 0.94);

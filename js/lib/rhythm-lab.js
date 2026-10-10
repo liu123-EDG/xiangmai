@@ -551,17 +551,57 @@ export function buildRhythmLab(host, opts = {}) {
   }
 
   /* 在轨道上点/拖：pointerdown 之后按住不放会连续敲，
-     这比"一下一下点"更像真在打鼓。 */
+     这比"一下一下点"更像真在打鼓。
+
+     **加了悬停预览**（用户反馈"萨帕依我点是点不出来的"）：
+     命中测试是通的，问题是**看不出来能点** ——
+     三条轨道没有任何反馈，用户不知道该点哪儿、也不知道会出什么声。
+     所以现在鼠标在图上动，最近的那条轨道就亮起来，
+     并在提示行里写明"点这里出「沙」"。 */
   let heldTimer = 0;
+  let hoverLane = null;
+  /* 正在按住敲的状态。拖动中不换悬停预览 —— 那时候手在打鼓，
+     提示行不该跟着鼠标乱跳。 */
+  let dragging = false;
   function fracOf(ev) {
     const r = svg.getBoundingClientRect();
     const px = (ev.clientX - r.left) / r.width * 640;
     return Math.min(1, Math.max(0, (px - PAD) / (640 - PAD * 2)));
   }
+
+  const LANE_SAY = { dum: '咚（手鼓）', sapayi: '沙（萨帕依·铁环）', tek: '哒（铁环）' };
+
+  function previewAt(ev) {
+    const kind = laneOfX(fracOf(ev));
+    if (kind === hoverLane) return;
+    hoverLane = kind;
+    wrap.className = wrap.className.replace(/\s*is-hover-\S+/g, '');
+    wrap.classList.add('is-hover-' + kind);
+    svg.classList.add('is-hovering');
+    cue.textContent = '点这里出「' + LANE_SAY[kind] + '」';
+  }
+
+  function clearPreview() {
+    hoverLane = null;
+    wrap.className = wrap.className.replace(/\s*is-hover-\S+/g, '');
+    svg.classList.remove('is-hovering');
+    cue.textContent = mode === 'manual'
+      ? '在轨道上敲，或按空格 / F / J。每一下都出声。'
+      : STAGES[stage].hint;
+  }
+
+  svg.addEventListener('pointermove', (ev) => {
+    if (mode !== 'manual') return;
+    /* 拖动中不换预览（那时已经在打了） */
+    if (!dragging) previewAt(ev);
+  });
+  svg.addEventListener('pointerleave', () => { if (!dragging) clearPreview(); });
+
   svg.addEventListener('pointerdown', (ev) => {
     if (mode !== 'manual') return;
     ev.preventDefault();
     svg.setPointerCapture && svg.setPointerCapture(ev.pointerId);
+    dragging = true;
     const f = fracOf(ev);
     strike(f, 'pointer');
     /* 按住 = 连打。节奏 190ms 一下，接近手鼓的连击。 */
@@ -574,6 +614,7 @@ export function buildRhythmLab(host, opts = {}) {
       strike(last, 'pointer');
     }, 190);
     const up = () => {
+      dragging = false;
       clearInterval(heldTimer);
       svg.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
@@ -584,12 +625,31 @@ export function buildRhythmLab(host, opts = {}) {
   });
 
   /* 键盘：空格 / F / J。三个键都给，因为左右手都可能有习惯。
-     位置按经验分：F 靠左（手鼓）、J 靠右（铁环）、空格中间（萨帕依）。 */
+     位置按经验分：F 靠左（手鼓）、J 靠右（铁环）、空格中间（萨帕依）。
+
+     **这里原来是坏的，用户报了"按空格没反应"，根因就是下面这个判断。**
+     原写法：`if (tag === 'BUTTON' && ev.code === 'Space') return;`
+     —— 本意是"焦点在按钮上时空格是在按按钮，别抢"。
+     但代价是：只要用户点过**任何一个**按钮（模式切换、三段切换），
+     焦点就留在那个按钮上，之后**空格永远敲不响**。
+     用户的感觉就是"空格没反应"，而且看不到原因。
+
+     正确的做法：**只在焦点落在一个真的会吃掉空格的表单控件上时才让路。**
+     站内这一块自己的按钮（模式 / 段）都是用 click 处理的，
+     浏览器对 <button> 的空格也是转成 click —— 我们 preventDefault
+     拦下来不会让它们失灵（用户想切模式会用鼠标点或用 Tab+回车）。
+     真正要让的是 input / textarea / select：那些地方空格是打字。
+
+     ——顺带说清一个设计取舍——
+     鼓是全站共用的"空格是敲鼓"这个约定（节奏台、序章鼓都是），
+     所以空格优先给鼓，是这一站该有的行为。 */
+  const TYPE_INPUTS = ['INPUT', 'TEXTAREA', 'SELECT'];
   function onKey(ev) {
     if (mode !== 'manual') return;
-    /* 焦点在按钮上时空格是在按按钮，别抢 */
-    const tag = (ev.target && ev.target.tagName) || '';
-    if (tag === 'BUTTON' && ev.code === 'Space') return;
+    const el2 = ev.target;
+    const tag = (el2 && el2.tagName) || '';
+    if (TYPE_INPUTS.indexOf(tag) >= 0) return;          // 在输入框里：让路
+    if (el2 && el2.isContentEditable) return;           // 在可编辑区域：让路
     const map = { Space: 0.5, KeyF: 0.15, KeyJ: 0.85 };
     const frac = map[ev.code];
     if (frac === undefined) return;
