@@ -343,6 +343,7 @@ export function buildCircle(opts) {
         : count >= MAX ? '圈满了' : '再点一下';
     }
     svg.style.setProperty('--mq-heat', (count / MAX).toFixed(3));
+    hit.setAttribute('aria-label',count>=MAX?'重新开始麦西热甫圆圈':'往麦西热甫圆圈里加一个人，当前 '+count+' 人');
     if (opts.onChange) opts.onChange(count, MAX);
   };
 
@@ -355,9 +356,11 @@ export function buildCircle(opts) {
     if (okBeat === null) return add();      // 鼓还没起（比如声音关着）→ 放行
     if (okBeat) {
       if (opts.onHit) opts.onHit('on');
+      say('踩上了 · 一起进圈', true);
       return add();
     }
     if (opts.onHit) opts.onHit('off', offBeat());
+    say('等下一个鼓点，再试一次', false);
     /* 踩偏：圈子抖一下，但不进人 */
     if (!opts.reduced) {
       svg.classList.remove('is-miss');
@@ -387,6 +390,11 @@ export function buildCircle(opts) {
     // 22 个人以上转得快一点（热闹起来了）
     spin += dt * 0.00004 * (1 + count / MAX);
     sway += dt * 0.001;
+    const phase=opts.beatPhase?opts.beatPhase():null;
+    const beat=phase==null?0:Math.pow(1-phase,4);
+    svg.style.setProperty('--mq-beat',beat.toFixed(3));
+    pulse.setAttribute('r',String(R_PERSON+beat*8));
+    cap.classList.toggle('is-beat',rhythmOn&&phase!=null&&Math.min(phase,1-phase)<=TOL);
     place();
     swing();
     tickBurst(dt);          // 庆祝动画也在这个循环里推进
@@ -407,10 +415,12 @@ export function buildCircle(opts) {
     const heat = 0.35 + 0.65 * (count / MAX);
     nodes.forEach((g) => {
       const ph = parseFloat(g.dataset.ph) || 0;
-      const s = Math.sin(sway * 2.6 + ph);
+      const beatPhase=opts.beatPhase?opts.beatPhase():null;
+      const clock=beatPhase==null?sway*2.6:beatPhase*Math.PI*2;
+      const s=Math.sin(clock+ph*.15);
       g.style.setProperty('--swing', (s * heat).toFixed(3));
       /* 裙摆慢半拍、幅度小一点 —— 和手臂同相会显得僵硬 */
-      const s2 = Math.sin(sway * 2.6 + ph - 0.7);
+      const s2 = Math.sin(clock + ph * .15 - .7);
       g.style.setProperty('--sway', (s2 * heat).toFixed(3));
     });
   };

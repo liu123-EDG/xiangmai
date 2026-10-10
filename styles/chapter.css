@@ -2383,3 +2383,25 @@ body.is-cut .mq__floor {
 @media (max-width: 640px) {
   .colophon__marks { flex-direction: column; align-items: center; gap: 0.4rem; }
 }
+
+/* Meshrep: visual roles and direct experience links. */
+.mesh-entry{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:2rem}
+.mesh-entry a{display:grid;gap:.4rem;padding:1rem 1.3rem;border:1px solid rgba(232,201,143,.35);color:var(--bone);text-decoration:none;background:rgba(10,9,8,.75)}
+.mesh-entry a span{color:var(--bone-faint);font-size:.78rem}
+.mesh-entry a:hover,.mesh-entry a:focus-visible{border-color:var(--amber);background:#211b14}
+.mesh-ensemble{margin-top:2rem;padding:clamp(1rem,3vw,2rem);border:1px solid rgba(232,201,143,.2);background:rgba(10,9,8,.88);color:var(--bone)}
+.mesh-ensemble__choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:1.2rem 0}
+.mesh-ensemble button{display:grid;justify-items:center;gap:.5rem;min-width:0;padding:.8rem .4rem;border:1px solid rgba(232,201,143,.18);color:var(--bone);background:transparent;font:inherit;cursor:pointer}
+.mesh-ensemble button[aria-pressed="true"]{border-color:var(--amber);background:rgba(192,138,62,.12)}
+.mesh-ensemble button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.mesh-ensemble svg{width:min(100%,140px);fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;color:var(--amber);transition:transform .3s}
+.mesh-ensemble button[aria-pressed="true"] svg{transform:translateY(-5px)}
+.mesh-ensemble button b{font-size:.9rem;font-weight:500}
+.mesh-ensemble button span,.mesh-ensemble small{color:var(--bone-faint);font-size:.72rem}
+.mesh-ensemble__detail{min-height:5em;line-height:1.9;font-size:.9rem}
+body[data-part="mashrap"] .mq-host{padding:1rem;box-sizing:border-box;border:1px solid rgba(232,201,143,.2);border-radius:50% 50% 1rem 1rem;background:radial-gradient(ellipse at 50% 40%,rgba(34,26,18,.96),rgba(10,9,8,.94) 70%);box-shadow:0 20px 80px rgba(0,0,0,.3)}
+body[data-part="mashrap"] .mq__pulse{animation:none;stroke-opacity:calc(.35 + var(--mq-beat,0) * .65);stroke-width:calc(1.4px + var(--mq-beat,0) * 1.6px)}
+.mq__cap.is-beat{fill:var(--amber)}
+body[data-part="mashrap"] .mq-mode__btn{min-height:48px;color:var(--bone)}
+@media(max-width:480px){.mesh-entry{display:grid}.mesh-ensemble__choices{gap:.35rem}.mesh-ensemble button b{font-size:.78rem}}
+@media(prefers-reduced-motion:reduce){.mesh-ensemble svg{transition:none}.mesh-ensemble button[aria-pressed="true"] svg{transform:none}}

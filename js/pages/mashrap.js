@@ -14,6 +14,21 @@ import { buildFullCircleFilm } from '../lib/fullfilm.js';
 import { buildRhythmLab } from '../lib/rhythm-lab.js';
 
 renderPart();
+const heroInner=document.querySelector('.chapter-hero__inner');
+if(heroInner)heroInner.insertAdjacentHTML('beforeend','<nav class="mesh-entry reveal" aria-label="本章体验入口"><a href="#mq-act">进入舞圈 <span>让人物与鼓点一起动起来 ↗</span></a><a href="#rlab-act">试奏节奏 <span>自己敲，听见从疏到密 ↗</span></a></nav>');
+const ensembleSection=document.querySelectorAll('#part-body > .act')[1];
+if(ensembleSection){
+const items=[
+{name:'手鼓 · 达普',role:'立起节奏',text:'手鼓给出清晰的节奏骨架。接着到节奏台，试着敲出自己的鼓点。',shape:'<ellipse cx="80" cy="73" rx="43" ry="48"/><ellipse cx="80" cy="73" rx="35" ry="40"/><path d="M49 113L42 137M111 113L118 137"/>'},
+{name:'萨帕依',role:'填入铁环声',text:'带铁环的打击乐器在摇动中发声。它与手鼓形成不同的声音层次；在节奏台里观察记号怎样填入空隙。',shape:'<path d="M71 145L71 47Q80 31 89 47L89 145M71 116L89 116"/><circle cx="60" cy="57" r="20"/><circle cx="100" cy="57" r="20"/><circle cx="60" cy="78" r="17"/><circle cx="100" cy="78" r="17"/>'},
+{name:'舞者',role:'把节奏变成动作',text:'人一个一个加入，舞圈逐渐成形。到下方舞圈体验自由加入，也可以打开“跟着鼓点跳”，感受落在拍上的时刻。',shape:'<circle cx="80" cy="43" r="12"/><path d="M67 32L93 32L89 23L71 23ZM70 60Q80 53 90 60L98 100L114 132L46 132L62 100ZM70 68L46 81L32 61M90 68L111 51L127 64M65 133L59 149M95 133L101 149"/>'}
+];
+const box=document.createElement('div');box.className='mesh-ensemble';
+box.innerHTML='<p>选一个角色，看它怎样参与这场聚会</p><div class="mesh-ensemble__choices">'+items.map((x,i)=>'<button type="button" aria-pressed="'+(i===0)+'" data-role="'+i+'"><svg viewBox="0 0 160 170" aria-hidden="true">'+x.shape+'</svg><b>'+x.name+'</b><span>'+x.role+'</span></button>').join('')+'</div><p class="mesh-ensemble__detail" aria-live="polite">'+items[0].text+'</p><small>乐器与人物为示意图案，非实拍或舞蹈动作教学。</small>';
+ensembleSection.querySelector('.act__inner').appendChild(box);
+box.addEventListener('click',event=>{const button=event.target.closest('button[data-role]');if(!button)return;box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));box.querySelector('.mesh-ensemble__detail').textContent=items[Number(button.dataset.role)].text;});
+}
+
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
 
 const host = document.getElementById('mq-host');
@@ -152,6 +167,8 @@ const circle = buildCircle({
     },
     onChange: (n, max) => {
       const r = n / max;
+      const hint=document.getElementById('mq-hint');
+      if(hint)hint.classList.toggle('is-done',n>=max);
       // 驱动背景纹样：人越多越亮、越推近
       if (ctx.renderer) {
         ctx.renderer.heat = r;

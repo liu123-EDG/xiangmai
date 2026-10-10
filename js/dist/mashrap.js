@@ -3179,6 +3179,7 @@ function buildCircle(opts) {
         : count >= MAX ? '圈满了' : '再点一下';
     }
     svg.style.setProperty('--mq-heat', (count / MAX).toFixed(3));
+    hit.setAttribute('aria-label',count>=MAX?'重新开始麦西热甫圆圈':'往麦西热甫圆圈里加一个人，当前 '+count+' 人');
     if (opts.onChange) opts.onChange(count, MAX);
   };
 
@@ -3191,9 +3192,11 @@ function buildCircle(opts) {
     if (okBeat === null) return add();      // 鼓还没起（比如声音关着）→ 放行
     if (okBeat) {
       if (opts.onHit) opts.onHit('on');
+      say('踩上了 · 一起进圈', true);
       return add();
     }
     if (opts.onHit) opts.onHit('off', offBeat());
+    say('等下一个鼓点，再试一次', false);
     /* 踩偏：圈子抖一下，但不进人 */
     if (!opts.reduced) {
       svg.classList.remove('is-miss');
@@ -3223,6 +3226,11 @@ function buildCircle(opts) {
     // 22 个人以上转得快一点（热闹起来了）
     spin += dt * 0.00004 * (1 + count / MAX);
     sway += dt * 0.001;
+    const phase=opts.beatPhase?opts.beatPhase():null;
+    const beat=phase==null?0:Math.pow(1-phase,4);
+    svg.style.setProperty('--mq-beat',beat.toFixed(3));
+    pulse.setAttribute('r',String(R_PERSON+beat*8));
+    cap.classList.toggle('is-beat',rhythmOn&&phase!=null&&Math.min(phase,1-phase)<=TOL);
     place();
     swing();
     tickBurst(dt);          // 庆祝动画也在这个循环里推进
@@ -3243,10 +3251,12 @@ function buildCircle(opts) {
     const heat = 0.35 + 0.65 * (count / MAX);
     nodes.forEach((g) => {
       const ph = parseFloat(g.dataset.ph) || 0;
-      const s = Math.sin(sway * 2.6 + ph);
+      const beatPhase=opts.beatPhase?opts.beatPhase():null;
+      const clock=beatPhase==null?sway*2.6:beatPhase*Math.PI*2;
+      const s=Math.sin(clock+ph*.15);
       g.style.setProperty('--swing', (s * heat).toFixed(3));
       /* 裙摆慢半拍、幅度小一点 —— 和手臂同相会显得僵硬 */
-      const s2 = Math.sin(sway * 2.6 + ph - 0.7);
+      const s2 = Math.sin(clock + ph * .15 - .7);
       g.style.setProperty('--sway', (s2 * heat).toFixed(3));
     });
   };
@@ -4949,6 +4959,21 @@ var buildRhythmLab = __XM[10]["buildRhythmLab"];
 
 
 renderPart();
+const heroInner=document.querySelector('.chapter-hero__inner');
+if(heroInner)heroInner.insertAdjacentHTML('beforeend','<nav class="mesh-entry reveal" aria-label="本章体验入口"><a href="#mq-act">进入舞圈 <span>让人物与鼓点一起动起来 ↗</span></a><a href="#rlab-act">试奏节奏 <span>自己敲，听见从疏到密 ↗</span></a></nav>');
+const ensembleSection=document.querySelectorAll('#part-body > .act')[1];
+if(ensembleSection){
+const items=[
+{name:'手鼓 · 达普',role:'立起节奏',text:'手鼓给出清晰的节奏骨架。接着到节奏台，试着敲出自己的鼓点。',shape:'<ellipse cx="80" cy="73" rx="43" ry="48"/><ellipse cx="80" cy="73" rx="35" ry="40"/><path d="M49 113L42 137M111 113L118 137"/>'},
+{name:'萨帕依',role:'填入铁环声',text:'带铁环的打击乐器在摇动中发声。它与手鼓形成不同的声音层次；在节奏台里观察记号怎样填入空隙。',shape:'<path d="M71 145L71 47Q80 31 89 47L89 145M71 116L89 116"/><circle cx="60" cy="57" r="20"/><circle cx="100" cy="57" r="20"/><circle cx="60" cy="78" r="17"/><circle cx="100" cy="78" r="17"/>'},
+{name:'舞者',role:'把节奏变成动作',text:'人一个一个加入，舞圈逐渐成形。到下方舞圈体验自由加入，也可以打开“跟着鼓点跳”，感受落在拍上的时刻。',shape:'<circle cx="80" cy="43" r="12"/><path d="M67 32L93 32L89 23L71 23ZM70 60Q80 53 90 60L98 100L114 132L46 132L62 100ZM70 68L46 81L32 61M90 68L111 51L127 64M65 133L59 149M95 133L101 149"/>'}
+];
+const box=document.createElement('div');box.className='mesh-ensemble';
+box.innerHTML='<p>选一个角色，看它怎样参与这场聚会</p><div class="mesh-ensemble__choices">'+items.map((x,i)=>'<button type="button" aria-pressed="'+(i===0)+'" data-role="'+i+'"><svg viewBox="0 0 160 170" aria-hidden="true">'+x.shape+'</svg><b>'+x.name+'</b><span>'+x.role+'</span></button>').join('')+'</div><p class="mesh-ensemble__detail" aria-live="polite">'+items[0].text+'</p><small>乐器与人物为示意图案，非实拍或舞蹈动作教学。</small>';
+ensembleSection.querySelector('.act__inner').appendChild(box);
+box.addEventListener('click',event=>{const button=event.target.closest('button[data-role]');if(!button)return;box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));box.querySelector('.mesh-ensemble__detail').textContent=items[Number(button.dataset.role)].text;});
+}
+
 const ctx = bootChapter({ active: 'mashrap', soundBand: 2, mode: 'pattern' });
 
 const host = document.getElementById('mq-host');
@@ -5087,6 +5112,8 @@ const circle = buildCircle({
     },
     onChange: (n, max) => {
       const r = n / max;
+      const hint=document.getElementById('mq-hint');
+      if(hint)hint.classList.toggle('is-done',n>=max);
       // 驱动背景纹样：人越多越亮、越推近
       if (ctx.renderer) {
         ctx.renderer.heat = r;
